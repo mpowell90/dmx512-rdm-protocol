@@ -48,14 +48,11 @@ impl Driver {
         }
     }
 
-    pub fn send_dmx_packet(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
-        let len = buf.len();
-        if len > DMX_UNIVERSE_MAX_CHANNELS {
-            return Err(std::io::Error::new(
-                io::ErrorKind::Other,
-                "Dmx packet out of bound. Must be smaller than 512 bytes",
-            ));
-        }
+    pub fn path(&self) -> Option<String> {
+        self.path.clone()
+    }
+
+    fn create_packet(buf: &[u8]) -> Vec<u8> {
         let mut packet: Vec<u8> = Vec::new();
         packet.write_u8(ENTTEC_PACKET_START_BYTE).unwrap();
         packet
@@ -67,10 +64,24 @@ impl Driver {
         packet.write_u8(DMX_START_CODE).unwrap();
         packet.write(buf).unwrap();
         packet.write_u8(ENTTEC_PACKET_STOP_BYTE).unwrap();
-        self.port.write(packet.as_slice())
+        packet
     }
 
-    pub fn path(&self) -> Option<String> {
-        self.path.clone()
+    pub fn send_dmx_packet(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+        let len = buf.len();
+        if len > DMX_UNIVERSE_MAX_CHANNELS {
+            return Err(std::io::Error::new(
+                io::ErrorKind::Other,
+                "Dmx packet out of bound. Must be smaller than 512 bytes",
+            ));
+        }
+        let mut dmx: Vec<u8> = Vec::new();
+        dmx.write_u8(DMX_START_CODE).unwrap();
+        dmx.write(buf).unwrap();
+        self.port.write(Self::create_packet(dmx.as_slice()).as_slice())
+    }
+
+    pub fn send_rdm_packet(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+        self.port.write(Self::create_packet(buf).as_slice())
     }
 }
