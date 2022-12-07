@@ -11,20 +11,29 @@ impl DeviceUID {
             device_id,
         }
     }
+
+    pub fn broadcast_all_devices() -> Self {
+        DeviceUID {
+            manufacturer_id: 0xffff,
+            device_id: 0xffffffff,
+        }
+    }
 }
 
 impl From<u64> for DeviceUID {
     fn from(value: u64) -> Self {
+        println!("{:02X?}", ((value >> 32_u64) & (0xffff as u64)));
+
         DeviceUID {
-            manufacturer_id: (value & 0xff0000) as u16,
-            device_id: (value & 0xffff) as u32,
+            manufacturer_id: ((value >> 32_u64) & (0xffff as u64)) as u16,
+            device_id: (value & 0xffffffff) as u32,
         }
     }
 }
 
 impl From<DeviceUID> for u64 {
     fn from(device_uid: DeviceUID) -> u64 {
-        ((device_uid.manufacturer_id as u64) << 16u64) + device_uid.device_id as u64
+        ((device_uid.manufacturer_id as u64) << 32u64) + device_uid.device_id as u64
     }
 }
 
@@ -48,9 +57,9 @@ impl From<&[u8]> for DeviceUID {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct Device {
-    uid: Option<DeviceUID>,
+    uid: DeviceUID,
     protocol_version: Option<u16>,
     protocol_version_string: Option<String>,
     model_id: Option<u16>,
@@ -67,8 +76,18 @@ pub struct Device {
 impl From<DeviceUID> for Device {
     fn from(device_uid: DeviceUID) -> Self {
         Device {
-            uid: Some(device_uid),
-            ..Default::default()
+            uid: device_uid,
+            protocol_version: None,
+            protocol_version_string: None,
+            model_id: None,
+            model_description: None,
+            product_category: None,
+            software_version_id: None,
+            footprint: None,
+            personality: None,
+            start_address: None,
+            sub_device_count: None,
+            sensor_count: None,
         }
     }
 }

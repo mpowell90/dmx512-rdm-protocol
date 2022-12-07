@@ -102,13 +102,13 @@ impl From<&[u8]> for ParameterId {
     }
 }
 
-
 fn bsd_16_crc(packet: &Vec<u8>) -> u16 {
     packet
         .iter()
         .fold(0_u16, |sum, byte| (sum.overflowing_add(*byte as u16).0))
 }
 
+#[derive(Debug)]
 pub enum ResponseType {
     Ack = 0x00,
     AckTimer = 0x01,
@@ -143,4 +143,64 @@ enum ResponseNackReasonCode {
     PacketSizeUnsupported = 0x0008,
     SubDeviceOutOfRange = 0x0009,
     ProxyBufferFull = 0x000a,
+}
+
+enum LampState {
+    LampOff = 0x00,
+    LampOn = 0x01,
+    LampStrike = 0x02,
+    LampStandby = 0x03,
+    LampNotPresent = 0x04,
+    LampError = 0x05, // 0x00 = "Lamp Off",
+                      // 0x01 = "Lamp On",
+                      // 0x02 = "Lamp Strike",
+                      // 0x03 = "Lamp Standby",
+                      // 0x04 = "Lamp Not Present",
+                      // 0x05 = "Lamp Error",
+}
+
+enum LampOnMode {
+    OffMode = 0x00,
+    DmxMode = 0x01,
+    OnMode = 0x02,
+    AfterCal = 0x03,
+    // 0x00 = "Off Mode",
+    // 0x01 = "DMX Mode",
+    // 0x02 = "On Mode",
+    // 0x03 = "After Cal",
+}
+
+enum POWER_STATES {
+    FullOff = 0x00,
+    Shutdown = 0x01,
+    Standby = 0x02,
+    Normal = 0xff, // 0x00 = "Full Off",
+                   // 0x01 = "Shutdown",
+                   // 0x02 = "Standby",
+                   // 0xff = "Normal",
+}
+
+enum COMMAND_CLASSES {
+    Get = 0x01,
+    Set = 0x02,
+    GetSet = 0x03,
+    // 0x01 = "Get",
+    // 0x02 = "Set",
+    // 0x03 = "Get / Set",
+}
+
+enum ON_OFF_STATES {
+    Off = 0x00,
+    On = 0x01,
+    // 0x00 = "Off",
+    // 0x01 = "On",
+}
+
+enum DISPLAY_INVERT_MODES {
+    Off = 0x00,
+    On = 0x01,
+    Auto = 0x02,
+    // 0x00 = "Off",
+    // 0x01 = "On",
+    // 0x02 = "Auto",
 }

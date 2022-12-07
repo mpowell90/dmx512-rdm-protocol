@@ -1,4 +1,4 @@
-use super::{device::DeviceUID, CommandClass, ParameterId, ResponseType, bsd_16_crc};
+use super::{bsd_16_crc, device::DeviceUID, CommandClass, ParameterId, ResponseType};
 
 pub struct ResponseHeader {
     destination_uid: DeviceUID,
@@ -12,6 +12,7 @@ pub struct ResponseHeader {
     parameter_data_length: u8,
 }
 
+#[derive(Debug)]
 pub struct Response<T> {
     destination_uid: DeviceUID,
     source_uid: DeviceUID,
@@ -57,14 +58,11 @@ impl<T> Response<T> {
     }
 }
 
-struct DiscUniqueBranchResponse {
-    device_uid: DeviceUID,
-    euid: Vec<u8>,
-    ecs: Vec<u8>,
-    checksum: u16,
+#[derive(Debug)]
+pub struct DiscUniqueBranchResponse {
+    pub device_uid: DeviceUID,
 }
 
-// TODO add error handling for TryFrom Result
 impl TryFrom<Vec<u8>> for DiscUniqueBranchResponse {
     type Error = &'static str;
 
@@ -74,32 +72,24 @@ impl TryFrom<Vec<u8>> for DiscUniqueBranchResponse {
             .position(|&x| x == 0xaa) // &x -> accessing the element value by reference
             .unwrap();
 
-        let euid = Vec::from(&packet[euid_start_index..packet.len() - 4]);
+        let euid = Vec::from(&packet[(euid_start_index + 1)..=(euid_start_index + 12)]);
 
-        let ecs = Vec::from(&packet[(packet.len() - 4)..packet.len()]);
+        let ecs = Vec::from(&packet[(euid_start_index + 13)..=(euid_start_index + 16)]);
 
         let decoded_checksum = bsd_16_crc(&euid);
 
-        // let checksum = Buffer.from([ecs.0 & ecs[1], ecs[2] & ecs[3]]).readUInt16BE(0);
-        let checksum = (((ecs[0] & ecs[1]) << 8_u16) + ecs[2] & ecs[3]) as u16;
+        let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
 
         if checksum != decoded_checksum {
             return Err("Checksum does not match decoded checksum");
         }
 
-        // TODO if checksum is incorrect then multiple devices have responded to the current branch
-        let manufacturer_id = (((euid[0] & euid[1]) << 8_u16) + euid[2] & euid[3]) as u16;
+        let manufacturer_id = u16::from_be_bytes([euid[0] & euid[1], euid[2] & euid[3]]);
 
-        let device_id = (((euid[4] & euid[5]) << 24_u32)
-            + ((euid[6] & euid[7]) << 16_u32)
-            + ((euid[8] & euid[9]) << 8_u32)
-            + (euid[10] & euid[11])) as u32;
+        let device_id = u32::from_be_bytes([euid[4] & euid[5], euid[6] & euid[7], euid[8] & euid[9], euid[10] & euid[11]]);
 
         Ok(DiscUniqueBranchResponse {
             device_uid: DeviceUID::new(manufacturer_id, device_id),
-            euid,
-            ecs,
-            checksum,
         })
     }
 }
@@ -223,7 +213,7 @@ impl From<Vec<u8>> for ProxiedDeviceCountResponse {
     fn from(bytes: Vec<u8>) -> Self {
         ProxiedDeviceCountResponse {
             device_count: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
-            list_change: bytes[2] != 0
+            list_change: bytes[2] != 0,
         }
     }
 }
@@ -271,7 +261,7 @@ pub struct ProxiedDevicesResponse {
 impl From<Vec<u8>> for ProxiedDevicesResponse {
     fn from(bytes: Vec<u8>) -> Self {
         ProxiedDevicesResponse {
-            device_uids: bytes.chunks(6).map(DeviceUID::from).collect()
+            device_uids: bytes.chunks(6).map(DeviceUID::from).collect(),
         }
     }
 }
@@ -319,7 +309,7 @@ pub struct SupportParametersResponse {
 impl From<Vec<u8>> for SupportParametersResponse {
     fn from(bytes: Vec<u8>) -> Self {
         SupportParametersResponse {
-            parameter_ids: bytes.chunks(2).map(ParameterId::from).collect()
+            parameter_ids: bytes.chunks(2).map(ParameterId::from).collect(),
         }
     }
 }
@@ -383,7 +373,7 @@ impl From<Vec<u8>> for ParameterDescriptionResponse {
             minimum_valid_value: u32::from_be_bytes(bytes[8..=9].try_into().unwrap()),
             maximum_valid_value: u32::from_be_bytes(bytes[10..=11].try_into().unwrap()),
             default_value: u32::from_be_bytes(bytes[12..=13].try_into().unwrap()),
-            description: String::from_utf8(bytes[14..].to_vec()).unwrap()
+            description: String::from_utf8(bytes[14..].to_vec()).unwrap(),
         }
     }
 }
@@ -424,6 +414,7 @@ impl TryFrom<Vec<u8>> for Response<ParameterDescriptionResponse> {
     }
 }
 
+#[derive(Debug)]
 pub struct DeviceInfoResponse {
     rdm_protocol_version: u16,
     device_model_id: u16,
@@ -438,6 +429,7 @@ pub struct DeviceInfoResponse {
 
 impl From<Vec<u8>> for DeviceInfoResponse {
     fn from(bytes: Vec<u8>) -> Self {
+        let bytes = bytes[..=18].to_vec();
         DeviceInfoResponse {
             rdm_protocol_version: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
             device_model_id: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
@@ -468,10 +460,11 @@ impl TryFrom<Vec<u8>> for Response<DeviceInfoResponse> {
             parameter_data_length,
         } = Response::<()>::parse_packet_header(packet.clone());
 
-        let parameter_data: DeviceInfoResponse =
-            Vec::from(&packet[24..(packet.len() + parameter_data_length as usize)])
-                .try_into()
-                .unwrap();
+        let parameter_data: DeviceInfoResponse = DeviceInfoResponse::from(packet[24..=(24 + parameter_data_length as usize)].to_vec());
+
+            // Vec::from(&packet[24..(packet.len() + parameter_data_length as usize)])
+            //     .try_into()
+            //     .unwrap();
 
         Ok(Response {
             destination_uid,
@@ -495,7 +488,10 @@ pub struct ProductDetailIdListResponse {
 impl From<Vec<u8>> for ProductDetailIdListResponse {
     fn from(bytes: Vec<u8>) -> Self {
         ProductDetailIdListResponse {
-            product_detail_ids: bytes.chunks(2).map(|id| u16::from_be_bytes(id.try_into().unwrap())).collect()
+            product_detail_ids: bytes
+                .chunks(2)
+                .map(|id| u16::from_be_bytes(id.try_into().unwrap()))
+                .collect(),
         }
     }
 }
@@ -543,7 +539,7 @@ pub struct DeviceModelDescriptionResponse {
 impl From<Vec<u8>> for DeviceModelDescriptionResponse {
     fn from(bytes: Vec<u8>) -> Self {
         DeviceModelDescriptionResponse {
-            description: String::from_utf8(bytes).unwrap()
+            description: String::from_utf8(bytes).unwrap(),
         }
     }
 }
@@ -591,7 +587,7 @@ pub struct DeviceModelManufacturerLabelResponse {
 impl From<Vec<u8>> for DeviceModelManufacturerLabelResponse {
     fn from(bytes: Vec<u8>) -> Self {
         DeviceModelManufacturerLabelResponse {
-            manufacturer_label: String::from_utf8(bytes).unwrap()
+            manufacturer_label: String::from_utf8(bytes).unwrap(),
         }
     }
 }
@@ -632,14 +628,16 @@ impl TryFrom<Vec<u8>> for Response<DeviceModelManufacturerLabelResponse> {
     }
 }
 
+#[derive(Debug)]
 pub struct DeviceLabelResponse {
     label: String,
 }
 
 impl From<Vec<u8>> for DeviceLabelResponse {
     fn from(bytes: Vec<u8>) -> Self {
+        let bytes = bytes[..=32].to_vec();
         DeviceLabelResponse {
-            label: String::from_utf8(bytes).unwrap()
+            label: String::from_utf8(bytes).unwrap(),
         }
     }
 }
@@ -687,7 +685,7 @@ pub struct FactoryDefaultsResponse {
 impl From<Vec<u8>> for FactoryDefaultsResponse {
     fn from(bytes: Vec<u8>) -> Self {
         FactoryDefaultsResponse {
-            factory_default: bytes[0] != 0
+            factory_default: bytes[0] != 0,
         }
     }
 }
@@ -735,7 +733,7 @@ pub struct SoftwareVersionLabelResponse {
 impl From<Vec<u8>> for SoftwareVersionLabelResponse {
     fn from(bytes: Vec<u8>) -> Self {
         SoftwareVersionLabelResponse {
-            software_label_version: String::from_utf8(bytes).unwrap()
+            software_label_version: String::from_utf8(bytes).unwrap(),
         }
     }
 }

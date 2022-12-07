@@ -42,7 +42,6 @@ impl<T> Request<T> {
         let mut packet = Vec::new();
         packet.write_u8(SC_RDM).unwrap(); // Start Code
         packet.write_u8(SC_SUB_MESSAGE).unwrap(); // Sub Start Code
-
         packet.write_u8(24_u8 + parameter_data.len() as u8).unwrap(); // Message Length: Range 24 to 255 excluding the checksum
         packet
             .write_u48::<BigEndian>(self.destination_uid.into())
@@ -58,7 +57,14 @@ impl<T> Request<T> {
         packet
             .write_u16::<BigEndian>(self.parameter_id as u16)
             .unwrap();
-        packet.extend(parameter_data);
+        
+        let parameter_data_len = parameter_data.len() as u8;
+
+        packet.write_u8(parameter_data_len as u8).unwrap();
+
+        if parameter_data_len > 0 {
+            packet.extend(parameter_data);
+        }
 
         packet.write_u16::<BigEndian>(bsd_16_crc(&packet)).unwrap();
         packet
@@ -100,11 +106,20 @@ impl From<DiscUniqueBranchRequest> for Vec<u8> {
     }
 }
 
-
 impl From<Request<DiscUniqueBranchRequest>> for Vec<u8> {
     fn from(request: Request<DiscUniqueBranchRequest>) -> Vec<u8> {
         let parameter_data: Vec<u8> = request.parameter_data.unwrap().into();
         request.create_packet(parameter_data)
+    }
+}
+
+#[derive(Debug)]
+pub struct DiscUnmuteRequest {}
+
+impl From<Request<DiscUnmuteRequest>> for Vec<u8> {
+    fn from(request: Request<DiscUnmuteRequest>) -> Vec<u8> {
+        // let parameter_data: Vec<u8> = request.parameter_data.unwrap().into();
+        request.create_packet(Vec::new())
     }
 }
 
@@ -129,18 +144,51 @@ impl From<Request<ParameterDescriptionRequest>> for Vec<u8> {
 
 #[derive(Clone, Debug)]
 pub struct DeviceLabelRequest {
-    label: String,
+    label: Option<String>,
 }
 
 impl From<DeviceLabelRequest> for Vec<u8> {
     fn from(parameter_description_request: DeviceLabelRequest) -> Vec<u8> {
-        parameter_description_request.label.into_bytes()
+        if let Some(string) = parameter_description_request.label {
+            string.into_bytes()
+        } else {
+            Vec::new()
+        }
     }
 }
 
 impl From<Request<DeviceLabelRequest>> for Vec<u8> {
     fn from(request: Request<DeviceLabelRequest>) -> Vec<u8> {
-        let parameter_data: Vec<u8> = request.parameter_data.clone().unwrap().into();
+        let parameter_data: Vec<u8> = if let Some(device_label) = request.parameter_data.clone() {
+            if let Some(label) = device_label.label {
+                label.into_bytes()
+            } else {
+                
+                Vec::new()
+            }
+        } else {
+            Vec::new()
+        };
+        // let parameter_data: Vec<u8> = request.parameter_data.clone().unwrap().into();
         request.create_packet(parameter_data)
+    }
+}
+
+pub struct DeviceInfoRequest();
+
+impl From<Request<DeviceInfoRequest>> for Vec<u8> {
+    fn from(request: Request<DeviceInfoRequest>) -> Vec<u8> {
+        // let parameter_data: Vec<u8> = if let Some(device_label) = request.parameter_data.clone() {
+        //     if let Some(label) = device_label.label {
+        //         label.into_bytes()
+        //     } else {
+                
+        //         Vec::new()
+        //     }
+        // } else {
+        //     Vec::new()
+        // };
+        // let parameter_data: Vec<u8> = request.parameter_data.clone().unwrap().into();
+        request.create_packet(Vec::new())
     }
 }
