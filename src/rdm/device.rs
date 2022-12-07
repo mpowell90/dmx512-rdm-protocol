@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct DeviceUID {
     manufacturer_id: u16,
     device_id: u32,
@@ -59,18 +59,19 @@ impl From<&[u8]> for DeviceUID {
 
 #[derive(Clone, Debug)]
 pub struct Device {
-    uid: DeviceUID,
-    protocol_version: Option<u16>,
-    protocol_version_string: Option<String>,
-    model_id: Option<u16>,
-    model_description: Option<String>,
-    product_category: Option<u16>,
-    software_version_id: Option<u32>,
-    footprint: Option<u16>,
-    personality: Option<u16>,
-    start_address: Option<u16>,
-    sub_device_count: Option<u16>,
-    sensor_count: Option<u8>,
+    pub uid: DeviceUID,
+    pub protocol_version: Option<String>,
+    pub model_id: Option<u16>,
+    pub model_description: Option<String>,
+    pub product_category_coarse: Option<u8>,
+    pub product_category_fine: Option<u8>,
+    pub software_version_id: Option<u32>,
+    pub footprint: Option<u16>,
+    pub current_personality: Option<u8>,
+    pub total_personalities: Option<u8>,
+    pub start_address: Option<u16>,
+    pub sub_device_count: Option<u16>,
+    pub sensor_count: Option<u8>,
 }
 
 impl From<DeviceUID> for Device {
@@ -78,13 +79,14 @@ impl From<DeviceUID> for Device {
         Device {
             uid: device_uid,
             protocol_version: None,
-            protocol_version_string: None,
             model_id: None,
             model_description: None,
-            product_category: None,
+            product_category_coarse: None,
+            product_category_fine: None,
             software_version_id: None,
             footprint: None,
-            personality: None,
+            current_personality: None,
+            total_personalities: None,
             start_address: None,
             sub_device_count: None,
             sensor_count: None,

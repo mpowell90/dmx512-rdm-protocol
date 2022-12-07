@@ -2,9 +2,9 @@ mod enttecdmxusbpro;
 mod rdm;
 
 use std::{
-    collections::VecDeque,
+    collections::{HashMap, VecDeque},
     io::{self, Write},
-    sync::{mpsc, Arc, Mutex},
+    sync::mpsc,
     thread,
     time::Duration,
 };
@@ -42,7 +42,7 @@ fn main() {
 
     // Setup initial state
     let mut queue: VecDeque<Vec<u8>> = VecDeque::new();
-    let mut devices: Vec<Device> = Vec::new();
+    let mut devices: HashMap<DeviceUID, Device> = HashMap::new();
 
     // This is the known uid for the test Enttec DMXUSBPRO device
     let source_uid = DeviceUID::new(0x454e, 0x02137670);
@@ -106,7 +106,7 @@ fn main() {
     loop {
         // Log any changes in devices
         if last_device_count != devices.len() {
-            println!("Found device count: {:?}", devices);
+            println!("Found device count: {:#?}", devices);
             last_device_count = devices.len();
         }
 
@@ -150,9 +150,10 @@ fn main() {
                     PacketResponseDataType::DiscoveryResponse => {
                         match DiscUniqueBranchResponse::try_from(packet_data.clone()) {
                             Ok(disc_unique_response) => {
-                                println!("Parsed Discovery Response: {:#?}", &disc_unique_response);
-
-                                devices.push(Device::from(disc_unique_response.device_uid));
+                                devices.insert(
+                                    disc_unique_response.device_uid,
+                                    Device::from(disc_unique_response.device_uid),
+                                );
 
                                 // Set up subsequent messages to find for the newly found device
                                 let get_device_info: Request<DeviceInfoRequest> = Request::new(
@@ -185,10 +186,31 @@ fn main() {
                                 match Response::<DeviceInfoResponse>::try_from(packet_data.clone())
                                 {
                                     Ok(device_info_response) => {
-                                        println!(
-                                            "Parsed DeviceInfo Response: {:#02X?}",
-                                            &device_info_response
-                                        );
+                                        if let (Some(device), Some(data)) = (
+                                            devices.get_mut(&device_info_response.source_uid),
+                                            device_info_response.parameter_data,
+                                        ) {
+                                            device.protocol_version = Some(data.protocol_version);
+                                            device.model_id = Some(data.model_id);
+                                            device.product_category_coarse =
+                                                Some(data.product_category_coarse);
+                                            device.product_category_fine =
+                                                Some(data.product_category_fine);
+                                            device.software_version_id =
+                                                Some(data.software_version_id);
+                                            device.footprint = Some(data.footprint);
+                                            device.current_personality =
+                                                Some(data.current_personality);
+                                            device.total_personalities =
+                                                Some(data.total_personalities);
+                                            device.start_address = Some(data.start_address);
+                                            device.sub_device_count = Some(data.sub_device_count);
+                                            device.sensor_count = Some(data.sensor_count);
+                                        } else {
+                                            println!("Device can't be found, skipping...");
+                                        }
+
+                                        // TODO trigger more messages based on this data
                                     }
                                     Err(message) => {
                                         println!("Error Message: {}", message);
@@ -207,5 +229,7 @@ fn main() {
             Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
             Err(e) => eprintln!("{:?}", e),
         }
+
+        // thread::sleep(Duration::from_millis(1000));
     }
 }

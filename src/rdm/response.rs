@@ -14,16 +14,16 @@ pub struct ResponseHeader {
 
 #[derive(Debug)]
 pub struct Response<T> {
-    destination_uid: DeviceUID,
-    source_uid: DeviceUID,
-    transaction_number: u8,
-    response_type: ResponseType,
-    message_count: u8,
-    sub_device: u16,
-    command_class: CommandClass,
-    parameter_id: ParameterId,
-    parameter_data_length: u8,
-    parameter_data: Option<T>,
+    pub destination_uid: DeviceUID,
+    pub source_uid: DeviceUID,
+    pub transaction_number: u8,
+    pub response_type: ResponseType,
+    pub message_count: u8,
+    pub sub_device: u16,
+    pub command_class: CommandClass,
+    pub parameter_id: ParameterId,
+    pub parameter_data_length: u8,
+    pub parameter_data: Option<T>,
 }
 
 impl<T> Response<T> {
@@ -416,28 +416,33 @@ impl TryFrom<Vec<u8>> for Response<ParameterDescriptionResponse> {
 
 #[derive(Debug)]
 pub struct DeviceInfoResponse {
-    rdm_protocol_version: u16,
-    device_model_id: u16,
-    product_category: u16,
-    software_version_id: u32,
-    dmx_footprint: u16,
-    dmx_personality: u16,
-    dmx_start_address: u16,
-    sub_device_count: u16,
-    sensor_count: u8,
+    pub protocol_version: String,
+    pub model_id: u16,
+    pub product_category_coarse: u8,
+    pub product_category_fine: u8,
+    pub software_version_id: u32,
+    pub footprint: u16,
+    pub current_personality: u8,
+    pub total_personalities: u8,
+    pub start_address: u16,
+    pub sub_device_count: u16,
+    pub sensor_count: u8,
 }
 
 impl From<Vec<u8>> for DeviceInfoResponse {
     fn from(bytes: Vec<u8>) -> Self {
         let bytes = bytes[..=18].to_vec();
+
         DeviceInfoResponse {
-            rdm_protocol_version: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
-            device_model_id: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
-            product_category: u16::from_be_bytes(bytes[4..=5].try_into().unwrap()),
+            protocol_version: format!("{}.{}", bytes[0], bytes[1]),
+            model_id: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
+            product_category_coarse: bytes[4], // TODO use enum type
+            product_category_fine: bytes[5], // TODO use enum type
             software_version_id: u32::from_be_bytes(bytes[6..=9].try_into().unwrap()),
-            dmx_footprint: u16::from_be_bytes(bytes[10..=11].try_into().unwrap()),
-            dmx_personality: u16::from_be_bytes(bytes[12..=13].try_into().unwrap()),
-            dmx_start_address: u16::from_be_bytes(bytes[14..=15].try_into().unwrap()),
+            footprint: u16::from_be_bytes(bytes[10..=11].try_into().unwrap()),
+            current_personality: bytes[12],
+            total_personalities: bytes[13],
+            start_address: u16::from_be_bytes(bytes[14..=15].try_into().unwrap()),
             sub_device_count: u16::from_be_bytes(bytes[16..=17].try_into().unwrap()),
             sensor_count: u8::from_be(bytes[18]),
         }
@@ -461,10 +466,6 @@ impl TryFrom<Vec<u8>> for Response<DeviceInfoResponse> {
         } = Response::<()>::parse_packet_header(packet.clone());
 
         let parameter_data: DeviceInfoResponse = DeviceInfoResponse::from(packet[24..=(24 + parameter_data_length as usize)].to_vec());
-
-            // Vec::from(&packet[24..(packet.len() + parameter_data_length as usize)])
-            //     .try_into()
-            //     .unwrap();
 
         Ok(Response {
             destination_uid,
