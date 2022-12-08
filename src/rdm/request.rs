@@ -174,21 +174,34 @@ impl From<Request<DeviceLabelRequest>> for Vec<u8> {
     }
 }
 
-pub struct DeviceInfoRequest();
+pub struct DeviceInfoRequest;
 
 impl From<Request<DeviceInfoRequest>> for Vec<u8> {
     fn from(request: Request<DeviceInfoRequest>) -> Vec<u8> {
-        // let parameter_data: Vec<u8> = if let Some(device_label) = request.parameter_data.clone() {
-        //     if let Some(label) = device_label.label {
-        //         label.into_bytes()
-        //     } else {
-                
-        //         Vec::new()
-        //     }
-        // } else {
-        //     Vec::new()
-        // };
-        // let parameter_data: Vec<u8> = request.parameter_data.clone().unwrap().into();
+        request.create_packet(Vec::new())
+    }
+}
+
+pub struct SoftwareVersionLabelRequest;
+
+impl From<Request<SoftwareVersionLabelRequest>> for Vec<u8> {
+    fn from(request: Request<SoftwareVersionLabelRequest>) -> Vec<u8> {
+        request.create_packet(Vec::new())
+    }
+}
+
+pub struct SupportedParametersRequest;
+
+impl From<Request<SupportedParametersRequest>> for Vec<u8> {
+    fn from(request: Request<SupportedParametersRequest>) -> Vec<u8> {
+        request.create_packet(Vec::new())
+    }
+}
+
+pub struct IdentifyDeviceRequest;
+
+impl From<Request<IdentifyDeviceRequest>> for Vec<u8> {
+    fn from(request: Request<IdentifyDeviceRequest>) -> Vec<u8> {
         request.create_packet(Vec::new())
     }
 }

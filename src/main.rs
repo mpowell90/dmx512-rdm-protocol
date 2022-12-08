@@ -17,10 +17,20 @@ use rdm::{
     device::{Device, DeviceUID},
     request::{
         DeviceInfoRequest, DeviceLabelRequest, DiscUniqueBranchRequest, DiscUnmuteRequest, Request,
+        SoftwareVersionLabelRequest, SupportedParametersRequest,
     },
-    response::{DeviceInfoResponse, DeviceLabelResponse, DiscUniqueBranchResponse, Response},
+    response::{
+        DeviceInfoResponse,
+        // DeviceLabelResponse,
+        DiscUniqueBranchResponse,
+        Response,
+        SoftwareVersionLabelResponse,
+        SupportParametersResponse,
+    },
     CommandClass, ParameterId,
 };
+
+use crate::rdm::response::IdentifyDeviceResponse;
 
 fn main() {
     let serialports = available_ports().unwrap();
@@ -47,12 +57,14 @@ fn main() {
     // This is the known uid for the test Enttec DMXUSBPRO device
     let source_uid = DeviceUID::new(0x454e, 0x02137670);
 
+    let port_id: u8 = 0x01;
+
     // Broadcast DiscUnmute to all devices so they accept DiscUniqueBranch messages
     let disc_unmute: Request<DiscUnmuteRequest> = Request::new(
         DeviceUID::broadcast_all_devices(),
         source_uid,
         0x00,
-        0x01,
+        port_id,
         0x0000, // Root Sub Device
         CommandClass::DiscoveryCommand,
         ParameterId::DiscUnMute,
@@ -69,7 +81,7 @@ fn main() {
         DeviceUID::broadcast_all_devices(),
         source_uid,
         0x00,
-        0x01,
+        port_id,
         0x0000,
         CommandClass::DiscoveryCommand,
         ParameterId::DiscUniqueBranch,
@@ -148,7 +160,7 @@ fn main() {
 
                 match packet_data_type {
                     PacketResponseDataType::DiscoveryResponse => {
-                        match DiscUniqueBranchResponse::try_from(packet_data.clone()) {
+                        match DiscUniqueBranchResponse::try_from(packet_data.as_slice()) {
                             Ok(disc_unique_response) => {
                                 devices.insert(
                                     disc_unique_response.device_uid,
@@ -160,7 +172,7 @@ fn main() {
                                     disc_unique_response.device_uid,
                                     source_uid,
                                     0x00,
-                                    0x01,
+                                    port_id,
                                     0x0000,
                                     CommandClass::GetCommand,
                                     ParameterId::DeviceInfo,
@@ -168,8 +180,63 @@ fn main() {
                                 );
 
                                 let get_device_info_packet: Vec<u8> = get_device_info.into();
-
                                 queue.push_back(Driver::create_rdm_packet(&get_device_info_packet));
+
+                                let get_software_version_label: Request<
+                                    SoftwareVersionLabelRequest,
+                                > = Request::new(
+                                    disc_unique_response.device_uid,
+                                    source_uid,
+                                    0x00,
+                                    port_id,
+                                    0x0000,
+                                    CommandClass::GetCommand,
+                                    ParameterId::SoftwareVersionLabel,
+                                    None,
+                                );
+
+                                let get_software_version_label_packet: Vec<u8> =
+                                    get_software_version_label.into();
+                                queue.push_back(Driver::create_rdm_packet(
+                                    &get_software_version_label_packet,
+                                ));
+
+                                let get_software_version_label: Request<
+                                    SupportedParametersRequest,
+                                > = Request::new(
+                                    disc_unique_response.device_uid,
+                                    source_uid,
+                                    0x00,
+                                    port_id,
+                                    0x0000,
+                                    CommandClass::GetCommand,
+                                    ParameterId::SupportedParameters,
+                                    None,
+                                );
+
+                                let get_software_version_label_packet: Vec<u8> =
+                                    get_software_version_label.into();
+                                queue.push_back(Driver::create_rdm_packet(
+                                    &get_software_version_label_packet,
+                                ));
+
+                                let get_identify_device: Request<SupportedParametersRequest> =
+                                    Request::new(
+                                        disc_unique_response.device_uid,
+                                        source_uid,
+                                        0x00,
+                                        port_id,
+                                        0x0000,
+                                        CommandClass::GetCommand,
+                                        ParameterId::IdentifyDevice,
+                                        None,
+                                    );
+
+                                let get_identify_device_packet: Vec<u8> =
+                                    get_identify_device.into();
+                                queue.push_back(Driver::create_rdm_packet(
+                                    &get_identify_device_packet,
+                                ));
                             }
                             Err(message) => {
                                 println!("Error Message: {}", message);
@@ -183,34 +250,82 @@ fn main() {
 
                         match parameter_id {
                             ParameterId::DeviceInfo => {
-                                match Response::<DeviceInfoResponse>::try_from(packet_data.clone())
-                                {
+                                match Response::<DeviceInfoResponse>::try_from(
+                                    packet_data.as_slice(),
+                                ) {
                                     Ok(device_info_response) => {
                                         if let (Some(device), Some(data)) = (
                                             devices.get_mut(&device_info_response.source_uid),
                                             device_info_response.parameter_data,
                                         ) {
-                                            device.protocol_version = Some(data.protocol_version);
-                                            device.model_id = Some(data.model_id);
-                                            device.product_category_coarse =
-                                                Some(data.product_category_coarse);
-                                            device.product_category_fine =
-                                                Some(data.product_category_fine);
-                                            device.software_version_id =
-                                                Some(data.software_version_id);
-                                            device.footprint = Some(data.footprint);
-                                            device.current_personality =
-                                                Some(data.current_personality);
-                                            device.total_personalities =
-                                                Some(data.total_personalities);
-                                            device.start_address = Some(data.start_address);
-                                            device.sub_device_count = Some(data.sub_device_count);
-                                            device.sensor_count = Some(data.sensor_count);
+                                            device.update_device_info(data);
                                         } else {
                                             println!("Device can't be found, skipping...");
                                         }
 
                                         // TODO trigger more messages based on this data
+                                    }
+                                    Err(message) => {
+                                        println!("Error Message: {}", message);
+                                    }
+                                }
+                            }
+                            ParameterId::SoftwareVersionLabel => {
+                                match Response::<SoftwareVersionLabelResponse>::try_from(
+                                    packet_data.as_slice(),
+                                ) {
+                                    Ok(software_version_label_response) => {
+                                        if let (Some(device), Some(data)) = (
+                                            devices.get_mut(
+                                                &software_version_label_response.source_uid,
+                                            ),
+                                            software_version_label_response.parameter_data,
+                                        ) {
+                                            device.update_software_version_label(data);
+                                        } else {
+                                            println!("Device can't be found, skipping...");
+                                        }
+                                    }
+                                    Err(message) => {
+                                        println!("Error Message: {}", message);
+                                    }
+                                }
+                            }
+                            ParameterId::SupportedParameters => {
+                                match Response::<SupportParametersResponse>::try_from(
+                                    packet_data.as_slice(),
+                                ) {
+                                    Ok(supported_parameters_response) => {
+                                        if let (Some(device), Some(data)) = (
+                                            devices
+                                                .get_mut(&supported_parameters_response.source_uid),
+                                            supported_parameters_response.parameter_data,
+                                        ) {
+                                            device.update_supported_parameters(data);
+                                            println!("Device: {:02X?}", device);
+                                        } else {
+                                            println!("Device can't be found, skipping...");
+                                        }
+                                    }
+                                    Err(message) => {
+                                        println!("Error Message: {}", message);
+                                    }
+                                }
+                            }
+                            ParameterId::IdentifyDevice => {
+                                match Response::<IdentifyDeviceResponse>::try_from(
+                                    packet_data.as_slice(),
+                                ) {
+                                    Ok(identify_device_response) => {
+                                        if let (Some(device), Some(data)) = (
+                                            devices.get_mut(&identify_device_response.source_uid),
+                                            identify_device_response.parameter_data,
+                                        ) {
+                                            device.update_identify_device(data);
+                                            println!("Device: {:02X?}", device);
+                                        } else {
+                                            println!("Device can't be found, skipping...");
+                                        }
                                     }
                                     Err(message) => {
                                         println!("Error Message: {}", message);
