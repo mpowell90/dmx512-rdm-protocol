@@ -110,7 +110,6 @@ pub enum ParameterId {
 // TODO this could use try_from and return a result rather than panic
 impl From<&[u8]> for ParameterId {
     fn from(bytes: &[u8]) -> Self {
-        println!("{:02X?}", bytes);
         match u16::from_be_bytes(bytes.try_into().unwrap()) {
             0x0001 => ParameterId::DiscUniqueBranch,
             0x0002 => ParameterId::DiscMute,

@@ -27,8 +27,6 @@ impl DeviceUID {
 
 impl From<u64> for DeviceUID {
     fn from(value: u64) -> Self {
-        println!("{:02X?}", ((value >> 32_u64) & (0xffff as u64)));
-
         DeviceUID {
             manufacturer_id: ((value >> 32_u64) & (0xffff as u64)) as u16,
             device_id: (value & 0xffffffff) as u32,
