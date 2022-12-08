@@ -14,7 +14,7 @@ pub const BROADCAST_ALL_DEVICES_ID: u48 = u48::new(0xffffffffffff);
 pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
 pub const ROOT_DEVICE: u8 = 0x00;
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum CommandClass {
     DiscoveryCommand = 0x10,
     DiscoveryCommandResponse = 0x11,

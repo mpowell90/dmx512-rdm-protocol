@@ -6,7 +6,6 @@ use std::{
     io::{self, Write},
     sync::mpsc,
     thread,
-    time::Duration,
 };
 
 use serialport::available_ports;
@@ -23,14 +22,13 @@ use rdm::{
         DeviceInfoResponse,
         // DeviceLabelResponse,
         DiscUniqueBranchResponse,
+        IdentifyDeviceResponse,
         Response,
         SoftwareVersionLabelResponse,
         SupportParametersResponse,
     },
     CommandClass, ParameterId,
 };
-
-use crate::rdm::response::IdentifyDeviceResponse;
 
 fn main() {
     let serialports = available_ports().unwrap();
@@ -122,16 +120,12 @@ fn main() {
             last_device_count = devices.len();
         }
 
+        // Send the next message to the transmitter if there are any in the queue
         if !waiting_response && queue.len() > 0 {
             if let Some(packet) = queue.pop_front() {
                 tx.send(packet).unwrap();
                 waiting_response = true;
             }
-
-            // match queue.pop_front() {
-            //     Some(packet) => tx.send(packet),
-            //     Err(message) => println!("Queue Error:", message)
-            // }
         }
 
         // Pre-sized buffer
@@ -344,7 +338,5 @@ fn main() {
             Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
             Err(e) => eprintln!("{:?}", e),
         }
-
-        // thread::sleep(Duration::from_millis(1000));
     }
 }
