@@ -1,6 +1,11 @@
+use std::collections::HashMap;
+
 use super::{
-    response::{DeviceInfoResponse, SoftwareVersionLabelResponse, SupportParametersResponse, IdentifyDeviceResponse},
-    ParameterId, ProductCategory,
+    parameter::{
+        DeviceInfoResponse, IdentifyDeviceResponse, ManufacturerLabelResponse, ParameterDescriptionResponse, SoftwareVersionLabelResponse,
+        SupportedParametersResponse,
+    },
+    ManufacturerSpecificParameter, ParameterId, ProductCategory,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -75,8 +80,11 @@ pub struct Device {
     pub start_address: Option<u16>,
     pub sub_device_count: Option<u16>,
     pub sensor_count: Option<u8>,
-    pub supported_parameters: Option<Vec<ParameterId>>,
+    pub supported_standard_parameters: Option<Vec<ParameterId>>,
+    pub supported_manufacturer_specific_parameters:
+        Option<HashMap<u16, ManufacturerSpecificParameter>>,
     pub is_identifying: Option<bool>,
+    pub manufacturer_label: Option<String>,
 }
 
 impl From<DeviceUID> for Device {
@@ -95,8 +103,10 @@ impl From<DeviceUID> for Device {
             start_address: None,
             sub_device_count: None,
             sensor_count: None,
-            supported_parameters: None,
+            supported_standard_parameters: None,
+            supported_manufacturer_specific_parameters: None,
             is_identifying: None,
+            manufacturer_label: None,
         }
     }
 }
@@ -119,11 +129,39 @@ impl Device {
         self.software_version_label = Some(data.software_version_label);
     }
 
-    pub fn update_supported_parameters(&mut self, data: SupportParametersResponse) {
-        self.supported_parameters = Some(data.supported_parameters);
+    pub fn update_supported_parameters(&mut self, data: SupportedParametersResponse) {
+        self.supported_standard_parameters = Some(data.standard_parameters);
+        self.supported_manufacturer_specific_parameters =
+            Some(data.manufacturer_specific_parameters);
     }
 
     pub fn update_identify_device(&mut self, data: IdentifyDeviceResponse) {
         self.is_identifying = Some(data.is_identifying);
+    }
+
+    pub fn update_parameter_description(&mut self, data: ParameterDescriptionResponse) {
+        self.supported_manufacturer_specific_parameters = self
+            .supported_manufacturer_specific_parameters
+            .as_mut()
+            .and_then(|parameter_hash_map| {
+                parameter_hash_map
+                    .get_mut(&data.parameter_id)
+                    .and_then(|parameter| {
+                        parameter.parameter_data_size = Some(data.parameter_data_size);
+                        parameter.data_type = Some(data.data_type);
+                        parameter.command_class = Some(data.command_class);
+                        parameter.prefix = Some(data.prefix);
+                        parameter.minimum_valid_value = Some(data.minimum_valid_value);
+                        parameter.maximum_valid_value = Some(data.maximum_valid_value);
+                        parameter.default_value = Some(data.default_value);
+                        parameter.description = Some(data.description);
+                        Some(parameter)
+                    });
+                Some(parameter_hash_map.to_owned())
+            })
+    }
+
+    pub fn update_manufacturer_label(&mut self, data: ManufacturerLabelResponse) {
+        self.manufacturer_label = Some(data.manufacturer_label);
     }
 }

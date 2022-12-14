@@ -175,8 +175,9 @@ impl Driver {
             .write_all(Self::create_packet(PacketRequestType::SendRdmPacketRequest, buf).as_slice())
     }
 
-    pub fn parse_packet(packet: &[u8]) -> (PacketResponseType, PacketResponseDataType, Vec<u8>) {
-        let packet_type = PacketResponseType::try_from(packet[1]).unwrap();
+    // TODO This should return a Result
+    pub fn parse_packet(packet: &[u8]) -> Result<(PacketResponseType, PacketResponseDataType, Vec<u8>), &'static str> {
+        let packet_type = PacketResponseType::try_from(packet[1])?;
         let packet_length = u16::from_le_bytes(packet[2..=3].try_into().unwrap());
         let packet_data = packet[5..=(packet.len() - 1)].to_vec();
 
@@ -194,6 +195,6 @@ impl Driver {
         //     PacketResponseDataType::try_from(u16::from_be_bytes(packet[5..=6].try_into().unwrap()))
         //         .unwrap();
 
-        (packet_type, packet_data_type, packet_data)
+        Ok((packet_type, packet_data_type, packet_data))
     }
 }
