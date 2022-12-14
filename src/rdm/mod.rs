@@ -1,8 +1,6 @@
 // #![allow(unused)]
 pub mod device;
 pub mod parameter;
-// pub mod request;
-pub mod response;
 
 use std::mem;
 
