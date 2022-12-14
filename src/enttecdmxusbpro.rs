@@ -5,12 +5,29 @@ use std::{
     cmp::PartialEq,
     io::{self, Write},
 };
+use thiserror::Error;
 
 const DMX_START_CODE: u8 = 0x00;
 const DMX_UNIVERSE_MAX_CHANNELS: usize = 512;
 
 const ENTTEC_PACKET_START_BYTE: u8 = 0x7e;
 const ENTTEC_PACKET_STOP_BYTE: u8 = 0xe7;
+
+#[derive(Debug, Error)]
+pub enum DriverError {
+    #[error("invalid data length")]
+    InvalidDataLength, // TODO should be used when input data is not correct
+    #[error("invalid start byte")]
+    InvalidStartByte,
+    #[error("invalid stop byte")]
+    InvalidStopByte,
+    #[error("invalid packet type")]
+    UnsupportedPacketType,
+    #[error("malformed packet")]
+    MalformedPacket,
+    #[error("unknown driver error")]
+    Unknown,
+}
 
 #[derive(PartialEq)]
 pub enum PacketRequestType {
@@ -28,7 +45,7 @@ pub enum PacketRequestType {
 }
 
 impl TryFrom<u8> for PacketRequestType {
-    type Error = &'static str;
+    type Error = DriverError;
 
     fn try_from(byte: u8) -> Result<Self, Self::Error> {
         let packet_type = match byte {
@@ -43,46 +60,26 @@ impl TryFrom<u8> for PacketRequestType {
             0x09 => PacketRequestType::ReceiveDmxOnChangeOfStatePacket,
             0x0a => PacketRequestType::GetWidgetSerialNumber,
             0x0b => PacketRequestType::SendRdmDiscoveryRequest,
-            _ => return Err("Invalid value for PacketRequestType"),
+            _ => return Err(DriverError::UnsupportedPacketType),
         };
         Ok(packet_type)
     }
 }
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum PacketResponseType {
     SuccessResponse = 0x05,
     NullResponse = 0x0c,
 }
 
 impl TryFrom<u8> for PacketResponseType {
-    type Error = &'static str;
+    type Error = DriverError;
 
     fn try_from(byte: u8) -> Result<Self, Self::Error> {
         let packet_type = match byte {
             0x05 => PacketResponseType::SuccessResponse,
             0x0c => PacketResponseType::NullResponse,
-            _ => return Err("Invalid value for PacketResponseType"),
-        };
-        Ok(packet_type)
-    }
-}
-
-#[derive(PartialEq)]
-pub enum PacketResponseDataType {
-    NullResponse = 0x0000,
-    RdmResponse = 0xcc01,
-    DiscoveryResponse = 0xfefe,
-}
-
-impl TryFrom<u16> for PacketResponseDataType {
-    type Error = &'static str;
-
-    fn try_from(byte: u16) -> Result<Self, Self::Error> {
-        let packet_type = match byte {
-            0xcc01 => PacketResponseDataType::RdmResponse,
-            0xfefe => PacketResponseDataType::DiscoveryResponse,
-            _ => return Err("Invalid value for PacketRequestType"),
+            _ => return Err(DriverError::UnsupportedPacketType),
         };
         Ok(packet_type)
     }
@@ -175,19 +172,62 @@ impl Driver {
             .write_all(Self::create_packet(PacketRequestType::SendRdmPacketRequest, buf).as_slice())
     }
 
-    // TODO This should return a Result
-    pub fn parse_packet(packet: &[u8]) -> Result<(PacketResponseType, PacketResponseDataType, Vec<u8>), &'static str> {
-        let packet_type = PacketResponseType::try_from(packet[1])?;
-        let packet_length = u16::from_le_bytes(packet[2..=3].try_into().unwrap());
-        let packet_data = packet[5..=(packet.len() - 1)].to_vec();
+    pub fn is_complete_packet(packet: Vec<u8>) -> bool {
+        if packet[0] != ENTTEC_PACKET_START_BYTE {
+            return false;
+            // return Err(DriverError::InvalidStartByte)
+        }
 
-        let packet_data_type = if packet_type == PacketResponseType::NullResponse {
-            // TODO consider if there is a better approach to this
-            PacketResponseDataType::NullResponse
+        let parsed_packet_length = u16::from_le_bytes(packet[2..=3].try_into().unwrap()) as usize;
+
+        println!("Length: {}, Parsed: {}", packet.len(), parsed_packet_length);
+
+        if packet.len() < parsed_packet_length {
+            return false;
+        }
+
+        if packet[packet.len() - 1] != ENTTEC_PACKET_STOP_BYTE {
+            return false;
+        }
+
+        true
+    }
+
+    pub fn parse_packet(packet: &[u8]) -> Result<(PacketResponseType, Vec<u8>), DriverError> {
+        if packet[0] != ENTTEC_PACKET_START_BYTE {
+            return Err(DriverError::InvalidStartByte);
+        }
+
+        let packet_type = PacketResponseType::try_from(packet[1])?;
+
+        let packet_length = if let Ok(bytes) = packet[2..=3].try_into() {
+            u16::from_le_bytes(bytes)
         } else {
-            let data_type_u16 = u16::from_be_bytes(packet[5..=6].try_into().unwrap());
-            PacketResponseDataType::try_from(data_type_u16).unwrap()
+            return Err(DriverError::MalformedPacket);
         };
+
+        // Minus the Enttec packet header and stop byte
+        if (packet.len() - 4) < packet_length as usize {
+            return Err(DriverError::InvalidDataLength);
+        }
+
+        if packet[packet.len() - 1] != ENTTEC_PACKET_STOP_BYTE {
+            return Err(DriverError::InvalidStopByte);
+        }
+
+        let packet_data = if packet_type == PacketResponseType::NullResponse {
+            Vec::new()
+        } else {
+            packet[5..(packet.len() - 1)].to_vec()
+        };
+
+        // let packet_data_type = if packet_type == PacketResponseType::NullResponse {
+        //     // TODO consider if there is a better approach to this
+        //     PacketResponseDataType::NullResponse
+        // } else {
+        //     let data_type_u16 = u16::from_be_bytes(packet[5..=6].try_into().unwrap());
+        //     PacketResponseDataType::try_from(data_type_u16).unwrap()
+        // };
 
         // println!("{:02X?}", packet_data_type);
         // // TODO consider if we should try from array slice instead of the additional u16 conversion
@@ -195,6 +235,6 @@ impl Driver {
         //     PacketResponseDataType::try_from(u16::from_be_bytes(packet[5..=6].try_into().unwrap()))
         //         .unwrap();
 
-        Ok((packet_type, packet_data_type, packet_data))
+        Ok((packet_type, packet_data))
     }
 }

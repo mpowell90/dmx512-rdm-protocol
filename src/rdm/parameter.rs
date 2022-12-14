@@ -1,12 +1,11 @@
-use std::{collections::HashMap, ffi::CStr};
+use std::collections::HashMap;
 
 use byteorder::{BigEndian, WriteBytesExt};
 use ux::u48;
 
 use super::{
-    bsd_16_crc, device::DeviceUID, CommandClass, DiscoveryRequest, GetRequest,
-    ManufacturerSpecificParameter, ParameterId, ProductCategory, Protocol, SetRequest,
-    SupportedCommandClasses,
+    bsd_16_crc, device::DeviceUID, DiscoveryRequest, GetRequest, ManufacturerSpecificParameter,
+    ParameterId, ProductCategory, Protocol, SetRequest, SupportedCommandClasses,
 };
 
 #[derive(Copy, Clone, Debug)]
@@ -285,7 +284,9 @@ impl From<Vec<u8>> for ParameterDescriptionResponse {
             minimum_valid_value: u32::from_be_bytes(bytes[8..=11].try_into().unwrap()),
             maximum_valid_value: u32::from_be_bytes(bytes[12..=15].try_into().unwrap()),
             default_value: u32::from_be_bytes(bytes[16..=19].try_into().unwrap()),
-            description: String::from_utf8_lossy(&bytes[20..]).trim_end_matches("\0").to_string(),
+            description: String::from_utf8_lossy(&bytes[20..])
+                .trim_end_matches("\0")
+                .to_string(),
         }
     }
 }
@@ -324,10 +325,9 @@ impl Protocol for DeviceLabelResponse {
 impl From<Vec<u8>> for DeviceLabelResponse {
     fn from(bytes: Vec<u8>) -> Self {
         DeviceLabelResponse {
-            device_label: String::from_utf8_lossy(&bytes).trim_end_matches("\0").to_string(), // device_label: CStr::from_bytes_with_nul(&bytes)
-                                                                       //     .unwrap()
-                                                                       //     .to_string_lossy()
-                                                                       //     .to_string(),
+            device_label: String::from_utf8_lossy(&bytes)
+                .trim_end_matches("\0")
+                .to_string(),
         }
     }
 }
@@ -415,10 +415,9 @@ impl Protocol for SoftwareVersionLabelResponse {
 impl From<Vec<u8>> for SoftwareVersionLabelResponse {
     fn from(bytes: Vec<u8>) -> Self {
         SoftwareVersionLabelResponse {
-            software_version_label: String::from_utf8_lossy(&bytes).trim_end_matches("\0").to_string(), // software_version_label: CStr::from_bytes_with_nul(&bytes)
-                                                                                       //     .unwrap()
-                                                                                       //     .to_string_lossy()
-                                                                                       //     .to_string(),
+            software_version_label: String::from_utf8_lossy(&bytes)
+                .trim_end_matches("\0")
+                .to_string(),
         }
     }
 }
@@ -461,17 +460,13 @@ impl From<Vec<u8>> for SupportedParametersResponse {
                 .clone()
                 .filter(|parameter_id| {
                     // TODO consider if we should filter parameters here or before we add to the queue
-                    let parameter_id = parameter_id.to_owned();
+                    let parameter_id = *parameter_id;
                     parameter_id >= 0x0060_u16 && parameter_id < 0x8000_u16
                 })
                 .map(ParameterId::from)
                 .collect(),
             manufacturer_specific_parameters: parameters
-                .filter(|parameter_id| {
-                    // TODO consider if we should filter parameters here or before we add to the queue
-                    let parameter_id = parameter_id.to_owned();
-                    parameter_id >= 0x8000_u16 && parameter_id < 0xffdf_u16
-                })
+                .filter(|parameter_id| *parameter_id >= 0x8000_u16)
                 .map(|parameter_id| {
                     (
                         parameter_id,
@@ -586,13 +581,10 @@ impl Protocol for ManufacturerLabelResponse {
 
 impl From<Vec<u8>> for ManufacturerLabelResponse {
     fn from(bytes: Vec<u8>) -> Self {
-        // let manufacturer_label = CStr::from_bytes_with_nul(&bytes)
-        //     .unwrap()
-        //     .to_string_lossy()
-        //     .to_string();
-
         ManufacturerLabelResponse {
-            manufacturer_label: String::from_utf8_lossy(&bytes).trim_end_matches("\0").to_string(),
+            manufacturer_label: String::from_utf8_lossy(&bytes)
+                .trim_end_matches("\0")
+                .to_string(),
         }
     }
 }

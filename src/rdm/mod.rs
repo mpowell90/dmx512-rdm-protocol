@@ -18,6 +18,25 @@ pub const BROADCAST_ALL_DEVICES_ID: u48 = u48::new(0xffffffffffff);
 pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
 pub const ROOT_DEVICE: u8 = 0x00;
 
+#[derive(PartialEq)]
+pub enum PacketType {
+    RdmResponse = 0xcc01,
+    DiscoveryResponse = 0xfefe,
+}
+
+impl TryFrom<u16> for PacketType {
+    type Error = &'static str;
+
+    fn try_from(byte: u16) -> Result<Self, Self::Error> {
+        let packet_type = match byte {
+            0xcc01 => PacketType::RdmResponse,
+            0xfefe => PacketType::DiscoveryResponse,
+            _ => return Err("Invalid value for PacketRequestType"),
+        };
+        Ok(packet_type)
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ManufacturerSpecificParameter {
     parameter_id: u16,
@@ -503,15 +522,6 @@ pub enum PowerStates {
                    // 0xff = "Normal",
 }
 
-pub enum CommandClasses {
-    Get = 0x01,
-    Set = 0x02,
-    GetSet = 0x03,
-    // 0x01 = "Get",
-    // 0x02 = "Set",
-    // 0x03 = "Get / Set",
-}
-
 pub enum OnOffStates {
     Off = 0x00,
     On = 0x01,
@@ -601,10 +611,6 @@ pub struct Response<T> {
     pub parameter_data: Option<T>,
 }
 
-// impl From<Vec<u8>> for Response<T> {
-
-// }
-
 impl<T> Response<T> {
     // Packet Format
     // [0] Start Code = 1 byte
@@ -677,8 +683,7 @@ where
         let parameter_data_length = packet[23];
         let parameter_data: Option<Self> = if parameter_data_length > 0 {
 
-            let data = packet[24..packet.len()-3].to_vec();
-            // let data = packet[24..(parameter_data_length as usize - 3)].to_vec();
+            let data = packet[24..packet.len()-2].to_vec();
             println!("DATA: {:02X?}", data);
             Some(data.into())
         } else {
@@ -695,10 +700,7 @@ where
             command_class: CommandClass::try_from(packet[20]).unwrap(),
             parameter_id: ParameterId::from(&packet[21..=22]),
             parameter_data_length,
-            parameter_data, // parameter_data: packet[24..(24 + packet[23] as usize)]
-                            //     .to_vec()
-                            //     .try_into()
-                            //     .ok(),
+            parameter_data,
         })
     }
 }

@@ -4,15 +4,16 @@ mod rdm;
 use std::{
     collections::{HashMap, VecDeque},
     io::{self, Write},
+    process,
     sync::mpsc,
-    thread, process, time::Duration,
+    thread,
 };
 
 use serialport::available_ports;
 use ux::u48;
 use yansi::Paint;
 
-use enttecdmxusbpro::{Driver, PacketResponseDataType, PacketResponseType};
+use enttecdmxusbpro::{Driver, PacketResponseType};
 use rdm::{
     device::{Device, DeviceUID},
     parameter::{
@@ -22,7 +23,7 @@ use rdm::{
         SoftwareVersionLabelRequest, SoftwareVersionLabelResponse, SupportedParametersRequest,
         SupportedParametersResponse,
     },
-    DiscoveryRequest, GetRequest, ParameterId, Protocol
+    DiscoveryRequest, GetRequest, ParameterId, Protocol, PacketType
 };
 
 use crate::rdm::parameter::ParameterDescriptionRequest;
@@ -98,7 +99,7 @@ fn main() {
             Err(message) => {
                 println!("TX Error: {}", message);
                 process::exit(1);
-            },
+            }
         }
     });
 
@@ -107,12 +108,20 @@ fn main() {
     // TODO consider how we manage sending data over the channel
     // an option could be to pause this
     let mut waiting_response = false;
+    // let mut clear_packet = false;
+
+    let mut packet: Vec<u8> = Vec::new();
 
     loop {
         // Log any changes in devices
         if last_device_count != devices.len() {
             println!("Found device count: {:#?}", devices);
             last_device_count = devices.len();
+        }
+
+        if !waiting_response && packet.len() > 0 {
+            // println!("Packet Cleared!");
+            packet = Vec::new();
         }
 
         // Send the next message to the transmitter if there are any in the queue
@@ -136,14 +145,23 @@ fn main() {
                     Paint::green(&serial_buf[..bytes])
                 );
 
-                let (response_type, packet_data_type, packet_data) =
-                    match Driver::parse_packet(&serial_buf[..bytes]) {
-                        Ok((response_type, packet_data_type, packet_data)) => (response_type, packet_data_type, packet_data),
-                        Err(message) => {
-                            println!("{}", message);
-                            continue;
-                        }
-                    };
+                packet.extend(&serial_buf[..bytes]);
+
+                let (response_type, rdm_packet) = match Driver::parse_packet(&packet) {
+                    Ok((response_type, rdm_packet)) => {
+                        println!(
+                            "{} {:02X?}",
+                            Paint::magenta("RDM Packet:"),
+                            Paint::magenta(&rdm_packet)
+                        );
+                        (response_type, rdm_packet)
+                    }
+                    Err(message) => {
+                        println!("{:?}", message);
+                        waiting_response = true;
+                        continue;
+                    }
+                };
 
                 // We can ignore null responses
                 if response_type == PacketResponseType::NullResponse {
@@ -156,11 +174,13 @@ fn main() {
                     continue;
                 }
 
-                println!("Packet Data: {:02X?}", packet_data);
+                // TODO check the checksum here, and attempt retry
 
-                match packet_data_type {
-                    PacketResponseDataType::DiscoveryResponse => {
-                        match DiscUniqueBranchResponse::try_from(packet_data.as_slice()) {
+                let rdm_packet_type = PacketType::try_from(u16::from_be_bytes(rdm_packet[0..=1].try_into().unwrap())).unwrap();
+
+                match rdm_packet_type {
+                    PacketType::DiscoveryResponse => {
+                        match DiscUniqueBranchResponse::try_from(rdm_packet.as_slice()) {
                             Ok(disc_unique_response) => {
                                 devices.insert(
                                     disc_unique_response.device_uid,
@@ -232,17 +252,17 @@ fn main() {
                             }
                             Err(message) => {
                                 println!("Error Message: {}", message);
-                                println!("Unknown Discovery Packet: {:02X?}", packet_data);
+                                println!("Unknown Discovery Packet: {:02X?}", rdm_packet);
                             }
                         }
                     }
-                    PacketResponseDataType::RdmResponse => {
-                        let parameter_id = ParameterId::from(&packet_data[21..=22]);
+                    PacketType::RdmResponse => {
+                        let parameter_id = ParameterId::from(&rdm_packet[21..=22]);
                         println!("ParameterId: {:?}", parameter_id);
 
                         match parameter_id {
                             ParameterId::DeviceInfo => {
-                                match DeviceInfoResponse::parse_response(packet_data) {
+                                match DeviceInfoResponse::parse_response(rdm_packet) {
                                     Ok(device_info_response) => {
                                         if let (Some(device), Some(data)) = (
                                             devices.get_mut(&device_info_response.source_uid),
@@ -262,7 +282,7 @@ fn main() {
                                 }
                             }
                             ParameterId::SoftwareVersionLabel => {
-                                match SoftwareVersionLabelResponse::parse_response(packet_data) {
+                                match SoftwareVersionLabelResponse::parse_response(rdm_packet) {
                                     Ok(software_version_label_response) => {
                                         if let (Some(device), Some(data)) = (
                                             devices.get_mut(
@@ -282,7 +302,7 @@ fn main() {
                                 }
                             }
                             ParameterId::SupportedParameters => {
-                                match SupportedParametersResponse::parse_response(packet_data) {
+                                match SupportedParametersResponse::parse_response(rdm_packet) {
                                     Ok(supported_parameters_response) => {
                                         if let (Some(device), Some(data)) = (
                                             devices
@@ -318,7 +338,7 @@ fn main() {
                                 }
                             }
                             ParameterId::ParameterDescription => {
-                                match ParameterDescriptionResponse::parse_response(packet_data) {
+                                match ParameterDescriptionResponse::parse_response(rdm_packet) {
                                     Ok(parameter_description_response) => {
                                         if let (Some(device), Some(data)) = (
                                             devices.get_mut(
@@ -338,7 +358,7 @@ fn main() {
                                 }
                             }
                             ParameterId::IdentifyDevice => {
-                                match IdentifyDeviceResponse::parse_response(packet_data) {
+                                match IdentifyDeviceResponse::parse_response(rdm_packet) {
                                     Ok(identify_device_response) => {
                                         if let (Some(device), Some(data)) = (
                                             devices.get_mut(&identify_device_response.source_uid),
@@ -356,7 +376,7 @@ fn main() {
                                 }
                             }
                             ParameterId::ManufacturerLabel => {
-                                match ManufacturerLabelResponse::parse_response(packet_data) {
+                                match ManufacturerLabelResponse::parse_response(rdm_packet) {
                                     Ok(manufacturer_label_response) => {
                                         if let (Some(device), Some(data)) = (
                                             devices
@@ -377,13 +397,10 @@ fn main() {
                             _ => println!("Unsupported Parameter Id: {:?}", parameter_id),
                         }
                     }
-                    _ => println!("Null Response"),
                 }
 
                 // On next loop send the next packet in the queue
                 waiting_response = false;
-
-                thread::sleep(Duration::from_millis(100));
             }
             Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
             Err(e) => eprintln!("{:?}", e),
