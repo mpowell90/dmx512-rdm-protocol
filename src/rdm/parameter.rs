@@ -272,9 +272,6 @@ impl GetRequest for ParameterDescriptionResponse {}
 
 impl From<Vec<u8>> for ParameterDescriptionResponse {
     fn from(bytes: Vec<u8>) -> Self {
-        println!("DATA IN ParameterDescriptionResponse {:02X?}", bytes);
-        println!("description {:02X?}", &bytes[20..]);
-
         ParameterDescriptionResponse {
             parameter_id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
             parameter_data_size: bytes[2],

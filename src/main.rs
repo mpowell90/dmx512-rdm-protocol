@@ -136,7 +136,6 @@ fn main() {
         // Pre-sized buffer
         let mut serial_buf: Vec<u8> = vec![0; 600];
 
-        // TODO Packets can arrive over multiple buffer, need to handle this!
         match driver.port.read(serial_buf.as_mut_slice()) {
             Ok(bytes) => {
                 // println!("Bytes: {}", bytes);
