@@ -15,15 +15,16 @@ use yansi::Paint;
 
 use enttecdmxusbpro::{Driver, PacketResponseType};
 use rdm::{
+    bsd_16_crc,
     device::{Device, DeviceUID},
     parameter::{
         DeviceInfoRequest, DeviceInfoResponse, DiscUniqueBranchRequest, DiscUniqueBranchResponse,
         DiscUnmuteRequest, IdentifyDeviceGetRequest, IdentifyDeviceResponse,
         ManufacturerLabelGetRequest, ManufacturerLabelResponse, ParameterDescriptionResponse,
-        SoftwareVersionLabelRequest, SoftwareVersionLabelResponse, SupportedParametersRequest,
-        SupportedParametersResponse,
+        ProductDetailIdListResponse, SoftwareVersionLabelRequest, SoftwareVersionLabelResponse,
+        SupportedParametersRequest, SupportedParametersResponse,
     },
-    DiscoveryRequest, GetRequest, ParameterId, Protocol, PacketType
+    DiscoveryRequest, GetRequest, PacketType, ParameterId, Protocol,
 };
 
 use crate::rdm::parameter::ParameterDescriptionRequest;
@@ -174,9 +175,9 @@ fn main() {
                     continue;
                 }
 
-                // TODO check the checksum here, and attempt retry
-
-                let rdm_packet_type = PacketType::try_from(u16::from_be_bytes(rdm_packet[0..=1].try_into().unwrap())).unwrap();
+                let rdm_packet_type =
+                    PacketType::try_from(u16::from_be_bytes(rdm_packet[0..=1].try_into().unwrap()))
+                        .unwrap();
 
                 match rdm_packet_type {
                     PacketType::DiscoveryResponse => {
@@ -257,6 +258,24 @@ fn main() {
                         }
                     }
                     PacketType::RdmResponse => {
+                        // TODO check the checksum here, and attempt retry
+                        // TODO also be good to lift this outside of this check
+                        let packet_checksum = u16::from_be_bytes(
+                            rdm_packet[rdm_packet.len() - 2..rdm_packet.len()]
+                                .try_into()
+                                .unwrap(),
+                        );
+
+                        let calculated_checksum =
+                            bsd_16_crc(&rdm_packet[..rdm_packet.len() - 2].try_into().unwrap());
+
+                        if packet_checksum != calculated_checksum {
+                            // TODO should retry sending packets here
+                            println!("Checksum failed");
+                            waiting_response = false;
+                            continue;
+                        }
+
                         let parameter_id = ParameterId::from(&rdm_packet[21..=22]);
                         println!("ParameterId: {:?}", parameter_id);
 
@@ -313,19 +332,26 @@ fn main() {
                                             println!("Device: {:#02X?}", device);
 
                                             // TODO iterate over parameters here
-                                            if let Some(manufacturer_specific_parameters) = device.supported_manufacturer_specific_parameters.clone() {
-                                                for parameter_id in manufacturer_specific_parameters.into_keys() {
+                                            if let Some(manufacturer_specific_parameters) = device
+                                                .supported_manufacturer_specific_parameters
+                                                .clone()
+                                            {
+                                                for parameter_id in
+                                                    manufacturer_specific_parameters.into_keys()
+                                                {
                                                     println!("PID: {:02X?}", parameter_id);
-                                                    let get_manufacturer_label: Vec<u8> = ParameterDescriptionRequest::new(parameter_id)
-                                                    .get_request(
-                                                        device.uid,
-                                                        source_uid,
-                                                        0x00,
-                                                        port_id,
-                                                        0x0000,
-                                                    )
-                                                    .into();
-                                                    queue.push_back(Driver::create_rdm_packet(&get_manufacturer_label));
+                                                    let get_manufacturer_label: Vec<u8> =
+                                                        ParameterDescriptionRequest::new(
+                                                            parameter_id,
+                                                        )
+                                                        .get_request(
+                                                            device.uid, source_uid, 0x00, port_id,
+                                                            0x0000,
+                                                        )
+                                                        .into();
+                                                    queue.push_back(Driver::create_rdm_packet(
+                                                        &get_manufacturer_label,
+                                                    ));
                                                 }
                                             }
                                         } else {
@@ -384,6 +410,26 @@ fn main() {
                                             manufacturer_label_response.parameter_data,
                                         ) {
                                             device.update_manufacturer_label(data);
+                                            println!("Device: {:#02X?}", device);
+                                        } else {
+                                            println!("Device can't be found, skipping...");
+                                        }
+                                    }
+                                    Err(_) => {
+                                        println!("Error occur whilst parsing");
+                                    }
+                                }
+                            }
+                            ParameterId::ProductDetailIdList => {
+                                match ProductDetailIdListResponse::parse_response(rdm_packet) {
+                                    Ok(product_detail_id_list_response) => {
+                                        if let (Some(device), Some(data)) = (
+                                            devices.get_mut(
+                                                &product_detail_id_list_response.source_uid,
+                                            ),
+                                            product_detail_id_list_response.parameter_data,
+                                        ) {
+                                            device.update_product_detail_id_list(data);
                                             println!("Device: {:#02X?}", device);
                                         } else {
                                             println!("Device can't be found, skipping...");

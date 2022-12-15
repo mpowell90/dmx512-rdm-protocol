@@ -309,7 +309,7 @@ impl From<u16> for ParameterId {
     }
 }
 
-fn bsd_16_crc(packet: &Vec<u8>) -> u16 {
+pub fn bsd_16_crc(packet: &Vec<u8>) -> u16 {
     packet
         .iter()
         .fold(0_u16, |sum, byte| (sum.overflowing_add(*byte as u16).0))

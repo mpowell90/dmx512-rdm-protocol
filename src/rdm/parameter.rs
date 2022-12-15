@@ -550,24 +550,6 @@ impl From<ManufacturerLabelGetRequest> for Vec<u8> {
     }
 }
 
-pub struct ManufacturerLabelSetRequest {
-    pub manufacturer_label: String,
-}
-
-impl Protocol for ManufacturerLabelSetRequest {
-    fn parameter_id() -> ParameterId {
-        ParameterId::ManufacturerLabel
-    }
-}
-
-impl SetRequest for ManufacturerLabelSetRequest {}
-
-impl From<ManufacturerLabelSetRequest> for Vec<u8> {
-    fn from(data: ManufacturerLabelSetRequest) -> Vec<u8> {
-        data.manufacturer_label.as_bytes().to_vec()
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct ManufacturerLabelResponse {
     pub manufacturer_label: String,
@@ -589,149 +571,111 @@ impl From<Vec<u8>> for ManufacturerLabelResponse {
     }
 }
 
-// pub struct FactoryDefaultsResponse {
-//     factory_default: bool,
-// }
+pub struct FactoryDefaultsRequest;
 
-// impl From<Vec<u8>> for FactoryDefaultsResponse {
-//     fn from(bytes: Vec<u8>) -> Self {
-//         FactoryDefaultsResponse {
-//             factory_default: bytes[0] != 0,
-//         }
-//     }
-// }
+impl Protocol for FactoryDefaultsRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::FactoryDefaults
+    }
+}
 
-// impl TryFrom<Vec<u8>> for Response<FactoryDefaultsResponse> {
-//     type Error = &'static str;
+impl GetRequest for FactoryDefaultsRequest {}
 
-//     fn try_from(packet: Vec<u8>) -> Result<Self, Self::Error> {
-//         let ResponseHeader {
-//             destination_uid,
-//             source_uid,
-//             transaction_number,
-//             response_type,
-//             message_count,
-//             sub_device,
-//             command_class,
-//             parameter_id,
-//             parameter_data_length,
-//         } = Response::<()>::parse_packet_header(packet.clone());
+impl From<FactoryDefaultsRequest> for Vec<u8> {
+    fn from(_: FactoryDefaultsRequest) -> Self {
+        Vec::new()
+    }
+}
 
-//         let parameter_data: FactoryDefaultsResponse =
-//             Vec::from(&packet[24..(packet.len() + parameter_data_length as usize)])
-//                 .try_into()
-//                 .unwrap();
+pub struct FactoryDefaultsGetResponse {
+    pub factory_default: bool,
+}
 
-//         Ok(Response {
-//             destination_uid,
-//             source_uid,
-//             transaction_number,
-//             response_type,
-//             message_count,
-//             sub_device,
-//             command_class,
-//             parameter_id,
-//             parameter_data_length,
-//             parameter_data: Some(parameter_data),
-//         })
-//     }
-// }
+impl Protocol for FactoryDefaultsGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::FactoryDefaults
+    }
+}
 
-// pub struct DeviceModelDescriptionResponse {
-//     description: String,
-// }
+impl From<Vec<u8>> for FactoryDefaultsGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        FactoryDefaultsGetResponse {
+            factory_default: bytes[0] != 0,
+        }
+    }
+}
 
-// impl From<Vec<u8>> for DeviceModelDescriptionResponse {
-//     fn from(bytes: Vec<u8>) -> Self {
-//         DeviceModelDescriptionResponse {
-//             description: String::from_utf8(bytes).unwrap(),
-//         }
-//     }
-// }
+pub struct DeviceModelDescriptionGetRequest;
 
-// impl TryFrom<Vec<u8>> for Response<DeviceModelDescriptionResponse> {
-//     type Error = &'static str;
+impl Protocol for DeviceModelDescriptionGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DeviceModelDescription
+    }
+}
 
-//     fn try_from(packet: Vec<u8>) -> Result<Self, Self::Error> {
-//         let ResponseHeader {
-//             destination_uid,
-//             source_uid,
-//             transaction_number,
-//             response_type,
-//             message_count,
-//             sub_device,
-//             command_class,
-//             parameter_id,
-//             parameter_data_length,
-//         } = Response::<()>::parse_packet_header(packet.clone());
+impl GetRequest for DeviceModelDescriptionGetRequest {}
 
-//         let parameter_data: DeviceModelDescriptionResponse =
-//             Vec::from(&packet[24..(packet.len() + parameter_data_length as usize)])
-//                 .try_into()
-//                 .unwrap();
+impl From<DeviceModelDescriptionGetRequest> for Vec<u8> {
+    fn from(_: DeviceModelDescriptionGetRequest) -> Self {
+        Vec::new()
+    }
+}
 
-//         Ok(Response {
-//             destination_uid,
-//             source_uid,
-//             transaction_number,
-//             response_type,
-//             message_count,
-//             sub_device,
-//             command_class,
-//             parameter_id,
-//             parameter_data_length,
-//             parameter_data: Some(parameter_data),
-//         })
-//     }
-// }
+#[derive(Clone, Debug)]
+pub struct DeviceModelDescriptionGetResponse {
+    pub manufacturer_label: String,
+}
 
-// pub struct ProductDetailIdListResponse {
-//     product_detail_ids: Vec<u16>,
-// }
+impl Protocol for DeviceModelDescriptionGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ManufacturerLabel
+    }
+}
 
-// impl From<Vec<u8>> for ProductDetailIdListResponse {
-//     fn from(bytes: Vec<u8>) -> Self {
-//         ProductDetailIdListResponse {
-//             product_detail_ids: bytes
-//                 .chunks(2)
-//                 .map(|id| u16::from_be_bytes(id.try_into().unwrap()))
-//                 .collect(),
-//         }
-//     }
-// }
+impl From<Vec<u8>> for DeviceModelDescriptionGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        DeviceModelDescriptionGetResponse {
+            manufacturer_label: String::from_utf8_lossy(&bytes)
+                .trim_end_matches("\0")
+                .to_string(),
+        }
+    }
+}
 
-// impl TryFrom<Vec<u8>> for Response<ProductDetailIdListResponse> {
-//     type Error = &'static str;
+pub struct ProductDetailIdListRequest;
 
-//     fn try_from(packet: Vec<u8>) -> Result<Self, Self::Error> {
-//         let ResponseHeader {
-//             destination_uid,
-//             source_uid,
-//             transaction_number,
-//             response_type,
-//             message_count,
-//             sub_device,
-//             command_class,
-//             parameter_id,
-//             parameter_data_length,
-//         } = Response::<()>::parse_packet_header(packet.clone());
+impl Protocol for ProductDetailIdListRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ProductDetailIdList
+    }
+}
 
-//         let parameter_data: ProductDetailIdListResponse =
-//             Vec::from(&packet[24..(packet.len() + parameter_data_length as usize)])
-//                 .try_into()
-//                 .unwrap();
+impl GetRequest for ProductDetailIdListRequest {}
 
-//         Ok(Response {
-//             destination_uid,
-//             source_uid,
-//             transaction_number,
-//             response_type,
-//             message_count,
-//             sub_device,
-//             command_class,
-//             parameter_id,
-//             parameter_data_length,
-//             parameter_data: Some(parameter_data),
-//         })
-//     }
-// }
+impl From<ProductDetailIdListRequest> for Vec<u8> {
+    fn from(_: ProductDetailIdListRequest) -> Self {
+        Vec::new()
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct ProductDetailIdListResponse {
+    pub product_detail_id_list: Vec<u16>,
+}
+
+impl Protocol for ProductDetailIdListResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ProductDetailIdList
+    }
+}
+
+impl From<Vec<u8>> for ProductDetailIdListResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        ProductDetailIdListResponse {
+            product_detail_id_list: bytes
+                .chunks(2)
+                .map(|id| u16::from_be_bytes(id.try_into().unwrap()))
+                .collect(),
+        }
+    }
+}

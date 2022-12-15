@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use super::{
     parameter::{
-        DeviceInfoResponse, IdentifyDeviceResponse, ManufacturerLabelResponse, ParameterDescriptionResponse, SoftwareVersionLabelResponse,
+        DeviceInfoResponse, IdentifyDeviceResponse, ManufacturerLabelResponse,
+        ParameterDescriptionResponse, ProductDetailIdListResponse, SoftwareVersionLabelResponse,
         SupportedParametersResponse,
     },
     ManufacturerSpecificParameter, ParameterId, ProductCategory,
@@ -85,6 +86,7 @@ pub struct Device {
         Option<HashMap<u16, ManufacturerSpecificParameter>>,
     pub is_identifying: Option<bool>,
     pub manufacturer_label: Option<String>,
+    pub product_detail_id_list: Option<Vec<u16>>, // TODO use enum types
 }
 
 impl From<DeviceUID> for Device {
@@ -107,6 +109,7 @@ impl From<DeviceUID> for Device {
             supported_manufacturer_specific_parameters: None,
             is_identifying: None,
             manufacturer_label: None,
+            product_detail_id_list: None,
         }
     }
 }
@@ -163,5 +166,9 @@ impl Device {
 
     pub fn update_manufacturer_label(&mut self, data: ManufacturerLabelResponse) {
         self.manufacturer_label = Some(data.manufacturer_label);
+    }
+
+    pub fn update_product_detail_id_list(&mut self, data: ProductDetailIdListResponse) {
+        self.product_detail_id_list = Some(data.product_detail_id_list);
     }
 }
