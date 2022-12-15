@@ -676,3 +676,399 @@ impl From<Vec<u8>> for ProductDetailIdListResponse {
         }
     }
 }
+
+struct DmxPersonalityGetRequest;
+
+impl Protocol for DmxPersonalityGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DmxPersonality
+    }
+}
+
+impl GetRequest for DmxPersonalityGetRequest {}
+
+impl From<DmxPersonalityGetRequest> for Vec<u8> {
+    fn from(_: DmxPersonalityGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+struct DmxPersonalitySetRequest {
+    personality: u8,
+}
+
+impl Protocol for DmxPersonalitySetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DmxPersonality
+    }
+}
+
+impl SetRequest for DmxPersonalitySetRequest {}
+
+impl From<DmxPersonalitySetRequest> for Vec<u8> {
+    fn from(dmx_personality: DmxPersonalitySetRequest) -> Self {
+        Vec::from(dmx_personality.personality.to_be_bytes())
+    }
+}
+
+struct DmxPersonalityGetResponse {
+    pub current_personality: u8,
+    pub personality_count: u8,
+}
+
+impl Protocol for DmxPersonalityGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DmxPersonality
+    }
+}
+
+impl From<Vec<u8>> for DmxPersonalityGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        DmxPersonalityGetResponse {
+            current_personality: bytes[0],
+            personality_count: bytes[1],
+        }
+    }
+}
+
+struct DmxPersonalitySetResponse;
+
+impl Protocol for DmxPersonalitySetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DmxPersonality
+    }
+}
+
+impl From<Vec<u8>> for DmxPersonalitySetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        DmxPersonalitySetResponse
+    }
+}
+
+struct DmxPersonalityDescriptionGetRequest {
+    personality: u8,
+}
+
+impl Protocol for DmxPersonalityDescriptionGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DmxPersonality
+    }
+}
+
+impl GetRequest for DmxPersonalityDescriptionGetRequest {}
+
+impl From<DmxPersonalityDescriptionGetRequest> for Vec<u8> {
+    fn from(dmx_personality_description: DmxPersonalityDescriptionGetRequest) -> Self {
+        Vec::from(dmx_personality_description.personality.to_be_bytes())
+    }
+}
+
+struct DmxPersonalityDescriptionGetResponse {
+    pub personality: u8,
+    pub dmx_slots_required: u16,
+    pub description: String,
+}
+
+impl Protocol for DmxPersonalityDescriptionGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DmxPersonality
+    }
+}
+
+impl From<Vec<u8>> for DmxPersonalityDescriptionGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        DmxPersonalityDescriptionGetResponse {
+            personality: bytes[0],
+            dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into().unwrap()),
+            description: String::from_utf8_lossy(&bytes[3..])
+                .trim_end_matches("\0")
+                .to_string(),
+        }
+    }
+}
+
+struct DeviceHoursGetRequest;
+
+impl Protocol for DeviceHoursGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DeviceHours
+    }
+}
+
+impl GetRequest for DeviceHoursGetRequest {}
+
+impl From<DeviceHoursGetRequest> for Vec<u8> {
+    fn from(_: DeviceHoursGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+struct DeviceHoursSetRequest {
+    device_hours: u32,
+}
+
+impl Protocol for DeviceHoursSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DeviceHours
+    }
+}
+
+impl SetRequest for DeviceHoursSetRequest {}
+
+impl From<DeviceHoursSetRequest> for Vec<u8> {
+    fn from(dmx_personality: DeviceHoursSetRequest) -> Self {
+        Vec::from(dmx_personality.device_hours.to_be_bytes())
+    }
+}
+
+struct DeviceHoursGetResponse {
+    pub device_hours: u32,
+}
+
+impl Protocol for DeviceHoursGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DeviceHours
+    }
+}
+
+impl From<Vec<u8>> for DeviceHoursGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        DeviceHoursGetResponse {
+            device_hours: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
+        }
+    }
+}
+
+struct DeviceHoursSetResponse;
+
+impl Protocol for DeviceHoursSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DeviceHours
+    }
+}
+
+impl From<Vec<u8>> for DeviceHoursSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        DeviceHoursSetResponse
+    }
+}
+
+struct CurveGetRequest;
+
+impl Protocol for CurveGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::Curve
+    }
+}
+
+impl GetRequest for CurveGetRequest {}
+
+impl From<CurveGetRequest> for Vec<u8> {
+    fn from(_: CurveGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+struct CurveSetRequest {
+    personality: u8,
+}
+
+impl Protocol for CurveSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::Curve
+    }
+}
+
+impl SetRequest for CurveSetRequest {}
+
+impl From<CurveSetRequest> for Vec<u8> {
+    fn from(dmx_personality: CurveSetRequest) -> Self {
+        Vec::from(dmx_personality.personality.to_be_bytes())
+    }
+}
+
+struct CurveGetResponse {
+    pub current_curve: u8,
+    pub curve_count: u8,
+}
+
+impl Protocol for CurveGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::Curve
+    }
+}
+
+impl From<Vec<u8>> for CurveGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        CurveGetResponse {
+            current_curve: bytes[0],
+            curve_count: bytes[1],
+        }
+    }
+}
+
+struct CurveSetResponse;
+
+impl Protocol for CurveSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::Curve
+    }
+}
+
+impl From<Vec<u8>> for CurveSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        CurveSetResponse
+    }
+}
+
+struct CurveDescriptionGetRequest {
+    curve: u8,
+}
+
+impl Protocol for CurveDescriptionGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::CurveDescription
+    }
+}
+
+impl GetRequest for CurveDescriptionGetRequest {}
+
+impl From<CurveDescriptionGetRequest> for Vec<u8> {
+    fn from(curve_description: CurveDescriptionGetRequest) -> Self {
+        Vec::from(curve_description.curve.to_be_bytes())
+    }
+}
+
+struct CurveDescriptionGetResponse {
+    pub curve: u8,
+    pub description: String,
+}
+
+impl Protocol for CurveDescriptionGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::CurveDescription
+    }
+}
+
+impl From<Vec<u8>> for CurveDescriptionGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        CurveDescriptionGetResponse {
+            curve: bytes[0],
+            description: String::from_utf8_lossy(&bytes[1..])
+                .trim_end_matches("\0")
+                .to_string(),
+        }
+    }
+}
+
+struct ModulationFrequencyGetRequest;
+
+impl Protocol for ModulationFrequencyGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ModulationFrequency
+    }
+}
+
+impl GetRequest for ModulationFrequencyGetRequest {}
+
+impl From<ModulationFrequencyGetRequest> for Vec<u8> {
+    fn from(_: ModulationFrequencyGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+struct ModulationFrequencySetRequest {
+    modulation_frequency: u8,
+}
+
+impl Protocol for ModulationFrequencySetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ModulationFrequency
+    }
+}
+
+impl SetRequest for ModulationFrequencySetRequest {}
+
+impl From<ModulationFrequencySetRequest> for Vec<u8> {
+    fn from(modulation_frequency: ModulationFrequencySetRequest) -> Self {
+        Vec::from(modulation_frequency.modulation_frequency.to_be_bytes())
+    }
+}
+
+struct ModulationFrequencyGetResponse {
+    pub current_modulation_frequency: u8,
+    pub modulation_frequency_count: u8,
+}
+
+impl Protocol for ModulationFrequencyGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ModulationFrequency
+    }
+}
+
+impl From<Vec<u8>> for ModulationFrequencyGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        ModulationFrequencyGetResponse {
+            current_modulation_frequency: bytes[0],
+            modulation_frequency_count: bytes[1],
+        }
+    }
+}
+
+struct ModulationFrequencySetResponse;
+
+impl Protocol for ModulationFrequencySetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ModulationFrequency
+    }
+}
+
+impl From<Vec<u8>> for ModulationFrequencySetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        ModulationFrequencySetResponse
+    }
+}
+
+struct ModulationFrequencyDescriptionGetRequest {
+    modulation_frequency: u8,
+}
+
+impl Protocol for ModulationFrequencyDescriptionGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ModulationFrequency
+    }
+}
+
+impl GetRequest for ModulationFrequencyDescriptionGetRequest {}
+
+impl From<ModulationFrequencyDescriptionGetRequest> for Vec<u8> {
+    fn from(modulation_frequency_description: ModulationFrequencyDescriptionGetRequest) -> Self {
+        Vec::from(
+            modulation_frequency_description
+                .modulation_frequency
+                .to_be_bytes(),
+        )
+    }
+}
+
+struct ModulationFrequencyDescriptionGetResponse {
+    pub modulation_frequency: u8,
+    pub description: String,
+}
+
+impl Protocol for ModulationFrequencyDescriptionGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ModulationFrequency
+    }
+}
+
+impl From<Vec<u8>> for ModulationFrequencyDescriptionGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        ModulationFrequencyDescriptionGetResponse {
+            modulation_frequency: bytes[0],
+            description: String::from_utf8_lossy(&bytes[1..])
+                .trim_end_matches("\0")
+                .to_string(),
+        }
+    }
+}
