@@ -117,9 +117,9 @@ pub struct Device {
     pub personality_count: u8,
     pub personalities: Option<HashMap<u8, DmxPersonality>>,
     pub start_address: Option<u16>,
-    pub sub_device_count: Option<u16>,
+    pub sub_device_count: u16,
     pub sub_devices: Option<HashMap<u16, Device>>,
-    pub sensor_count: Option<u8>,
+    pub sensor_count: u8,
     pub sensors: Option<HashMap<u8, Sensor>>,
     pub supported_standard_parameters: Option<Vec<ParameterId>>,
     pub supported_manufacturer_specific_parameters:
@@ -152,9 +152,9 @@ impl From<DeviceUID> for Device {
             personality_count: 0,
             personalities: None,
             start_address: None,
-            sub_device_count: None,
+            sub_device_count: 0,
             sub_devices: None,
-            sensor_count: None,
+            sensor_count: 0,
             sensors: None,
             supported_standard_parameters: None,
             supported_manufacturer_specific_parameters: None,
@@ -183,8 +183,8 @@ impl Device {
         self.current_personality = Some(data.current_personality);
         self.personality_count = data.personality_count;
         self.start_address = Some(data.start_address);
-        self.sub_device_count = Some(data.sub_device_count);
-        self.sensor_count = Some(data.sensor_count);
+        self.sub_device_count = data.sub_device_count;
+        self.sensor_count = data.sensor_count;
     }
 
     pub fn update_software_version_label(&mut self, data: SoftwareVersionLabelGetResponse) {

@@ -209,6 +209,8 @@ impl From<u16> for ParameterId {
     }
 }
 
+pub const REQUIRED_PARAMETERS: [ParameterId; 4] = [ParameterId::DeviceInfo, ParameterId::SupportedParameters, ParameterId::SoftwareVersionLabel, ParameterId::IdentifyDevice];
+
 #[derive(Copy, Clone, Debug)]
 pub struct DiscUniqueBranchRequest {
     pub lower_bound_uid: u48,
@@ -1338,17 +1340,25 @@ pub fn create_standard_parameter_get_request_packet(
         // StatusIdDescription => ,
         // ClearStatusId => ,
         // SubDeviceStatusReportThreshold => ,
-        // ParameterId::SupportedParameters => Ok(SupportedParametersGetRequest
-        //     .get_request(
-        //         destination_uid,
-        //         source_uid,
-        //         transaction_number,
-        //         port_id,
-        //         sub_device,
-        //     )
-        //     .into()), // TODO this puts the whole device into a loop
+        ParameterId::SupportedParameters => Ok(SupportedParametersGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
         // ParameterDescription => ,
-        // DeviceInfo => ,
+        ParameterId::DeviceInfo => Ok(DeviceInfoRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
         ParameterId::ProductDetailIdList => Ok(ProductDetailIdListGetRequest
             .get_request(
                 destination_uid,
@@ -1396,15 +1406,15 @@ pub fn create_standard_parameter_get_request_packet(
             .into()),
         // LanguageCapabilities => ,
         // Language => ,
-        // ParameterId::SoftwareVersionLabel => Ok(SoftwareVersionLabelGetRequest
-        //     .get_request(
-        //         destination_uid,
-        //         source_uid,
-        //         transaction_number,
-        //         port_id,
-        //         sub_device,
-        //     )
-        //     .into()), // Don't need to do this as it is a required parameter
+        ParameterId::SoftwareVersionLabel => Ok(SoftwareVersionLabelGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
         // BootSoftwareVersionId => ,
         // BootSoftwareVersionLabel => ,
         ParameterId::DmxPersonality => Ok(DmxPersonalityGetRequest
@@ -1466,7 +1476,15 @@ pub fn create_standard_parameter_get_request_packet(
         // TiltInvert => ,
         // PanTiltSwap => ,
         // RealTimeClock => ,
-        // IdentifyDevice => ,
+        ParameterId::IdentifyDevice => Ok(IdentifyDeviceGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
         // ResetDevice => ,
         // PowerState => ,
         // PerformSelfTest => ,

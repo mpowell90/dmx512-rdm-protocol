@@ -28,7 +28,7 @@ use rdm::{
         ModulationFrequencyGetResponse, ParameterDescriptionGetRequest,
         ParameterDescriptionGetResponse, ParameterId, ProductDetailIdListGetResponse,
         SoftwareVersionLabelGetRequest, SoftwareVersionLabelGetResponse,
-        SupportedParametersGetRequest, SupportedParametersGetResponse,
+        SupportedParametersGetRequest, SupportedParametersGetResponse, REQUIRED_PARAMETERS,
     },
     DiscoveryRequest, GetRequest, PacketType, Protocol,
 };
@@ -191,69 +191,19 @@ fn main() {
                                     Device::from(disc_unique_response.device_uid),
                                 );
 
-                                // Set up subsequent messages to find for the newly found device
-                                let get_device_info: Vec<u8> = DeviceInfoRequest
-                                    .get_request(
+                                // Push subsequent required parameter requests for root device
+                                for parameter_id in REQUIRED_PARAMETERS {
+                                    let packet = create_standard_parameter_get_request_packet(
+                                        parameter_id,
                                         disc_unique_response.device_uid,
                                         source_uid,
                                         0x00,
                                         port_id,
                                         0x0000,
                                     )
-                                    .into();
-                                queue.push_back(Driver::create_rdm_packet(&get_device_info));
-
-                                let get_software_version_label: Vec<u8> =
-                                    SoftwareVersionLabelGetRequest
-                                        .get_request(
-                                            disc_unique_response.device_uid,
-                                            source_uid,
-                                            0x00,
-                                            port_id,
-                                            0x0000,
-                                        )
-                                        .into();
-
-                                queue.push_back(Driver::create_rdm_packet(
-                                    &get_software_version_label,
-                                ));
-
-                                let get_supported_parameters: Vec<u8> =
-                                    SupportedParametersGetRequest
-                                        .get_request(
-                                            disc_unique_response.device_uid,
-                                            source_uid,
-                                            0x00,
-                                            port_id,
-                                            0x0000,
-                                        )
-                                        .into();
-
-                                queue.push_back(Driver::create_rdm_packet(
-                                    &get_supported_parameters,
-                                ));
-
-                                let get_identify_device: Vec<u8> = IdentifyDeviceGetRequest
-                                    .get_request(
-                                        disc_unique_response.device_uid,
-                                        source_uid,
-                                        0x00,
-                                        port_id,
-                                        0x0000,
-                                    )
-                                    .into();
-                                queue.push_back(Driver::create_rdm_packet(&get_identify_device));
-
-                                let get_manufacturer_label: Vec<u8> = ManufacturerLabelGetRequest
-                                    .get_request(
-                                        disc_unique_response.device_uid,
-                                        source_uid,
-                                        0x00,
-                                        port_id,
-                                        0x0000,
-                                    )
-                                    .into();
-                                queue.push_back(Driver::create_rdm_packet(&get_manufacturer_label));
+                                    .unwrap();
+                                    queue.push_back(Driver::create_rdm_packet(&packet));
+                                }
                             }
                             Err(message) => {
                                 println!("Error Message: {}", message);
@@ -520,7 +470,10 @@ fn main() {
                                                 .get_mut(&dmx_personality_get_response.source_uid),
                                             dmx_personality_get_response.parameter_data,
                                         ) {
-                                            println!("data.personality_count: {}", data.personality_count);
+                                            println!(
+                                                "data.personality_count: {}",
+                                                data.personality_count
+                                            );
                                             for idx in 1..data.personality_count + 1 {
                                                 println!("idx: {}", idx);
                                                 let packet: Vec<u8> =
