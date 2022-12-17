@@ -1,12 +1,213 @@
-use std::collections::HashMap;
-
 use byteorder::{BigEndian, WriteBytesExt};
+use std::collections::HashMap;
+use thiserror::Error;
 use ux::u48;
 
 use super::{
     bsd_16_crc, device::DeviceUID, DiscoveryRequest, GetRequest, ManufacturerSpecificParameter,
-    ParameterId, ProductCategory, Protocol, SetRequest, SupportedCommandClasses,
+    ProductCategory, Protocol, SetRequest, SupportedCommandClasses,
 };
+
+#[derive(Debug, Error)]
+pub enum ParameterError {
+    #[error("unsupported parameter")]
+    UnsupportedParameter,
+    #[error("unknown parameter error")]
+    Unknown,
+}
+
+// TODO add remaining parameter ids
+#[derive(Copy, Clone, Debug)]
+pub enum ParameterId {
+    DiscUniqueBranch = 0x0001,
+    DiscMute = 0x0002,
+    DiscUnMute = 0x0003,
+    ProxiedDevices = 0x0010,
+    ProxiedDeviceCount = 0x0011,
+    CommsStatus = 0x0015,
+    QueuedMessage = 0x0020,
+    StatusMessages = 0x0030,
+    StatusIdDescription = 0x0031,
+    ClearStatusId = 0x0032,
+    SubDeviceStatusReportThreshold = 0x0033,
+    SupportedParameters = 0x0050,
+    ParameterDescription = 0x0051,
+    DeviceInfo = 0x0060,
+    ProductDetailIdList = 0x0070,
+    DeviceModelDescription = 0x0080,
+    ManufacturerLabel = 0x0081,
+    DeviceLabel = 0x0082,
+    FactoryDefaults = 0x0090,
+    LanguageCapabilities = 0x00a0,
+    Language = 0x00b0,
+    SoftwareVersionLabel = 0x00c0,
+    BootSoftwareVersionId = 0x00c1,
+    BootSoftwareVersionLabel = 0x00c2,
+    DmxPersonality = 0x00e0,
+    DmxPersonalityDescription = 0x00e1,
+    DmxStartAddress = 0x00f0,
+    SlotInfo = 0x0120,
+    SlotDescription = 0x0121,
+    DefaultSlotValue = 0x0122,
+    SensorDefinition = 0x0200,
+    SensorValue = 0x0201,
+    RecordSensors = 0x0202,
+    Curve = 0x0343,
+    CurveDescription = 0x0344,
+    ModulationFrequency = 0x0347,
+    ModulationFrequencyDescription = 0x0348,
+    OutputResponseTimeDown = 0x0371,
+    OutputResponseTimeDownDescription = 0x0372,
+    DeviceHours = 0x0400,
+    LampHours = 0x0401,
+    LampStrikes = 0x0402,
+    LampState = 0x0403,
+    LampOnMode = 0x0404,
+    DevicePowerCycles = 0x0405,
+    DisplayInvert = 0x0500,
+    DisplayLevel = 0x0501,
+    PanInvert = 0x0600,
+    TiltInvert = 0x0601,
+    PanTiltSwap = 0x0602,
+    RealTimeClock = 0x0603,
+    IdentifyDevice = 0x1000,
+    ResetDevice = 0x1001,
+    PowerState = 0x1010,
+    PerformSelfTest = 0x1020,
+    SelfTestDescription = 0x1021,
+    CapturePreset = 0x1030,
+    PresetPlayback = 0x1031,
+}
+
+// TODO this could use try_from and return a result rather than panic
+impl From<&[u8]> for ParameterId {
+    fn from(bytes: &[u8]) -> Self {
+        match u16::from_be_bytes(bytes.try_into().unwrap()) {
+            0x0001 => ParameterId::DiscUniqueBranch,
+            0x0002 => ParameterId::DiscMute,
+            0x0003 => ParameterId::DiscUnMute,
+            0x0010 => ParameterId::ProxiedDevices,
+            0x0011 => ParameterId::ProxiedDeviceCount,
+            0x0015 => ParameterId::CommsStatus,
+            0x0020 => ParameterId::QueuedMessage,
+            0x0030 => ParameterId::StatusMessages,
+            0x0031 => ParameterId::StatusIdDescription,
+            0x0032 => ParameterId::ClearStatusId,
+            0x0033 => ParameterId::SubDeviceStatusReportThreshold,
+            0x0050 => ParameterId::SupportedParameters,
+            0x0051 => ParameterId::ParameterDescription,
+            0x0060 => ParameterId::DeviceInfo,
+            0x0070 => ParameterId::ProductDetailIdList,
+            0x0080 => ParameterId::DeviceModelDescription,
+            0x0081 => ParameterId::ManufacturerLabel,
+            0x0082 => ParameterId::DeviceLabel,
+            0x0090 => ParameterId::FactoryDefaults,
+            0x00a0 => ParameterId::LanguageCapabilities,
+            0x00b0 => ParameterId::Language,
+            0x00c0 => ParameterId::SoftwareVersionLabel,
+            0x00c1 => ParameterId::BootSoftwareVersionId,
+            0x00c2 => ParameterId::BootSoftwareVersionLabel,
+            0x00e0 => ParameterId::DmxPersonality,
+            0x00e1 => ParameterId::DmxPersonalityDescription,
+            0x00f0 => ParameterId::DmxStartAddress,
+            0x0120 => ParameterId::SlotInfo,
+            0x0121 => ParameterId::SlotDescription,
+            0x0122 => ParameterId::DefaultSlotValue,
+            0x0200 => ParameterId::SensorDefinition,
+            0x0201 => ParameterId::SensorValue,
+            0x0202 => ParameterId::RecordSensors,
+            0x0343 => ParameterId::Curve,
+            0x0344 => ParameterId::CurveDescription,
+            0x0347 => ParameterId::ModulationFrequency,
+            0x0348 => ParameterId::ModulationFrequencyDescription,
+            0x0400 => ParameterId::DeviceHours,
+            0x0401 => ParameterId::LampHours,
+            0x0402 => ParameterId::LampStrikes,
+            0x0403 => ParameterId::LampState,
+            0x0404 => ParameterId::LampOnMode,
+            0x0405 => ParameterId::DevicePowerCycles,
+            0x0500 => ParameterId::DisplayInvert,
+            0x0501 => ParameterId::DisplayLevel,
+            0x0600 => ParameterId::PanInvert,
+            0x0601 => ParameterId::TiltInvert,
+            0x0602 => ParameterId::PanTiltSwap,
+            0x0603 => ParameterId::RealTimeClock,
+            0x1000 => ParameterId::IdentifyDevice,
+            0x1001 => ParameterId::ResetDevice,
+            0x1010 => ParameterId::PowerState,
+            0x1020 => ParameterId::PerformSelfTest,
+            0x1021 => ParameterId::SelfTestDescription,
+            0x1030 => ParameterId::CapturePreset,
+            0x1031 => ParameterId::PresetPlayback,
+            _ => panic!("Invalid value for ParameterId: {:02X?}", bytes),
+        }
+    }
+}
+
+// TODO this could use try_from and return a result rather than panic
+impl From<u16> for ParameterId {
+    fn from(parameter_id: u16) -> Self {
+        match parameter_id {
+            0x0001 => ParameterId::DiscUniqueBranch,
+            0x0002 => ParameterId::DiscMute,
+            0x0003 => ParameterId::DiscUnMute,
+            0x0010 => ParameterId::ProxiedDevices,
+            0x0011 => ParameterId::ProxiedDeviceCount,
+            0x0015 => ParameterId::CommsStatus,
+            0x0020 => ParameterId::QueuedMessage,
+            0x0030 => ParameterId::StatusMessages,
+            0x0031 => ParameterId::StatusIdDescription,
+            0x0032 => ParameterId::ClearStatusId,
+            0x0033 => ParameterId::SubDeviceStatusReportThreshold,
+            0x0050 => ParameterId::SupportedParameters,
+            0x0051 => ParameterId::ParameterDescription,
+            0x0060 => ParameterId::DeviceInfo,
+            0x0070 => ParameterId::ProductDetailIdList,
+            0x0080 => ParameterId::DeviceModelDescription,
+            0x0081 => ParameterId::ManufacturerLabel,
+            0x0082 => ParameterId::DeviceLabel,
+            0x0090 => ParameterId::FactoryDefaults,
+            0x00a0 => ParameterId::LanguageCapabilities,
+            0x00b0 => ParameterId::Language,
+            0x00c0 => ParameterId::SoftwareVersionLabel,
+            0x00c1 => ParameterId::BootSoftwareVersionId,
+            0x00c2 => ParameterId::BootSoftwareVersionLabel,
+            0x00e0 => ParameterId::DmxPersonality,
+            0x00e1 => ParameterId::DmxPersonalityDescription,
+            0x00f0 => ParameterId::DmxStartAddress,
+            0x0120 => ParameterId::SlotInfo,
+            0x0121 => ParameterId::SlotDescription,
+            0x0122 => ParameterId::DefaultSlotValue,
+            0x0200 => ParameterId::SensorDefinition,
+            0x0201 => ParameterId::SensorValue,
+            0x0202 => ParameterId::RecordSensors,
+            0x0343 => ParameterId::Curve,
+            0x0344 => ParameterId::CurveDescription,
+            0x0347 => ParameterId::ModulationFrequency,
+            0x0348 => ParameterId::ModulationFrequencyDescription,
+            0x0400 => ParameterId::DeviceHours,
+            0x0401 => ParameterId::LampHours,
+            0x0402 => ParameterId::LampStrikes,
+            0x0403 => ParameterId::LampState,
+            0x0404 => ParameterId::LampOnMode,
+            0x0405 => ParameterId::DevicePowerCycles,
+            0x0500 => ParameterId::DisplayInvert,
+            0x0501 => ParameterId::DisplayLevel,
+            0x0600 => ParameterId::PanInvert,
+            0x0601 => ParameterId::TiltInvert,
+            0x0602 => ParameterId::PanTiltSwap,
+            0x0603 => ParameterId::RealTimeClock,
+            0x1000 => ParameterId::IdentifyDevice,
+            0x1001 => ParameterId::ResetDevice,
+            0x1010 => ParameterId::PowerState,
+            0x1020 => ParameterId::PerformSelfTest,
+            0x1021 => ParameterId::SelfTestDescription,
+            0x1030 => ParameterId::CapturePreset,
+            0x1031 => ParameterId::PresetPlayback,
+            _ => panic!("Invalid value for ParameterId: {:02X?}", parameter_id),
+        }
+    }
+}
 
 #[derive(Copy, Clone, Debug)]
 pub struct DiscUniqueBranchRequest {
@@ -195,15 +396,21 @@ impl Protocol for ProxiedDeviceCountResponse {
 
 impl GetRequest for ProxiedDeviceCountResponse {}
 
-pub struct ProxiedDevicesRequest;
+pub struct ProxiedDevicesGetRequest;
 
-impl Protocol for ProxiedDevicesRequest {
+impl Protocol for ProxiedDevicesGetRequest {
     fn parameter_id() -> ParameterId {
         ParameterId::ProxiedDevices
     }
 }
 
-impl GetRequest for ProxiedDevicesRequest {}
+impl GetRequest for ProxiedDevicesGetRequest {}
+
+impl From<ProxiedDevicesGetRequest> for Vec<u8> {
+    fn from(data: ProxiedDevicesGetRequest) -> Self {
+        Vec::new()
+    }
+}
 
 pub struct ProxiedDevicesResponse {
     pub device_uids: Vec<DeviceUID>,
@@ -225,32 +432,32 @@ impl From<Vec<u8>> for ProxiedDevicesResponse {
     }
 }
 
-pub struct ParameterDescriptionRequest {
+pub struct ParameterDescriptionGetRequest {
     parameter_id: u16,
 }
 
-impl ParameterDescriptionRequest {
+impl ParameterDescriptionGetRequest {
     pub fn new(parameter_id: u16) -> Self {
-        ParameterDescriptionRequest { parameter_id }
+        ParameterDescriptionGetRequest { parameter_id }
     }
 }
 
-impl Protocol for ParameterDescriptionRequest {
+impl Protocol for ParameterDescriptionGetRequest {
     fn parameter_id() -> ParameterId {
         ParameterId::ParameterDescription
     }
 }
 
-impl GetRequest for ParameterDescriptionRequest {}
+impl GetRequest for ParameterDescriptionGetRequest {}
 
-impl From<ParameterDescriptionRequest> for Vec<u8> {
-    fn from(data: ParameterDescriptionRequest) -> Self {
+impl From<ParameterDescriptionGetRequest> for Vec<u8> {
+    fn from(data: ParameterDescriptionGetRequest) -> Self {
         Vec::from(data.parameter_id.to_be_bytes())
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct ParameterDescriptionResponse {
+pub struct ParameterDescriptionGetResponse {
     pub parameter_id: u16,
     pub parameter_data_size: u8,
     pub data_type: u8,
@@ -262,17 +469,17 @@ pub struct ParameterDescriptionResponse {
     pub description: String,
 }
 
-impl Protocol for ParameterDescriptionResponse {
+impl Protocol for ParameterDescriptionGetResponse {
     fn parameter_id() -> ParameterId {
         ParameterId::ParameterDescription
     }
 }
 
-impl GetRequest for ParameterDescriptionResponse {}
+impl GetRequest for ParameterDescriptionGetResponse {}
 
-impl From<Vec<u8>> for ParameterDescriptionResponse {
+impl From<Vec<u8>> for ParameterDescriptionGetResponse {
     fn from(bytes: Vec<u8>) -> Self {
-        ParameterDescriptionResponse {
+        ParameterDescriptionGetResponse {
             parameter_id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
             parameter_data_size: bytes[2],
             data_type: bytes[3],
@@ -353,7 +560,7 @@ pub struct DeviceInfoResponse {
     pub software_version_id: u32,
     pub footprint: u16,
     pub current_personality: u8,
-    pub total_personalities: u8,
+    pub personality_count: u8,
     pub start_address: u16,
     pub sub_device_count: u16,
     pub sensor_count: u8,
@@ -374,7 +581,7 @@ impl From<Vec<u8>> for DeviceInfoResponse {
             software_version_id: u32::from_be_bytes(bytes[6..=9].try_into().unwrap()),
             footprint: u16::from_be_bytes(bytes[10..=11].try_into().unwrap()),
             current_personality: bytes[12],
-            total_personalities: bytes[13],
+            personality_count: bytes[13],
             start_address: u16::from_be_bytes(bytes[14..=15].try_into().unwrap()),
             sub_device_count: u16::from_be_bytes(bytes[16..=17].try_into().unwrap()),
             sensor_count: u8::from_be(bytes[18]),
@@ -382,36 +589,36 @@ impl From<Vec<u8>> for DeviceInfoResponse {
     }
 }
 
-pub struct SoftwareVersionLabelRequest;
+pub struct SoftwareVersionLabelGetRequest;
 
-impl Protocol for SoftwareVersionLabelRequest {
+impl Protocol for SoftwareVersionLabelGetRequest {
     fn parameter_id() -> ParameterId {
         ParameterId::SoftwareVersionLabel
     }
 }
 
-impl GetRequest for SoftwareVersionLabelRequest {}
+impl GetRequest for SoftwareVersionLabelGetRequest {}
 
-impl From<SoftwareVersionLabelRequest> for Vec<u8> {
-    fn from(_: SoftwareVersionLabelRequest) -> Self {
+impl From<SoftwareVersionLabelGetRequest> for Vec<u8> {
+    fn from(_: SoftwareVersionLabelGetRequest) -> Self {
         Vec::new()
     }
 }
 
 #[derive(Debug)]
-pub struct SoftwareVersionLabelResponse {
+pub struct SoftwareVersionLabelGetResponse {
     pub software_version_label: String,
 }
 
-impl Protocol for SoftwareVersionLabelResponse {
+impl Protocol for SoftwareVersionLabelGetResponse {
     fn parameter_id() -> ParameterId {
         ParameterId::SoftwareVersionLabel
     }
 }
 
-impl From<Vec<u8>> for SoftwareVersionLabelResponse {
+impl From<Vec<u8>> for SoftwareVersionLabelGetResponse {
     fn from(bytes: Vec<u8>) -> Self {
-        SoftwareVersionLabelResponse {
+        SoftwareVersionLabelGetResponse {
             software_version_label: String::from_utf8_lossy(&bytes)
                 .trim_end_matches("\0")
                 .to_string(),
@@ -419,40 +626,40 @@ impl From<Vec<u8>> for SoftwareVersionLabelResponse {
     }
 }
 
-pub struct SupportedParametersRequest;
+pub struct SupportedParametersGetRequest;
 
-impl Protocol for SupportedParametersRequest {
+impl Protocol for SupportedParametersGetRequest {
     fn parameter_id() -> ParameterId {
         ParameterId::SupportedParameters
     }
 }
 
-impl GetRequest for SupportedParametersRequest {}
+impl GetRequest for SupportedParametersGetRequest {}
 
-impl From<SupportedParametersRequest> for Vec<u8> {
-    fn from(_: SupportedParametersRequest) -> Self {
+impl From<SupportedParametersGetRequest> for Vec<u8> {
+    fn from(_: SupportedParametersGetRequest) -> Self {
         Vec::new()
     }
 }
 
 #[derive(Debug)]
-pub struct SupportedParametersResponse {
+pub struct SupportedParametersGetResponse {
     pub standard_parameters: Vec<ParameterId>,
     pub manufacturer_specific_parameters: HashMap<u16, ManufacturerSpecificParameter>,
 }
 
-impl Protocol for SupportedParametersResponse {
+impl Protocol for SupportedParametersGetResponse {
     fn parameter_id() -> ParameterId {
         ParameterId::SupportedParameters
     }
 }
 
-impl From<Vec<u8>> for SupportedParametersResponse {
+impl From<Vec<u8>> for SupportedParametersGetResponse {
     fn from(bytes: Vec<u8>) -> Self {
         let parameters = bytes
             .chunks(2)
             .map(|chunk| u16::from_be_bytes(chunk.try_into().unwrap()));
-        SupportedParametersResponse {
+        SupportedParametersGetResponse {
             standard_parameters: parameters
                 .clone()
                 .filter(|parameter_id| {
@@ -568,18 +775,18 @@ impl From<Vec<u8>> for ManufacturerLabelResponse {
     }
 }
 
-pub struct FactoryDefaultsRequest;
+pub struct FactoryDefaultsGetRequest;
 
-impl Protocol for FactoryDefaultsRequest {
+impl Protocol for FactoryDefaultsGetRequest {
     fn parameter_id() -> ParameterId {
         ParameterId::FactoryDefaults
     }
 }
 
-impl GetRequest for FactoryDefaultsRequest {}
+impl GetRequest for FactoryDefaultsGetRequest {}
 
-impl From<FactoryDefaultsRequest> for Vec<u8> {
-    fn from(_: FactoryDefaultsRequest) -> Self {
+impl From<FactoryDefaultsGetRequest> for Vec<u8> {
+    fn from(_: FactoryDefaultsGetRequest) -> Self {
         Vec::new()
     }
 }
@@ -620,7 +827,7 @@ impl From<DeviceModelDescriptionGetRequest> for Vec<u8> {
 
 #[derive(Clone, Debug)]
 pub struct DeviceModelDescriptionGetResponse {
-    pub manufacturer_label: String,
+    pub device_model_description: String,
 }
 
 impl Protocol for DeviceModelDescriptionGetResponse {
@@ -632,43 +839,43 @@ impl Protocol for DeviceModelDescriptionGetResponse {
 impl From<Vec<u8>> for DeviceModelDescriptionGetResponse {
     fn from(bytes: Vec<u8>) -> Self {
         DeviceModelDescriptionGetResponse {
-            manufacturer_label: String::from_utf8_lossy(&bytes)
+            device_model_description: String::from_utf8_lossy(&bytes)
                 .trim_end_matches("\0")
                 .to_string(),
         }
     }
 }
 
-pub struct ProductDetailIdListRequest;
+pub struct ProductDetailIdListGetRequest;
 
-impl Protocol for ProductDetailIdListRequest {
+impl Protocol for ProductDetailIdListGetRequest {
     fn parameter_id() -> ParameterId {
         ParameterId::ProductDetailIdList
     }
 }
 
-impl GetRequest for ProductDetailIdListRequest {}
+impl GetRequest for ProductDetailIdListGetRequest {}
 
-impl From<ProductDetailIdListRequest> for Vec<u8> {
-    fn from(_: ProductDetailIdListRequest) -> Self {
+impl From<ProductDetailIdListGetRequest> for Vec<u8> {
+    fn from(_: ProductDetailIdListGetRequest) -> Self {
         Vec::new()
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct ProductDetailIdListResponse {
+pub struct ProductDetailIdListGetResponse {
     pub product_detail_id_list: Vec<u16>,
 }
 
-impl Protocol for ProductDetailIdListResponse {
+impl Protocol for ProductDetailIdListGetResponse {
     fn parameter_id() -> ParameterId {
         ParameterId::ProductDetailIdList
     }
 }
 
-impl From<Vec<u8>> for ProductDetailIdListResponse {
+impl From<Vec<u8>> for ProductDetailIdListGetResponse {
     fn from(bytes: Vec<u8>) -> Self {
-        ProductDetailIdListResponse {
+        ProductDetailIdListGetResponse {
             product_detail_id_list: bytes
                 .chunks(2)
                 .map(|id| u16::from_be_bytes(id.try_into().unwrap()))
@@ -711,7 +918,7 @@ impl From<DmxPersonalitySetRequest> for Vec<u8> {
     }
 }
 
-struct DmxPersonalityGetResponse {
+pub struct DmxPersonalityGetResponse {
     pub current_personality: u8,
     pub personality_count: u8,
 }
@@ -745,13 +952,19 @@ impl From<Vec<u8>> for DmxPersonalitySetResponse {
     }
 }
 
-struct DmxPersonalityDescriptionGetRequest {
+pub struct DmxPersonalityDescriptionGetRequest {
     personality: u8,
+}
+
+impl DmxPersonalityDescriptionGetRequest {
+    pub fn new(personality: u8) -> Self {
+        DmxPersonalityDescriptionGetRequest { personality }
+    }
 }
 
 impl Protocol for DmxPersonalityDescriptionGetRequest {
     fn parameter_id() -> ParameterId {
-        ParameterId::DmxPersonality
+        ParameterId::DmxPersonalityDescription
     }
 }
 
@@ -763,7 +976,7 @@ impl From<DmxPersonalityDescriptionGetRequest> for Vec<u8> {
     }
 }
 
-struct DmxPersonalityDescriptionGetResponse {
+pub struct DmxPersonalityDescriptionGetResponse {
     pub personality: u8,
     pub dmx_slots_required: u16,
     pub description: String,
@@ -771,7 +984,7 @@ struct DmxPersonalityDescriptionGetResponse {
 
 impl Protocol for DmxPersonalityDescriptionGetResponse {
     fn parameter_id() -> ParameterId {
-        ParameterId::DmxPersonality
+        ParameterId::DmxPersonalityDescription
     }
 }
 
@@ -821,7 +1034,7 @@ impl From<DeviceHoursSetRequest> for Vec<u8> {
     }
 }
 
-struct DeviceHoursGetResponse {
+pub struct DeviceHoursGetResponse {
     pub device_hours: u32,
 }
 
@@ -870,7 +1083,7 @@ impl From<CurveGetRequest> for Vec<u8> {
 }
 
 struct CurveSetRequest {
-    personality: u8,
+    curve: u8,
 }
 
 impl Protocol for CurveSetRequest {
@@ -882,12 +1095,12 @@ impl Protocol for CurveSetRequest {
 impl SetRequest for CurveSetRequest {}
 
 impl From<CurveSetRequest> for Vec<u8> {
-    fn from(dmx_personality: CurveSetRequest) -> Self {
-        Vec::from(dmx_personality.personality.to_be_bytes())
+    fn from(curve: CurveSetRequest) -> Self {
+        Vec::from(curve.curve.to_be_bytes())
     }
 }
 
-struct CurveGetResponse {
+pub struct CurveGetResponse {
     pub current_curve: u8,
     pub curve_count: u8,
 }
@@ -921,8 +1134,14 @@ impl From<Vec<u8>> for CurveSetResponse {
     }
 }
 
-struct CurveDescriptionGetRequest {
+pub struct CurveDescriptionGetRequest {
     curve: u8,
+}
+
+impl CurveDescriptionGetRequest {
+    pub fn new(curve: u8) -> Self {
+        CurveDescriptionGetRequest { curve }
+    }
 }
 
 impl Protocol for CurveDescriptionGetRequest {
@@ -939,7 +1158,7 @@ impl From<CurveDescriptionGetRequest> for Vec<u8> {
     }
 }
 
-struct CurveDescriptionGetResponse {
+pub struct CurveDescriptionGetResponse {
     pub curve: u8,
     pub description: String,
 }
@@ -995,7 +1214,7 @@ impl From<ModulationFrequencySetRequest> for Vec<u8> {
     }
 }
 
-struct ModulationFrequencyGetResponse {
+pub struct ModulationFrequencyGetResponse {
     pub current_modulation_frequency: u8,
     pub modulation_frequency_count: u8,
 }
@@ -1029,13 +1248,21 @@ impl From<Vec<u8>> for ModulationFrequencySetResponse {
     }
 }
 
-struct ModulationFrequencyDescriptionGetRequest {
+pub struct ModulationFrequencyDescriptionGetRequest {
     modulation_frequency: u8,
+}
+
+impl ModulationFrequencyDescriptionGetRequest {
+    pub fn new(modulation_frequency: u8) -> Self {
+        ModulationFrequencyDescriptionGetRequest {
+            modulation_frequency,
+        }
+    }
 }
 
 impl Protocol for ModulationFrequencyDescriptionGetRequest {
     fn parameter_id() -> ParameterId {
-        ParameterId::ModulationFrequency
+        ParameterId::ModulationFrequencyDescription
     }
 }
 
@@ -1051,14 +1278,15 @@ impl From<ModulationFrequencyDescriptionGetRequest> for Vec<u8> {
     }
 }
 
-struct ModulationFrequencyDescriptionGetResponse {
+pub struct ModulationFrequencyDescriptionGetResponse {
     pub modulation_frequency: u8,
+    pub frequency: u32,
     pub description: String,
 }
 
 impl Protocol for ModulationFrequencyDescriptionGetResponse {
     fn parameter_id() -> ParameterId {
-        ParameterId::ModulationFrequency
+        ParameterId::ModulationFrequencyDescription
     }
 }
 
@@ -1066,9 +1294,185 @@ impl From<Vec<u8>> for ModulationFrequencyDescriptionGetResponse {
     fn from(bytes: Vec<u8>) -> Self {
         ModulationFrequencyDescriptionGetResponse {
             modulation_frequency: bytes[0],
-            description: String::from_utf8_lossy(&bytes[1..])
+            frequency: u32::from_be_bytes(bytes[1..=4].try_into().unwrap()),
+            description: String::from_utf8_lossy(&bytes[5..])
                 .trim_end_matches("\0")
                 .to_string(),
         }
+    }
+}
+
+pub fn create_standard_parameter_get_request_packet(
+    parameter_id: ParameterId,
+    destination_uid: DeviceUID,
+    source_uid: DeviceUID,
+    transaction_number: u8,
+    port_id: u8,
+    sub_device: u16,
+) -> Result<Vec<u8>, ParameterError> {
+    match parameter_id {
+        // DiscUniqueBranch => ,
+        // DiscMute => ,
+        // DiscUnMute => ,
+        ParameterId::ProxiedDevices => Ok(ProxiedDevicesGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::ProxiedDeviceCount => Ok(ProxiedDevicesGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        // CommsStatus => ,
+        // QueuedMessage => ,
+        // StatusMessages => ,
+        // StatusIdDescription => ,
+        // ClearStatusId => ,
+        // SubDeviceStatusReportThreshold => ,
+        // ParameterId::SupportedParameters => Ok(SupportedParametersGetRequest
+        //     .get_request(
+        //         destination_uid,
+        //         source_uid,
+        //         transaction_number,
+        //         port_id,
+        //         sub_device,
+        //     )
+        //     .into()), // TODO this puts the whole device into a loop
+        // ParameterDescription => ,
+        // DeviceInfo => ,
+        ParameterId::ProductDetailIdList => Ok(ProductDetailIdListGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::DeviceModelDescription => Ok(DeviceModelDescriptionGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::ManufacturerLabel => Ok(ManufacturerLabelGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::DeviceLabel => Ok(ManufacturerLabelGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::FactoryDefaults => Ok(FactoryDefaultsGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        // LanguageCapabilities => ,
+        // Language => ,
+        // ParameterId::SoftwareVersionLabel => Ok(SoftwareVersionLabelGetRequest
+        //     .get_request(
+        //         destination_uid,
+        //         source_uid,
+        //         transaction_number,
+        //         port_id,
+        //         sub_device,
+        //     )
+        //     .into()), // Don't need to do this as it is a required parameter
+        // BootSoftwareVersionId => ,
+        // BootSoftwareVersionLabel => ,
+        ParameterId::DmxPersonality => Ok(DmxPersonalityGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        // DmxPersonalityDescription => ,
+        // DmxStartAddress => ,
+        // SlotInfo => ,
+        // SlotDescription => ,
+        // DefaultSlotValue => ,
+        // SensorDefinition => ,
+        // SensorValue => ,
+        // RecordSensors => ,
+        ParameterId::Curve => Ok(CurveGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        // CurveDescription => ,
+        ParameterId::ModulationFrequency => Ok(ModulationFrequencyGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        // ModulationFrequencyDescription => ,
+        // OutputResponseTimeDown => ,
+        // OutputResponseTimeDownDescription => ,
+        ParameterId::DeviceHours => Ok(DeviceHoursGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        // LampHours => ,
+        // LampStrikes => ,
+        // LampState => ,
+        // LampOnMode => ,
+        // DevicePowerCycles => ,
+        // DisplayInvert => ,
+        // DisplayLevel => ,
+        // PanInvert => ,
+        // TiltInvert => ,
+        // PanTiltSwap => ,
+        // RealTimeClock => ,
+        // IdentifyDevice => ,
+        // ResetDevice => ,
+        // PowerState => ,
+        // PerformSelfTest => ,
+        // SelfTestDescription => ,
+        // CapturePreset => ,
+        // PresetPlayback => ,
+        _ => Err(ParameterError::UnsupportedParameter),
     }
 }
