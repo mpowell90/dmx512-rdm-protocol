@@ -16,7 +16,7 @@ pub const SC_SUB_MESSAGE: u8 = 0x01;
 
 pub const BROADCAST_ALL_DEVICES_ID: u48 = u48::new(0xffffffffffff);
 pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
-pub const ROOT_DEVICE: u8 = 0x00;
+pub const ROOT_DEVICE: u16 = 0x0000;
 
 #[derive(PartialEq)]
 pub enum PacketType {
@@ -395,49 +395,67 @@ where
     }
 }
 
-#[derive(Clone, Debug)]
-pub struct Response<T> {
+pub struct MessageHeader {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub response_type: ResponseType,
     pub message_count: u8,
     pub sub_device: u16,
+}
+
+impl From<&[u8]> for MessageHeader {
+    fn from(packet: &[u8]) -> Self {
+        MessageHeader {
+            destination_uid: DeviceUID::from(&packet[3..=8]),
+            source_uid: DeviceUID::from(&packet[9..=14]),
+            transaction_number: packet[15],
+            response_type: ResponseType::try_from(packet[16]).unwrap(),
+            message_count: packet[17],
+            sub_device: u16::from_be_bytes(packet[18..=19].try_into().unwrap()),
+        }
+    }
+}
+
+pub struct MessageDataBlock {
     pub command_class: CommandClass,
     pub parameter_id: ParameterId,
     pub parameter_data_length: u8,
-    pub parameter_data: Option<T>,
+    pub parameter_data: Vec<u8>,
 }
 
-impl<T> Response<T> {
-    // Packet Format
-    // [0] Start Code = 1 byte
-    // [1] Sub Start Code = 1 byte
-    // [2] Message Length = 1 byte
-    // [3-8] Destination UID = 6 bytes (48 bit)
-    // [9-14] Source UID = 6 bytes (48 bit)
-    // [15] Transaction Number (TN) = 1 byte
-    // [16] Port ID / Response Type = 1 byte
-    // [17] Message Count = 1 byte
-    // [18-19] Sub-Device = 2 bytes
-    // [20] Command-Class = 1 byte
-    // [21-22] Parameter ID = 2 bytes
-    // [23] Parameter Data Length = 1 byte
-    // [24-N] Parameter Data = Variable Length
-    // [N-N+2] Checksum = 2 bytes
-    fn parse_packet(packet: &[u8], parameter_data: Option<T>) -> Response<T> {
-        Response {
-            destination_uid: DeviceUID::from(&packet[3..=8]),
-            source_uid: DeviceUID::from(&packet[9..=14]),
-            transaction_number: u8::from_be(packet[15]),
-            response_type: ResponseType::try_from(packet[16]).unwrap(),
-            message_count: u8::from_be(packet[17]),
-            sub_device: u16::from_be_bytes(packet[18..=19].try_into().unwrap()),
+impl From<&[u8]> for MessageDataBlock {
+    fn from(packet: &[u8]) -> Self {
+        let parameter_data_length = packet[23];
+        let parameter_data = if parameter_data_length > 0 {
+            packet[24..packet.len() - 2].to_vec()
+        } else {
+            Vec::new()
+        };
+
+        MessageDataBlock {
             command_class: CommandClass::try_from(packet[20]).unwrap(),
             parameter_id: ParameterId::from(&packet[21..=22]),
-            parameter_data_length: u8::from_be(packet[23]),
-            parameter_data: parameter_data,
+            parameter_data_length,
+            parameter_data,
         }
+    }
+}
+
+pub struct Message;
+
+impl Message {
+    pub fn is_checksum_valid(packet: &Vec<u8>) -> bool {
+        let packet_checksum =
+            u16::from_be_bytes(packet[packet.len() - 2..packet.len()].try_into().unwrap());
+
+        let calculated_checksum = bsd_16_crc(&packet[..packet.len() - 2].try_into().unwrap());
+
+        packet_checksum == calculated_checksum
+    }
+
+    pub fn parse_packet(packet: &[u8]) -> (MessageHeader, MessageDataBlock) {
+        (MessageHeader::from(packet), MessageDataBlock::from(packet))
     }
 }
 
@@ -471,34 +489,6 @@ where
             parameter_id: Self::parameter_id(),
             parameter_data,
         }
-    }
-
-    // TODO how to best handle errors
-    fn parse_response(packet: Vec<u8>) -> Result<Response<Self>, &'static str>
-    where
-        Self: From<Vec<u8>>,
-    {
-        let parameter_data_length = packet[23];
-        let parameter_data: Option<Self> = if parameter_data_length > 0 {
-            let data = packet[24..packet.len() - 2].to_vec();
-            println!("DATA: {:02X?}", data);
-            Some(data.into())
-        } else {
-            None
-        };
-
-        Ok(Response {
-            destination_uid: DeviceUID::from(&packet[3..=8]),
-            source_uid: DeviceUID::from(&packet[9..=14]),
-            transaction_number: u8::from_be(packet[15]),
-            response_type: ResponseType::try_from(packet[16]).unwrap(),
-            message_count: u8::from_be(packet[17]),
-            sub_device: u16::from_be_bytes(packet[18..=19].try_into().unwrap()),
-            command_class: CommandClass::try_from(packet[20]).unwrap(),
-            parameter_id: ParameterId::from(&packet[21..=22]),
-            parameter_data_length,
-            parameter_data,
-        })
     }
 }
 
@@ -572,12 +562,4 @@ where
             self,
         )
     }
-}
-
-struct Header {
-    pub destination_uid: DeviceUID,
-    pub source_uid: DeviceUID,
-    pub transaction_number: u8,
-    pub port_id: u8,
-    pub sub_device: u16,
 }

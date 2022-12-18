@@ -4,7 +4,7 @@ use thiserror::Error;
 use ux::u48;
 
 use super::{
-    bsd_16_crc, device::DeviceUID, DiscoveryRequest, GetRequest, ManufacturerSpecificParameter,
+    bsd_16_crc, device::{DeviceUID, DmxSlot}, DiscoveryRequest, GetRequest, ManufacturerSpecificParameter,
     ProductCategory, Protocol, SetRequest, SupportedCommandClasses,
 };
 
@@ -52,8 +52,13 @@ pub enum ParameterId {
     SensorDefinition = 0x0200,
     SensorValue = 0x0201,
     RecordSensors = 0x0202,
+    DimmerInfo = 0x0340,
+    MinimumLevel = 0x0341,
+    MaximumLevel = 0x0342,
     Curve = 0x0343,
     CurveDescription = 0x0344,
+    OutputResponseTime = 0x0345,
+    OutputResponseTimeDescription = 0x0346,
     ModulationFrequency = 0x0347,
     ModulationFrequencyDescription = 0x0348,
     OutputResponseTimeDown = 0x0371,
@@ -116,8 +121,13 @@ impl From<&[u8]> for ParameterId {
             0x0200 => ParameterId::SensorDefinition,
             0x0201 => ParameterId::SensorValue,
             0x0202 => ParameterId::RecordSensors,
+            0x0340 => ParameterId::DimmerInfo,
+            0x0341 => ParameterId::MinimumLevel,
+            0x0342 => ParameterId::MaximumLevel,
             0x0343 => ParameterId::Curve,
             0x0344 => ParameterId::CurveDescription,
+            0x0345 => ParameterId::OutputResponseTime,
+            0x0346 => ParameterId::OutputResponseTimeDescription,
             0x0347 => ParameterId::ModulationFrequency,
             0x0348 => ParameterId::ModulationFrequencyDescription,
             0x0400 => ParameterId::DeviceHours,
@@ -139,7 +149,7 @@ impl From<&[u8]> for ParameterId {
             0x1021 => ParameterId::SelfTestDescription,
             0x1030 => ParameterId::CapturePreset,
             0x1031 => ParameterId::PresetPlayback,
-            _ => panic!("Invalid value for ParameterId: {:02X?}", bytes),
+            _ => panic!("Invalid value for ParameterId: 0x{:04X?}", bytes),
         }
     }
 }
@@ -181,8 +191,13 @@ impl From<u16> for ParameterId {
             0x0200 => ParameterId::SensorDefinition,
             0x0201 => ParameterId::SensorValue,
             0x0202 => ParameterId::RecordSensors,
+            0x0340 => ParameterId::DimmerInfo,
+            0x0341 => ParameterId::MinimumLevel,
+            0x0342 => ParameterId::MaximumLevel,
             0x0343 => ParameterId::Curve,
             0x0344 => ParameterId::CurveDescription,
+            0x0345 => ParameterId::OutputResponseTime,
+            0x0346 => ParameterId::OutputResponseTimeDescription,
             0x0347 => ParameterId::ModulationFrequency,
             0x0348 => ParameterId::ModulationFrequencyDescription,
             0x0400 => ParameterId::DeviceHours,
@@ -204,7 +219,7 @@ impl From<u16> for ParameterId {
             0x1021 => ParameterId::SelfTestDescription,
             0x1030 => ParameterId::CapturePreset,
             0x1031 => ParameterId::PresetPlayback,
-            _ => panic!("Invalid value for ParameterId: {:02X?}", parameter_id),
+            _ => panic!("Invalid value for ParameterId: 0x{:04X?}", parameter_id),
         }
     }
 }
@@ -409,7 +424,7 @@ impl Protocol for ProxiedDevicesGetRequest {
 impl GetRequest for ProxiedDevicesGetRequest {}
 
 impl From<ProxiedDevicesGetRequest> for Vec<u8> {
-    fn from(data: ProxiedDevicesGetRequest) -> Self {
+    fn from(_: ProxiedDevicesGetRequest) -> Self {
         Vec::new()
     }
 }
@@ -1002,6 +1017,42 @@ impl From<Vec<u8>> for DmxPersonalityDescriptionGetResponse {
     }
 }
 
+pub struct SlotInfoRequest;
+
+impl Protocol for SlotInfoRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::SlotInfo
+    }
+}
+
+impl GetRequest for SlotInfoRequest {}
+
+impl From<SlotInfoRequest> for Vec<u8> {
+    fn from(_: SlotInfoRequest) -> Self {
+        Vec::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct SlotInfoResponse {
+    pub dmx_slots: Vec<DmxSlot>,
+}
+
+impl Protocol for SlotInfoResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::SlotInfo
+    }
+}
+
+impl From<Vec<u8>> for SlotInfoResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        println!("{:02X?}", bytes);
+        SlotInfoResponse {
+            dmx_slots: bytes.chunks(5).map(DmxSlot::from).collect(),
+        }
+    }
+}
+
 struct DeviceHoursGetRequest;
 
 impl Protocol for DeviceHoursGetRequest {
@@ -1304,6 +1355,319 @@ impl From<Vec<u8>> for ModulationFrequencyDescriptionGetResponse {
     }
 }
 
+pub struct DimmerInfoRequest;
+
+impl Protocol for DimmerInfoRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DimmerInfo
+    }
+}
+
+impl GetRequest for DimmerInfoRequest {}
+
+impl From<DimmerInfoRequest> for Vec<u8> {
+    fn from(_: DimmerInfoRequest) -> Self {
+        Vec::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct DimmerInfoResponse {
+    pub minimum_level_lower_limit: u16,
+    pub minimum_level_upper_limit: u16,
+    pub maximum_level_lower_limit: u16,
+    pub maximum_level_upper_limit: u16,
+    pub num_of_supported_curves: u8,
+    pub levels_resolution: u8,
+    pub minimum_levels_split_levels_supports: u8,
+}
+
+impl Protocol for DimmerInfoResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DimmerInfo
+    }
+}
+
+impl From<Vec<u8>> for DimmerInfoResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        DimmerInfoResponse {
+            minimum_level_lower_limit: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
+            minimum_level_upper_limit: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
+            maximum_level_lower_limit: u16::from_be_bytes(bytes[4..=5].try_into().unwrap()),
+            maximum_level_upper_limit: u16::from_be_bytes(bytes[6..=7].try_into().unwrap()),
+            num_of_supported_curves: bytes[8],
+            levels_resolution: bytes[9],
+            minimum_levels_split_levels_supports: bytes[10], // TODO could be bool
+        }
+    }
+}
+
+pub struct MinimumLevelGetRequest;
+
+impl Protocol for MinimumLevelGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::MinimumLevel
+    }
+}
+
+impl GetRequest for MinimumLevelGetRequest {}
+
+impl From<MinimumLevelGetRequest> for Vec<u8> {
+    fn from(_: MinimumLevelGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct MinimumLevelGetResponse {
+    pub minimum_level_increasing: u16,
+    pub minimum_level_decreasing: u16,
+    pub on_below_minimum: u8, // TODO could be bool
+}
+
+impl Protocol for MinimumLevelGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::MinimumLevel
+    }
+}
+
+impl From<Vec<u8>> for MinimumLevelGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        MinimumLevelGetResponse {
+            minimum_level_increasing: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
+            minimum_level_decreasing: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
+            on_below_minimum: bytes[4],
+        }
+    }
+}
+
+pub struct MinimumLevelSetRequest {
+    pub minimum_level_increasing: u16,
+    pub minimum_level_decreasing: u16,
+    pub on_below_minimum: u8, // TODO could be bool
+}
+
+impl Protocol for MinimumLevelSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::MinimumLevel
+    }
+}
+
+impl GetRequest for MinimumLevelSetRequest {}
+
+impl From<MinimumLevelSetRequest> for Vec<u8> {
+    fn from(minimum_level: MinimumLevelSetRequest) -> Self {
+        let mut packet = Vec::new();
+        packet.write_u16::<BigEndian>(minimum_level.minimum_level_increasing).unwrap();
+        packet.write_u16::<BigEndian>(minimum_level.minimum_level_decreasing).unwrap();
+        packet.write_u8(minimum_level.on_below_minimum).unwrap();
+        packet
+    }
+}
+
+#[derive(Debug)]
+pub struct MinimumLevelSetResponse;
+
+impl Protocol for MinimumLevelSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::MinimumLevel
+    }
+}
+
+impl From<Vec<u8>> for MinimumLevelSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        MinimumLevelSetResponse
+    }
+}
+
+pub struct MaximumLevelGetRequest;
+
+impl Protocol for MaximumLevelGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::MaximumLevel
+    }
+}
+
+impl GetRequest for MaximumLevelGetRequest {}
+
+impl From<MaximumLevelGetRequest> for Vec<u8> {
+    fn from(_: MaximumLevelGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+#[derive(Debug)]
+pub struct MaximumLevelGetResponse {
+    pub maximum_level: u16,
+}
+
+impl Protocol for MaximumLevelGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::MaximumLevel
+    }
+}
+
+impl From<Vec<u8>> for MaximumLevelGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        MaximumLevelGetResponse {
+            maximum_level: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
+        }
+    }
+}
+
+pub struct MaximumLevelSetRequest {
+    pub maximum_level: u16,
+}
+
+impl Protocol for MaximumLevelSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::MaximumLevel
+    }
+}
+
+impl GetRequest for MaximumLevelSetRequest {}
+
+impl From<MaximumLevelSetRequest> for Vec<u8> {
+    fn from(maximum_level: MaximumLevelSetRequest) -> Self {
+        Vec::from(maximum_level.maximum_level.to_be_bytes())
+    }
+}
+
+#[derive(Debug)]
+pub struct MaximumLevelSetResponse;
+
+impl Protocol for MaximumLevelSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::MaximumLevel
+    }
+}
+
+impl From<Vec<u8>> for MaximumLevelSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        MaximumLevelSetResponse
+    }
+}
+
+pub struct OutputResponseTimeGetRequest;
+
+impl Protocol for OutputResponseTimeGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::OutputResponseTime
+    }
+}
+
+impl GetRequest for OutputResponseTimeGetRequest {}
+
+impl From<OutputResponseTimeGetRequest> for Vec<u8> {
+    fn from(_: OutputResponseTimeGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+pub struct OutputResponseTimeGetResponse {
+    pub current_output_response_time: u8,
+    pub output_response_time_count: u8,
+}
+
+impl Protocol for OutputResponseTimeGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::OutputResponseTime
+    }
+}
+
+impl From<Vec<u8>> for OutputResponseTimeGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        OutputResponseTimeGetResponse {
+            current_output_response_time: bytes[0],
+            output_response_time_count: bytes[1],
+        }
+    }
+}
+
+pub struct OutputResponseTimeSetRequest {
+    output_response_time: u8,
+}
+
+impl Protocol for OutputResponseTimeSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::OutputResponseTime
+    }
+}
+
+impl SetRequest for OutputResponseTimeSetRequest {}
+
+impl From<OutputResponseTimeSetRequest> for Vec<u8> {
+    fn from(output_response_time: OutputResponseTimeSetRequest) -> Self {
+        Vec::from(output_response_time.output_response_time.to_be_bytes())
+    }
+}
+
+pub struct OutputResponseTimeSetResponse;
+
+impl Protocol for OutputResponseTimeSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::OutputResponseTime
+    }
+}
+
+impl From<Vec<u8>> for OutputResponseTimeSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        OutputResponseTimeSetResponse
+    }
+}
+
+pub struct OutputResponseTimeDescriptionGetRequest {
+    output_response_time: u8,
+}
+
+impl OutputResponseTimeDescriptionGetRequest {
+    pub fn new(output_response_time: u8) -> Self {
+        OutputResponseTimeDescriptionGetRequest {
+            output_response_time,
+        }
+    }
+}
+
+impl Protocol for OutputResponseTimeDescriptionGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::OutputResponseTimeDescription
+    }
+}
+
+impl GetRequest for OutputResponseTimeDescriptionGetRequest {}
+
+impl From<OutputResponseTimeDescriptionGetRequest> for Vec<u8> {
+    fn from(output_response_time_description: OutputResponseTimeDescriptionGetRequest) -> Self {
+        Vec::from(
+            output_response_time_description
+                .output_response_time
+                .to_be_bytes(),
+        )
+    }
+}
+
+pub struct OutputResponseTimeDescriptionGetResponse {
+    pub output_response_time: u8,
+    pub description: String,
+}
+
+impl Protocol for OutputResponseTimeDescriptionGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::OutputResponseTimeDescription
+    }
+}
+
+impl From<Vec<u8>> for OutputResponseTimeDescriptionGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        OutputResponseTimeDescriptionGetResponse {
+            output_response_time: bytes[0],
+            description: String::from_utf8_lossy(&bytes[1..])
+                .trim_end_matches("\0")
+                .to_string(),
+        }
+    }
+}
+
 pub fn create_standard_parameter_get_request_packet(
     parameter_id: ParameterId,
     destination_uid: DeviceUID,
@@ -1428,12 +1792,47 @@ pub fn create_standard_parameter_get_request_packet(
             .into()),
         // DmxPersonalityDescription => ,
         // DmxStartAddress => ,
-        // SlotInfo => ,
+        ParameterId::SlotInfo => Ok(SlotInfoRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
         // SlotDescription => ,
         // DefaultSlotValue => ,
         // SensorDefinition => ,
         // SensorValue => ,
         // RecordSensors => ,
+        ParameterId::DimmerInfo => Ok(DimmerInfoRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::MinimumLevel => Ok(MinimumLevelGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::MaximumLevel => Ok(MaximumLevelGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
         ParameterId::Curve => Ok(CurveGetRequest
             .get_request(
                 destination_uid,
@@ -1454,8 +1853,16 @@ pub fn create_standard_parameter_get_request_packet(
             )
             .into()),
         // ModulationFrequencyDescription => ,
-        // OutputResponseTimeDown => ,
-        // OutputResponseTimeDownDescription => ,
+        ParameterId::OutputResponseTime => Ok(OutputResponseTimeGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        // OutputResponseTimeDescription => ,
         ParameterId::DeviceHours => Ok(DeviceHoursGetRequest
             .get_request(
                 destination_uid,

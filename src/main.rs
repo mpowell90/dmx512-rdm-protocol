@@ -15,22 +15,15 @@ use yansi::Paint;
 
 use enttecdmxusbpro::{Driver, PacketResponseType};
 use rdm::{
-    bsd_16_crc,
     device::{Device, DeviceUID},
     parameter::{
-        create_standard_parameter_get_request_packet, CurveDescriptionGetRequest,
-        CurveDescriptionGetResponse, CurveGetResponse, DeviceHoursGetResponse, DeviceInfoResponse,
-        DeviceModelDescriptionGetResponse, DiscUniqueBranchRequest, DiscUniqueBranchResponse,
-        DiscUnmuteRequest, DmxPersonalityDescriptionGetRequest,
-        DmxPersonalityDescriptionGetResponse, DmxPersonalityGetResponse, IdentifyDeviceResponse,
-        ManufacturerLabelResponse, ModulationFrequencyDescriptionGetRequest,
-        ModulationFrequencyDescriptionGetResponse, ModulationFrequencyGetResponse,
-        ParameterDescriptionGetRequest, ParameterDescriptionGetResponse, ParameterId,
-        ProductDetailIdListGetResponse, SoftwareVersionLabelGetResponse,
-        SupportedParametersGetResponse, REQUIRED_PARAMETERS,
+        create_standard_parameter_get_request_packet, DiscUniqueBranchRequest,
+        DiscUniqueBranchResponse, DiscUnmuteRequest, ParameterId, REQUIRED_PARAMETERS,
     },
-    DiscoveryRequest, GetRequest, PacketType, Protocol,
+    DiscoveryRequest, Message, PacketType, ROOT_DEVICE,
 };
+
+use crate::rdm::{parameter::{DmxPersonalityDescriptionGetRequest, ParameterDescriptionGetRequest, CurveDescriptionGetRequest, ModulationFrequencyDescriptionGetRequest, OutputResponseTimeDescriptionGetRequest}, GetRequest};
 
 fn main() {
     let serialports = available_ports().unwrap();
@@ -211,18 +204,7 @@ fn main() {
                         }
                     }
                     PacketType::RdmResponse => {
-                        // TODO check the checksum here, and attempt retry
-                        // TODO also be good to lift this outside of this check
-                        let packet_checksum = u16::from_be_bytes(
-                            rdm_packet[rdm_packet.len() - 2..rdm_packet.len()]
-                                .try_into()
-                                .unwrap(),
-                        );
-
-                        let calculated_checksum =
-                            bsd_16_crc(&rdm_packet[..rdm_packet.len() - 2].try_into().unwrap());
-
-                        if packet_checksum != calculated_checksum {
+                        if !Message::is_checksum_valid(&rdm_packet) {
                             // TODO should retry sending packets here
                             println!("Checksum failed");
                             waiting_response = false;
@@ -232,407 +214,240 @@ fn main() {
                         let parameter_id = ParameterId::from(&rdm_packet[21..=22]);
                         println!("ParameterId: {:?}", parameter_id);
 
-                        match parameter_id {
-                            ParameterId::DeviceInfo => {
-                                match DeviceInfoResponse::parse_response(rdm_packet) {
-                                    Ok(device_info_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(&device_info_response.source_uid),
-                                            device_info_response.parameter_data,
-                                        ) {
-                                            device.update_device_info(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
+                        let (message_header, message_data_block) =
+                            Message::parse_packet(rdm_packet.as_slice());
 
-                                        // TODO trigger more messages based on this data
+                            
+                        if let Some(found_device) = devices.get_mut(&message_header.source_uid) {
+                            let mut device;
+                            if message_header.sub_device == ROOT_DEVICE {
+                                device = found_device;
+                            } else {
+                                // TODO find sub_device from within device.sub_devices and update that instead
+                                if let Some(sub_devices) = found_device.sub_devices.as_mut() {
+                                    if let Some(found_sub_device) =
+                                        sub_devices.get_mut(&message_header.sub_device)
+                                    {
+                                        device = found_sub_device;
+                                    } else {
+                                        continue;
                                     }
-                                    Err(message) => {
-                                        println!("Error Message: {}", message);
-                                    }
+                                } else {
+                                    continue;
                                 }
                             }
-                            ParameterId::SoftwareVersionLabel => {
-                                match SoftwareVersionLabelGetResponse::parse_response(rdm_packet) {
-                                    Ok(software_version_label_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(
-                                                &software_version_label_response.source_uid,
-                                            ),
-                                            software_version_label_response.parameter_data,
-                                        ) {
-                                            device.update_software_version_label(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
+
+                            match message_data_block.parameter_id {
+                                ParameterId::DeviceInfo => {
+                                    device.update_device_info(message_data_block.parameter_data.into());
+                    
+                                    if device.sub_device_count > 0 {
+                                        // initialise device.sub_device
+                                        let mut sub_devices: HashMap<u16, Device> = HashMap::new();
+                    
+                                        for sub_device_id in 1..=device.sub_device_count {
+                                            sub_devices.insert(sub_device_id, Device::new(device.uid, sub_device_id));
+                                            // Push subsequent required parameter requests for root device
+                                            for parameter_id in REQUIRED_PARAMETERS {
+                                                let packet = create_standard_parameter_get_request_packet(
+                                                    parameter_id,
+                                                    device.uid,
+                                                    source_uid,
+                                                    0x00,
+                                                    port_id,
+                                                    sub_device_id,
+                                                )
+                                                .unwrap();
+                                                queue.push_back(Driver::create_rdm_packet(&packet));
+                                            }
+                                        }
+                    
+                                        device.sub_devices = Some(sub_devices);
+                                    }
+
+                                    // TODO causes a nack response
+                                    // if let Some(footprint) = device.footprint {
+                                    //     if footprint > 0 {
+                                    //         let packet = create_standard_parameter_get_request_packet(
+                                    //             ParameterId::SlotInfo,
+                                    //             device.uid,
+                                    //             source_uid,
+                                    //             0x00,
+                                    //             port_id,
+                                    //             message_header.sub_device,
+                                    //         )
+                                    //         .unwrap();
+                                    //         queue.push_back(Driver::create_rdm_packet(&packet));
+                                    //     }
+                                    // }
+                                }
+                                ParameterId::SoftwareVersionLabel => {
+                                    device.update_software_version_label(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::SupportedParameters => {
+                                    device.update_supported_parameters(message_data_block.parameter_data.into());
+                    
+                                    if let Some(standard_parameters) = device.supported_standard_parameters.clone() {
+                                        for parameter_id in standard_parameters {
+                                            match create_standard_parameter_get_request_packet(
+                                                parameter_id,
+                                                device.uid,
+                                                source_uid,
+                                                0x00,
+                                                port_id,
+                                                message_header.sub_device,
+                                            ) {
+                                                Ok(packet) => {
+                                                    queue.push_back(Driver::create_rdm_packet(&packet));
+                                                }
+                                                Err(error) => println!("Error whilst creating packet: {}", error),
+                                            }
                                         }
                                     }
-                                    Err(message) => {
-                                        println!("Error Message: {}", message);
-                                    }
-                                }
-                            }
-                            ParameterId::SupportedParameters => {
-                                match SupportedParametersGetResponse::parse_response(rdm_packet) {
-                                    Ok(supported_parameters_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices
-                                                .get_mut(&supported_parameters_response.source_uid),
-                                            supported_parameters_response.parameter_data,
-                                        ) {
-                                            device.update_supported_parameters(data);
-                                            println!("Device: {:#02X?}", device);
-
-                                            if let Some(standard_parameters) =
-                                                device.supported_standard_parameters.clone()
-                                            {
-                                                for parameter_id in standard_parameters {
-                                                    println!("PID: {:02X?}", parameter_id);
-
-                                                    let packet_result = create_standard_parameter_get_request_packet(
-                                                        parameter_id,
+                    
+                                    // Iterate over manufacturer specific parameters to get their parameter descriptions
+                                    if let Some(manufacturer_specific_parameters) =
+                                        device.supported_manufacturer_specific_parameters.clone()
+                                    {
+                                        for parameter_id in manufacturer_specific_parameters.into_keys() {
+                                            let get_manufacturer_label: Vec<u8> =
+                                                ParameterDescriptionGetRequest::new(parameter_id)
+                                                    .get_request(
                                                         device.uid,
                                                         source_uid,
-                                    0x00,
-                                                0x01,
-                                            0x0000
-                                                    );
-
-                                                    match packet_result {
-                                                        Ok(packet) => {
-                                                            queue.push_back(
-                                                                Driver::create_rdm_packet(&packet),
-                                                            );
-                                                        }
-                                                        Err(error) => println!(
-                                                            "Error whilst creating packet: {}",
-                                                            error
-                                                        ),
-                                                    }
-                                                }
-                                            }
-
-                                            // Iterate over manufacturer specific parameters to get their parameter descriptions
-                                            if let Some(manufacturer_specific_parameters) = device
-                                                .supported_manufacturer_specific_parameters
-                                                .clone()
-                                            {
-                                                for parameter_id in
-                                                    manufacturer_specific_parameters.into_keys()
-                                                {
-                                                    println!("PID: {:02X?}", parameter_id);
-                                                    let get_manufacturer_label: Vec<u8> =
-                                                        ParameterDescriptionGetRequest::new(
-                                                            parameter_id,
-                                                        )
-                                                        .get_request(
-                                                            device.uid, source_uid, 0x00, port_id,
-                                                            0x0000,
-                                                        )
-                                                        .into();
-                                                    queue.push_back(Driver::create_rdm_packet(
-                                                        &get_manufacturer_label,
-                                                    ));
-                                                }
-                                            }
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-                                    }
-                                    Err(message) => {
-                                        println!("Error Message: {}", message);
-                                    }
-                                }
-                            }
-                            ParameterId::ParameterDescription => {
-                                match ParameterDescriptionGetResponse::parse_response(rdm_packet) {
-                                    Ok(parameter_description_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(
-                                                &parameter_description_response.source_uid,
-                                            ),
-                                            parameter_description_response.parameter_data,
-                                        ) {
-                                            device.update_parameter_description(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-                                    }
-                                    Err(message) => {
-                                        println!("Error Message: {}", message);
-                                    }
-                                }
-                            }
-                            ParameterId::IdentifyDevice => {
-                                match IdentifyDeviceResponse::parse_response(rdm_packet) {
-                                    Ok(identify_device_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(&identify_device_response.source_uid),
-                                            identify_device_response.parameter_data,
-                                        ) {
-                                            device.update_identify_device(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-                                    }
-                                    Err(message) => {
-                                        println!("Error Message: {}", message);
-                                    }
-                                }
-                            }
-                            ParameterId::ManufacturerLabel => {
-                                match ManufacturerLabelResponse::parse_response(rdm_packet) {
-                                    Ok(manufacturer_label_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices
-                                                .get_mut(&manufacturer_label_response.source_uid),
-                                            manufacturer_label_response.parameter_data,
-                                        ) {
-                                            device.update_manufacturer_label(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-                                    }
-                                    Err(_) => {
-                                        println!("Error occur whilst parsing");
-                                    }
-                                }
-                            }
-                            ParameterId::ProductDetailIdList => {
-                                match ProductDetailIdListGetResponse::parse_response(rdm_packet) {
-                                    Ok(product_detail_id_list_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(
-                                                &product_detail_id_list_response.source_uid,
-                                            ),
-                                            product_detail_id_list_response.parameter_data,
-                                        ) {
-                                            device.update_product_detail_id_list(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-                                    }
-                                    Err(_) => {
-                                        println!("Error occur whilst parsing");
-                                    }
-                                }
-                            }
-                            ParameterId::DeviceHours => {
-                                match DeviceHoursGetResponse::parse_response(rdm_packet) {
-                                    Ok(device_hours_get_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(&device_hours_get_response.source_uid),
-                                            device_hours_get_response.parameter_data,
-                                        ) {
-                                            device.update_device_hours(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-                                    }
-                                    Err(_) => {
-                                        println!("Error occur whilst parsing");
-                                    }
-                                }
-                            }
-                            ParameterId::DeviceModelDescription => {
-                                match DeviceModelDescriptionGetResponse::parse_response(rdm_packet)
-                                {
-                                    Ok(device_model_description_get_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(
-                                                &device_model_description_get_response.source_uid,
-                                            ),
-                                            device_model_description_get_response.parameter_data,
-                                        ) {
-                                            device.update_device_model_description(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-                                    }
-                                    Err(_) => {
-                                        println!("Error occur whilst parsing");
-                                    }
-                                }
-                            }
-                            ParameterId::DmxPersonality => {
-                                match DmxPersonalityGetResponse::parse_response(rdm_packet) {
-                                    Ok(dmx_personality_get_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices
-                                                .get_mut(&dmx_personality_get_response.source_uid),
-                                            dmx_personality_get_response.parameter_data,
-                                        ) {
-                                            println!(
-                                                "data.personality_count: {}",
-                                                data.personality_count
-                                            );
-                                            for idx in 1..data.personality_count + 1 {
-                                                println!("idx: {}", idx);
-                                                let packet: Vec<u8> =
-                                                    DmxPersonalityDescriptionGetRequest::new(idx)
-                                                        .get_request(
-                                                            device.uid, source_uid, 0x00, port_id,
-                                                            0x0000,
-                                                        )
-                                                        .into();
-
-                                                queue.push_back(Driver::create_rdm_packet(&packet));
-                                            }
-                                            device.update_dmx_personality_info(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-
-                                        // TODO iterate over "count" and push messages into queue
-                                    }
-                                    Err(_) => {
-                                        println!("Error occur whilst parsing");
-                                    }
-                                }
-                            }
-                            ParameterId::DmxPersonalityDescription => {
-                                match DmxPersonalityDescriptionGetResponse::parse_response(
-                                    rdm_packet,
-                                ) {
-                                    Ok(dmx_personality_description_get_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(
-                                                &dmx_personality_description_get_response
-                                                    .source_uid,
-                                            ),
-                                            dmx_personality_description_get_response.parameter_data,
-                                        ) {
-                                            device.update_dmx_personality_description(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-                                    }
-                                    Err(_) => {
-                                        println!("Error occur whilst parsing");
-                                    }
-                                }
-                            }
-                            ParameterId::Curve => {
-                                match CurveGetResponse::parse_response(rdm_packet) {
-                                    Ok(curve_get_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(&curve_get_response.source_uid),
-                                            curve_get_response.parameter_data,
-                                        ) {
-                                            for idx in 1..data.curve_count + 1 {
-                                                let packet: Vec<u8> =
-                                                    CurveDescriptionGetRequest::new(idx)
-                                                        .get_request(
-                                                            device.uid, source_uid, 0x00, port_id,
-                                                            0x0000,
-                                                        )
-                                                        .into();
-
-                                                queue.push_back(Driver::create_rdm_packet(&packet));
-                                            }
-
-                                            device.update_curve_info(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-                                    }
-                                    Err(_) => {
-                                        println!("Error occur whilst parsing");
-                                    }
-                                }
-                            }
-                            ParameterId::CurveDescription => {
-                                match CurveDescriptionGetResponse::parse_response(rdm_packet) {
-                                    Ok(curve_description_get_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(
-                                                &curve_description_get_response.source_uid,
-                                            ),
-                                            curve_description_get_response.parameter_data,
-                                        ) {
-                                            device.update_curve_description(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-                                    }
-                                    Err(_) => {
-                                        println!("Error occur whilst parsing");
-                                    }
-                                }
-                            }
-                            ParameterId::ModulationFrequency => {
-                                match ModulationFrequencyGetResponse::parse_response(rdm_packet) {
-                                    Ok(modulation_frequency_get_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(
-                                                &modulation_frequency_get_response.source_uid,
-                                            ),
-                                            modulation_frequency_get_response.parameter_data,
-                                        ) {
-                                            for idx in 1..data.modulation_frequency_count + 1 {
-                                                let packet: Vec<u8> =
-                                                    ModulationFrequencyDescriptionGetRequest::new(
-                                                        idx,
-                                                    )
-                                                    .get_request(
-                                                        device.uid, source_uid, 0x00, port_id,
-                                                        0x0000,
+                                                        0x00,
+                                                        port_id,
+                                                        message_header.sub_device,
                                                     )
                                                     .into();
-
-                                                queue.push_back(Driver::create_rdm_packet(&packet));
-                                            }
-
-                                            device.update_modulation_frequency_info(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
-                                        }
-
-                                        // TODO iterate over "count" and push messages into queue
-                                    }
-                                    Err(_) => {
-                                        println!("Error occur whilst parsing");
-                                    }
-                                }
-                            }
-                            ParameterId::ModulationFrequencyDescription => {
-                                match ModulationFrequencyDescriptionGetResponse::parse_response(
-                                    rdm_packet,
-                                ) {
-                                    Ok(modulation_frequency_description_get_response) => {
-                                        if let (Some(device), Some(data)) = (
-                                            devices.get_mut(
-                                                &modulation_frequency_description_get_response
-                                                    .source_uid,
-                                            ),
-                                            modulation_frequency_description_get_response
-                                                .parameter_data,
-                                        ) {
-                                            device.update_modulation_frequency_description(data);
-                                            println!("Device: {:#02X?}", device);
-                                        } else {
-                                            println!("Device can't be found, skipping...");
+                                            queue.push_back(Driver::create_rdm_packet(&get_manufacturer_label));
                                         }
                                     }
-                                    Err(_) => {
-                                        println!("Error occur whilst parsing");
+                                }
+                                ParameterId::ParameterDescription => {
+                                    device.update_parameter_description(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::IdentifyDevice => {
+                                    device.update_identify_device(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::ManufacturerLabel => {
+                                    device.update_manufacturer_label(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::ProductDetailIdList => {
+                                    device.update_product_detail_id_list(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::DeviceModelDescription => {
+                                    device.update_device_model_description(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::DmxPersonality => {
+                                    device.update_dmx_personality_info(message_data_block.parameter_data.into());
+                    
+                                    for idx in 1..device.personality_count + 1 {
+                                        let packet: Vec<u8> = DmxPersonalityDescriptionGetRequest::new(idx)
+                                            .get_request(
+                                                device.uid,
+                                                source_uid,
+                                                0x00,
+                                                port_id,
+                                                message_header.sub_device,
+                                            )
+                                            .into();
+                    
+                                        queue.push_back(Driver::create_rdm_packet(&packet));
                                     }
                                 }
+                                ParameterId::DmxPersonalityDescription => {
+                                    device.update_dmx_personality_description(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::SlotInfo => {
+                                    device.update_slot_info(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::DeviceHours => {
+                                    device.update_device_hours(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::DimmerInfo => {
+                                    device.update_dimmer_info(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::MinimumLevel => {
+                                    device.update_minimum_level(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::MaximumLevel => {
+                                    device.update_maximum_level(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::Curve => {
+                                    device.update_curve_info(message_data_block.parameter_data.into());
+                    
+                                    for idx in 1..device.curve_count + 1 {
+                                        let packet: Vec<u8> = CurveDescriptionGetRequest::new(idx)
+                                            .get_request(
+                                                device.uid,
+                                                source_uid,
+                                                0x00,
+                                                port_id,
+                                                message_header.sub_device,
+                                            )
+                                            .into();
+                    
+                                        queue.push_back(Driver::create_rdm_packet(&packet));
+                                    }
+                                }
+                                ParameterId::CurveDescription => {
+                                    device.update_curve_description(message_data_block.parameter_data.into());
+                                }
+                                ParameterId::ModulationFrequency => {
+                                    device.update_modulation_frequency_info(message_data_block.parameter_data.into());
+                    
+                                    for idx in 1..device.modulation_frequency_count + 1 {
+                                        let packet: Vec<u8> = ModulationFrequencyDescriptionGetRequest::new(idx)
+                                            .get_request(
+                                                device.uid,
+                                                source_uid,
+                                                0x00,
+                                                port_id,
+                                                message_header.sub_device,
+                                            )
+                                            .into();
+                    
+                                        queue.push_back(Driver::create_rdm_packet(&packet));
+                                    }
+                                }
+                                ParameterId::ModulationFrequencyDescription => {
+                                    device.update_modulation_frequency_description(
+                                        message_data_block.parameter_data.into(),
+                                    );
+                                }
+                                ParameterId::OutputResponseTime => {
+                                    device.update_output_response_time_info(message_data_block.parameter_data.into());
+                    
+                                    for idx in 1..device.output_response_time_count + 1 {
+                                        let packet: Vec<u8> = OutputResponseTimeDescriptionGetRequest::new(idx)
+                                            .get_request(
+                                                device.uid,
+                                                source_uid,
+                                                0x00,
+                                                port_id,
+                                                message_header.sub_device,
+                                            )
+                                            .into();
+                    
+                                        queue.push_back(Driver::create_rdm_packet(&packet));
+                                    }
+                                }
+                                ParameterId::OutputResponseTimeDescription => {
+                                    device.update_output_response_time_description(
+                                        message_data_block.parameter_data.into(),
+                                    );
+                                }
+                                _ => println!("Unsupported Parameter Id: {:?}", message_data_block.parameter_id),
                             }
-                            _ => println!("Unsupported Parameter Id: {:?}", parameter_id),
+                    
+
+                            println!("Devices: {:#02X?}", devices);
+                        } else {
+                            // TODO consider if we should remove it from the devices array
+                            println!("Device can't be found, skipping...");
                         }
+                        
                     }
                 }
 

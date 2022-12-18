@@ -1,18 +1,20 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, hash_map};
 
 use super::{
     parameter::{
         CurveDescriptionGetResponse, CurveGetResponse, DeviceHoursGetResponse, DeviceInfoResponse,
-        DeviceModelDescriptionGetResponse, DmxPersonalityDescriptionGetResponse,
-        DmxPersonalityGetResponse, IdentifyDeviceResponse, ManufacturerLabelResponse,
+        DeviceModelDescriptionGetResponse, DimmerInfoResponse,
+        DmxPersonalityDescriptionGetResponse, DmxPersonalityGetResponse, IdentifyDeviceResponse,
+        ManufacturerLabelResponse, MaximumLevelGetResponse, MinimumLevelGetResponse,
         ModulationFrequencyDescriptionGetResponse, ModulationFrequencyGetResponse,
-        ParameterDescriptionGetResponse, ProductDetailIdListGetResponse, SoftwareVersionLabelGetResponse,
-        SupportedParametersGetResponse,
+        OutputResponseTimeDescriptionGetResponse, OutputResponseTimeGetResponse,
+        ParameterDescriptionGetResponse, ProductDetailIdListGetResponse,
+        SoftwareVersionLabelGetResponse, SupportedParametersGetResponse, SlotInfoResponse,
     },
     ManufacturerSpecificParameter, ParameterId, ProductCategory,
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct DeviceUID {
     manufacturer_id: u16,
     device_id: u32,
@@ -90,6 +92,12 @@ pub struct ModulationFrequency {
 }
 
 #[derive(Clone, Debug)]
+pub struct OutputResponseTime {
+    pub id: u8,
+    pub description: String,
+}
+
+#[derive(Clone, Debug)]
 pub struct Sensor {
     pub id: u8,
     pub kind: u8,
@@ -104,6 +112,26 @@ pub struct Sensor {
 }
 
 #[derive(Clone, Debug)]
+pub struct DmxSlot {
+    pub id: u16,
+    pub kind: u8, // TODO use enum
+    pub label_id: u16,
+    pub description: Option<String>
+}
+
+impl From<&[u8]> for DmxSlot {
+    fn from(bytes: &[u8]) -> Self {
+        DmxSlot {
+            id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
+            kind: bytes[2], // TODO use enum
+            label_id: u16::from_be_bytes(bytes[3..=4].try_into().unwrap()),
+            description: None
+        }
+    }
+}
+
+// TODO add minimum_level, maximum_level, output_response_time etc
+#[derive(Clone, Debug, Default)]
 pub struct Device {
     pub uid: DeviceUID,
     pub protocol_version: Option<String>,
@@ -117,6 +145,8 @@ pub struct Device {
     pub personality_count: u8,
     pub personalities: Option<HashMap<u8, DmxPersonality>>,
     pub start_address: Option<u16>,
+    pub dmx_slots: Option<HashMap<u16, DmxSlot>>,
+    pub sub_device_id: u16,
     pub sub_device_count: u16,
     pub sub_devices: Option<HashMap<u16, Device>>,
     pub sensor_count: u8,
@@ -129,12 +159,26 @@ pub struct Device {
     pub product_detail_id_list: Option<Vec<u16>>, // TODO use enum types
     pub device_model_description: Option<String>,
     pub device_hours: Option<u32>,
+    pub minimum_level_lower_limit: Option<u16>,
+    pub minimum_level_upper_limit: Option<u16>,
+    pub maximum_level_lower_limit: Option<u16>,
+    pub maximum_level_upper_limit: Option<u16>,
+    pub num_of_supported_curves: Option<u8>,
+    pub levels_resolution: Option<u8>,
+    pub minimum_levels_split_levels_supports: Option<u8>,
+    pub minimum_level_increasing: Option<u16>,
+    pub minimum_level_decreasing: Option<u16>,
+    pub on_below_minimum: Option<u8>,
+    pub maximum_level: Option<u16>,
     pub current_curve: Option<u8>,
     pub curve_count: u8,
     pub curves: Option<HashMap<u8, Curve>>,
     pub current_modulation_frequency: Option<u8>,
     pub modulation_frequency_count: u8,
     pub modulation_frequencies: Option<HashMap<u8, ModulationFrequency>>,
+    pub current_output_response_time: Option<u8>,
+    pub output_response_time_count: u8,
+    pub output_response_times: Option<HashMap<u8, OutputResponseTime>>,
 }
 
 impl From<DeviceUID> for Device {
@@ -152,6 +196,8 @@ impl From<DeviceUID> for Device {
             personality_count: 0,
             personalities: None,
             start_address: None,
+            dmx_slots: None,
+            sub_device_id: 0,
             sub_device_count: 0,
             sub_devices: None,
             sensor_count: 0,
@@ -163,17 +209,39 @@ impl From<DeviceUID> for Device {
             product_detail_id_list: None,
             device_model_description: None,
             device_hours: None,
+            minimum_level_lower_limit: None,
+            minimum_level_upper_limit: None,
+            maximum_level_lower_limit: None,
+            maximum_level_upper_limit: None,
+            num_of_supported_curves: None,
+            levels_resolution: None,
+            minimum_levels_split_levels_supports: None,
+            minimum_level_increasing: None,
+            minimum_level_decreasing: None,
+            on_below_minimum: None,
+            maximum_level: None,
             current_curve: None,
             curve_count: 0,
             curves: None,
             current_modulation_frequency: None,
             modulation_frequency_count: 0,
             modulation_frequencies: None,
+            current_output_response_time: None,
+            output_response_time_count: 0,
+            output_response_times: None,
         }
     }
 }
 
 impl Device {
+    pub fn new(uid: DeviceUID, sub_device_id: u16) -> Self {
+        Device {
+            uid,
+            sub_device_id,
+            ..Default::default()
+        }
+    }
+
     pub fn update_device_info(&mut self, data: DeviceInfoResponse) {
         self.protocol_version = Some(data.protocol_version);
         self.model_id = Some(data.model_id);
@@ -257,8 +325,36 @@ impl Device {
         }
     }
 
+    pub fn update_slot_info(&mut self, data: SlotInfoResponse) {
+        let mut hash_map: HashMap<u16, DmxSlot> = HashMap::new();
+        for dmx_slot in data.dmx_slots {
+            hash_map.insert(dmx_slot.id, dmx_slot);
+        }
+        self.dmx_slots = Some(hash_map);
+    }
+
     pub fn update_device_hours(&mut self, data: DeviceHoursGetResponse) {
         self.device_hours = Some(data.device_hours);
+    }
+
+    pub fn update_dimmer_info(&mut self, data: DimmerInfoResponse) {
+        self.minimum_level_lower_limit = Some(data.minimum_level_lower_limit);
+        self.minimum_level_upper_limit = Some(data.minimum_level_upper_limit);
+        self.maximum_level_lower_limit = Some(data.maximum_level_lower_limit);
+        self.maximum_level_upper_limit = Some(data.maximum_level_upper_limit);
+        self.num_of_supported_curves = Some(data.num_of_supported_curves);
+        self.levels_resolution = Some(data.levels_resolution);
+        self.minimum_levels_split_levels_supports = Some(data.minimum_levels_split_levels_supports);
+    }
+
+    pub fn update_minimum_level(&mut self, data: MinimumLevelGetResponse) {
+        self.minimum_level_increasing = Some(data.minimum_level_increasing);
+        self.minimum_level_decreasing = Some(data.minimum_level_decreasing);
+        self.on_below_minimum = Some(data.on_below_minimum);
+    }
+
+    pub fn update_maximum_level(&mut self, data: MaximumLevelGetResponse) {
+        self.maximum_level = Some(data.maximum_level);
     }
 
     pub fn update_curve_info(&mut self, data: CurveGetResponse) {
@@ -293,14 +389,40 @@ impl Device {
             frequency: data.frequency,
             description: data.description,
         };
-        self.modulation_frequencies = if let Some(modulation_frequencies) = self.modulation_frequencies.as_mut() {
-            modulation_frequencies.insert(data.modulation_frequency, modulation_frequency);
-            Some(modulation_frequencies.to_owned())
-        } else {
-            Some(HashMap::from([(
-                data.modulation_frequency,
-                modulation_frequency,
-            )]))
-        }
+        self.modulation_frequencies =
+            if let Some(modulation_frequencies) = self.modulation_frequencies.as_mut() {
+                modulation_frequencies.insert(data.modulation_frequency, modulation_frequency);
+                Some(modulation_frequencies.to_owned())
+            } else {
+                Some(HashMap::from([(
+                    data.modulation_frequency,
+                    modulation_frequency,
+                )]))
+            }
+    }
+
+    pub fn update_output_response_time_info(&mut self, data: OutputResponseTimeGetResponse) {
+        self.current_output_response_time = Some(data.current_output_response_time);
+        self.output_response_time_count = data.output_response_time_count;
+    }
+
+    pub fn update_output_response_time_description(
+        &mut self,
+        data: OutputResponseTimeDescriptionGetResponse,
+    ) {
+        let output_response_time = OutputResponseTime {
+            id: data.output_response_time,
+            description: data.description,
+        };
+        self.output_response_times =
+            if let Some(output_response_times) = self.output_response_times.as_mut() {
+                output_response_times.insert(data.output_response_time, output_response_time);
+                Some(output_response_times.to_owned())
+            } else {
+                Some(HashMap::from([(
+                    data.output_response_time,
+                    output_response_time,
+                )]))
+            }
     }
 }
