@@ -263,55 +263,102 @@ impl From<&[u8]> for ProductCategory {
     }
 }
 
+#[derive(Clone, Debug)]
 pub enum LampState {
-    LampOff = 0x00,
-    LampOn = 0x01,
-    LampStrike = 0x02,
-    LampStandby = 0x03,
-    LampNotPresent = 0x04,
-    LampError = 0x05, // 0x00 = "Lamp Off",
-                      // 0x01 = "Lamp On",
-                      // 0x02 = "Lamp Strike",
-                      // 0x03 = "Lamp Standby",
-                      // 0x04 = "Lamp Not Present",
-                      // 0x05 = "Lamp Error",
+    LampOff = 0x00,        // 0x00 = "Lamp Off",
+    LampOn = 0x01,         // 0x01 = "Lamp On",
+    LampStrike = 0x02,     // 0x02 = "Lamp Strike",
+    LampStandby = 0x03,    // 0x03 = "Lamp Standby",
+    LampNotPresent = 0x04, // 0x04 = "Lamp Not Present",
+    LampError = 0x05,      // 0x05 = "Lamp Error",
 }
 
+impl From<u8> for LampState {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x00 => LampState::LampOff,
+            0x01 => LampState::LampOn,
+            0x02 => LampState::LampStrike,
+            0x03 => LampState::LampStandby,
+            0x04 => LampState::LampNotPresent,
+            0x05 => LampState::LampError,
+            _ => panic!("Invalid value for LampState: {:?}", byte),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum LampOnMode {
-    OffMode = 0x00,
-    DmxMode = 0x01,
-    OnMode = 0x02,
-    AfterCal = 0x03,
-    // 0x00 = "Off Mode",
-    // 0x01 = "DMX Mode",
-    // 0x02 = "On Mode",
-    // 0x03 = "After Cal",
+    OffMode = 0x00,  // 0x00 = "Off Mode",
+    DmxMode = 0x01,  // 0x01 = "DMX Mode",
+    OnMode = 0x02,   // 0x02 = "On Mode",
+    AfterCal = 0x03, // 0x03 = "After Cal",
 }
 
+impl From<u8> for LampOnMode {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x00 => LampOnMode::OffMode,
+            0x01 => LampOnMode::DmxMode,
+            0x02 => LampOnMode::OnMode,
+            0x03 => LampOnMode::AfterCal,
+            _ => panic!("Invalid value for LampOnMode: {:?}", byte),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum PowerStates {
-    FullOff = 0x00,
-    Shutdown = 0x01,
-    Standby = 0x02,
-    Normal = 0xff, // 0x00 = "Full Off",
-                   // 0x01 = "Shutdown",
-                   // 0x02 = "Standby",
-                   // 0xff = "Normal",
+    FullOff = 0x00,  // 0x00 = "Full Off",
+    Shutdown = 0x01, // 0x01 = "Shutdown",
+    Standby = 0x02,  // 0x02 = "Standby",
+    Normal = 0xff,   // 0xff = "Normal",
 }
 
+impl From<u8> for PowerStates {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x00 => PowerStates::FullOff,
+            0x01 => PowerStates::Shutdown,
+            0x02 => PowerStates::Standby,
+            0x03 => PowerStates::Normal,
+            _ => panic!("Invalid value for PowerStates: {:?}", byte),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum OnOffStates {
-    Off = 0x00,
-    On = 0x01,
-    // 0x00 = "Off",
-    // 0x01 = "On",
+    Off = 0x00, // 0x00 = "Off",
+    On = 0x01,  // 0x01 = "On",
 }
 
-pub enum DisplayInvertModes {
-    Off = 0x00,
-    On = 0x01,
-    Auto = 0x02,
-    // 0x00 = "Off",
-    // 0x01 = "On",
-    // 0x02 = "Auto",
+impl From<u8> for OnOffStates {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x00 => OnOffStates::Off,
+            0x01 => OnOffStates::On,
+            _ => panic!("Invalid value for OnOffStates: {:?}", byte),
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum DisplayInvertMode {
+    Off = 0x00,  // 0x00 = "Off",
+    On = 0x01,   // 0x01 = "On",
+    Auto = 0x02, // 0x02 = "Auto",
+}
+
+impl From<u8> for DisplayInvertMode {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x00 => DisplayInvertMode::Off,
+            0x01 => DisplayInvertMode::On,
+            0x02 => DisplayInvertMode::Auto,
+            _ => panic!("Invalid value for DisplayInvertMode: {:?}", byte),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

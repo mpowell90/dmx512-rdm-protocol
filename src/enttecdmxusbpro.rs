@@ -16,7 +16,7 @@ const ENTTEC_PACKET_STOP_BYTE: u8 = 0xe7;
 #[derive(Debug, Error)]
 pub enum DriverError {
     #[error("invalid data length")]
-    InvalidDataLength, // TODO should be used when input data is not correct
+    InvalidDataLength,
     #[error("invalid start byte")]
     InvalidStartByte,
     #[error("invalid stop byte")]

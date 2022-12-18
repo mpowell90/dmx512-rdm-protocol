@@ -4,8 +4,10 @@ use thiserror::Error;
 use ux::u48;
 
 use super::{
-    bsd_16_crc, device::{DeviceUID, DmxSlot}, DiscoveryRequest, GetRequest,
-    ProductCategory, Protocol, SetRequest, SupportedCommandClasses,
+    bsd_16_crc,
+    device::{DeviceUID, DmxSlot},
+    DiscoveryRequest, DisplayInvertMode, GetRequest, LampOnMode, LampState, ProductCategory,
+    Protocol, SetRequest, SupportedCommandClasses,
 };
 
 #[derive(Debug, Error)]
@@ -224,7 +226,12 @@ impl From<u16> for ParameterId {
     }
 }
 
-pub const REQUIRED_PARAMETERS: [ParameterId; 4] = [ParameterId::DeviceInfo, ParameterId::SupportedParameters, ParameterId::SoftwareVersionLabel, ParameterId::IdentifyDevice];
+pub const REQUIRED_PARAMETERS: [ParameterId; 4] = [
+    ParameterId::DeviceInfo,
+    ParameterId::SupportedParameters,
+    ParameterId::SoftwareVersionLabel,
+    ParameterId::IdentifyDevice,
+];
 
 #[derive(Clone, Debug, Default)]
 pub struct ManufacturerSpecificParameter {
@@ -1141,6 +1148,402 @@ impl From<Vec<u8>> for DeviceHoursSetResponse {
     }
 }
 
+struct LampHoursGetRequest;
+
+impl Protocol for LampHoursGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampHours
+    }
+}
+
+impl GetRequest for LampHoursGetRequest {}
+
+impl From<LampHoursGetRequest> for Vec<u8> {
+    fn from(_: LampHoursGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+struct LampHoursSetRequest {
+    pub lamp_hours: u32,
+}
+
+impl Protocol for LampHoursSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampHours
+    }
+}
+
+impl SetRequest for LampHoursSetRequest {}
+
+impl From<LampHoursSetRequest> for Vec<u8> {
+    fn from(lamp_hours: LampHoursSetRequest) -> Self {
+        Vec::from(lamp_hours.lamp_hours.to_be_bytes())
+    }
+}
+
+pub struct LampHoursGetResponse {
+    pub lamp_hours: u32,
+}
+
+impl Protocol for LampHoursGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampHours
+    }
+}
+
+impl From<Vec<u8>> for LampHoursGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        LampHoursGetResponse {
+            lamp_hours: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
+        }
+    }
+}
+
+struct LampHoursSetResponse;
+
+impl Protocol for LampHoursSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampHours
+    }
+}
+
+impl From<Vec<u8>> for LampHoursSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        LampHoursSetResponse
+    }
+}
+
+struct LampStrikesGetRequest;
+
+impl Protocol for LampStrikesGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampStrikes
+    }
+}
+
+impl GetRequest for LampStrikesGetRequest {}
+
+impl From<LampStrikesGetRequest> for Vec<u8> {
+    fn from(_: LampStrikesGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+struct LampStrikesSetRequest {
+    pub lamp_strikes: u32,
+}
+
+impl Protocol for LampStrikesSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampStrikes
+    }
+}
+
+impl SetRequest for LampStrikesSetRequest {}
+
+impl From<LampStrikesSetRequest> for Vec<u8> {
+    fn from(lamp_strikes: LampStrikesSetRequest) -> Self {
+        Vec::from(lamp_strikes.lamp_strikes.to_be_bytes())
+    }
+}
+
+pub struct LampStrikesGetResponse {
+    pub lamp_strikes: u32,
+}
+
+impl Protocol for LampStrikesGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampStrikes
+    }
+}
+
+impl From<Vec<u8>> for LampStrikesGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        LampStrikesGetResponse {
+            lamp_strikes: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
+        }
+    }
+}
+
+struct LampStrikesSetResponse;
+
+impl Protocol for LampStrikesSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampStrikes
+    }
+}
+
+impl From<Vec<u8>> for LampStrikesSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        LampStrikesSetResponse
+    }
+}
+
+struct LampStateGetRequest;
+
+impl Protocol for LampStateGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampState
+    }
+}
+
+impl GetRequest for LampStateGetRequest {}
+
+impl From<LampStateGetRequest> for Vec<u8> {
+    fn from(_: LampStateGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+struct LampStateSetRequest {
+    pub lamp_state: LampState,
+}
+
+impl Protocol for LampStateSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampStrikes
+    }
+}
+
+impl SetRequest for LampStateSetRequest {}
+
+impl From<LampStateSetRequest> for Vec<u8> {
+    fn from(lamp_state: LampStateSetRequest) -> Self {
+        Vec::from([lamp_state.lamp_state as u8])
+    }
+}
+
+pub struct LampStateGetResponse {
+    pub lamp_state: LampState,
+}
+
+impl Protocol for LampStateGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampStrikes
+    }
+}
+
+impl From<Vec<u8>> for LampStateGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        LampStateGetResponse {
+            lamp_state: LampState::from(bytes[0]),
+        }
+    }
+}
+
+struct LampStateSetResponse;
+
+impl Protocol for LampStateSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampStrikes
+    }
+}
+
+impl From<Vec<u8>> for LampStateSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        LampStateSetResponse
+    }
+}
+
+struct LampOnModeGetRequest;
+
+impl Protocol for LampOnModeGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampOnMode
+    }
+}
+
+impl GetRequest for LampOnModeGetRequest {}
+
+impl From<LampOnModeGetRequest> for Vec<u8> {
+    fn from(_: LampOnModeGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+struct LampOnModeSetRequest {
+    lamp_on_mode: LampOnMode,
+}
+
+impl Protocol for LampOnModeSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampOnMode
+    }
+}
+
+impl SetRequest for LampOnModeSetRequest {}
+
+impl From<LampOnModeSetRequest> for Vec<u8> {
+    fn from(lamp_on_mode: LampOnModeSetRequest) -> Self {
+        Vec::from([lamp_on_mode.lamp_on_mode as u8])
+    }
+}
+
+pub struct LampOnModeGetResponse {
+    pub lamp_on_mode: LampOnMode,
+}
+
+impl Protocol for LampOnModeGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampOnMode
+    }
+}
+
+impl From<Vec<u8>> for LampOnModeGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        LampOnModeGetResponse {
+            lamp_on_mode: LampOnMode::from(bytes[0]),
+        }
+    }
+}
+
+struct LampOnModeSetResponse;
+
+impl Protocol for LampOnModeSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::LampOnMode
+    }
+}
+
+impl From<Vec<u8>> for LampOnModeSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        LampOnModeSetResponse
+    }
+}
+
+struct DevicePowerCyclesGetRequest;
+
+impl Protocol for DevicePowerCyclesGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DevicePowerCycles
+    }
+}
+
+impl GetRequest for DevicePowerCyclesGetRequest {}
+
+impl From<DevicePowerCyclesGetRequest> for Vec<u8> {
+    fn from(_: DevicePowerCyclesGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+struct DevicePowerCyclesSetRequest {
+    power_cycle_count: u32,
+}
+
+impl Protocol for DevicePowerCyclesSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DevicePowerCycles
+    }
+}
+
+impl SetRequest for DevicePowerCyclesSetRequest {}
+
+impl From<DevicePowerCyclesSetRequest> for Vec<u8> {
+    fn from(device_power_cycles: DevicePowerCyclesSetRequest) -> Self {
+        Vec::from(device_power_cycles.power_cycle_count.to_be_bytes())
+    }
+}
+
+pub struct DevicePowerCyclesGetResponse {
+    pub power_cycle_count: u32,
+}
+
+impl Protocol for DevicePowerCyclesGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DevicePowerCycles
+    }
+}
+
+impl From<Vec<u8>> for DevicePowerCyclesGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        DevicePowerCyclesGetResponse {
+            power_cycle_count: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
+        }
+    }
+}
+
+struct DevicePowerCyclesSetResponse;
+
+impl Protocol for DevicePowerCyclesSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DevicePowerCycles
+    }
+}
+
+impl From<Vec<u8>> for DevicePowerCyclesSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        DevicePowerCyclesSetResponse
+    }
+}
+
+struct DisplayInvertGetRequest;
+
+impl Protocol for DisplayInvertGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DisplayInvert
+    }
+}
+
+impl GetRequest for DisplayInvertGetRequest {}
+
+impl From<DisplayInvertGetRequest> for Vec<u8> {
+    fn from(_: DisplayInvertGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+struct DisplayInvertSetRequest {
+    display_invert_mode: DisplayInvertMode,
+}
+
+impl Protocol for DisplayInvertSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DisplayInvert
+    }
+}
+
+impl SetRequest for DisplayInvertSetRequest {}
+
+impl From<DisplayInvertSetRequest> for Vec<u8> {
+    fn from(display_invert: DisplayInvertSetRequest) -> Self {
+        Vec::from([display_invert.display_invert_mode as u8])
+    }
+}
+
+pub struct DisplayInvertGetResponse {
+    pub display_invert_mode: DisplayInvertMode,
+}
+
+impl Protocol for DisplayInvertGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DisplayInvert
+    }
+}
+
+impl From<Vec<u8>> for DisplayInvertGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        DisplayInvertGetResponse {
+            display_invert_mode: DisplayInvertMode::from(bytes[0]),
+        }
+    }
+}
+
+struct DisplayInvertSetResponse;
+
+impl Protocol for DisplayInvertSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::DisplayInvert
+    }
+}
+
+impl From<Vec<u8>> for DisplayInvertSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        DisplayInvertSetResponse
+    }
+}
+
 struct CurveGetRequest;
 
 impl Protocol for CurveGetRequest {
@@ -1480,8 +1883,12 @@ impl GetRequest for MinimumLevelSetRequest {}
 impl From<MinimumLevelSetRequest> for Vec<u8> {
     fn from(minimum_level: MinimumLevelSetRequest) -> Self {
         let mut packet = Vec::new();
-        packet.write_u16::<BigEndian>(minimum_level.minimum_level_increasing).unwrap();
-        packet.write_u16::<BigEndian>(minimum_level.minimum_level_decreasing).unwrap();
+        packet
+            .write_u16::<BigEndian>(minimum_level.minimum_level_increasing)
+            .unwrap();
+        packet
+            .write_u16::<BigEndian>(minimum_level.minimum_level_decreasing)
+            .unwrap();
         packet.write_u8(minimum_level.on_below_minimum).unwrap();
         packet
     }
@@ -1894,12 +2301,60 @@ pub fn create_standard_parameter_get_request_packet(
                 sub_device,
             )
             .into()),
-        // LampHours => ,
-        // LampStrikes => ,
-        // LampState => ,
-        // LampOnMode => ,
-        // DevicePowerCycles => ,
-        // DisplayInvert => ,
+        ParameterId::LampHours => Ok(LampHoursGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::LampStrikes => Ok(LampStrikesGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::LampState => Ok(LampStateGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::LampOnMode => Ok(LampOnModeGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::DevicePowerCycles => Ok(DevicePowerCyclesGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::DisplayInvert => Ok(DisplayInvertGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
         // DisplayLevel => ,
         // PanInvert => ,
         // TiltInvert => ,

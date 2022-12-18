@@ -395,6 +395,24 @@ fn main() {
                                 ParameterId::DeviceHours => {
                                     device.update_device_hours(response.parameter_data.into());
                                 }
+                                ParameterId::LampHours => {
+                                    device.update_lamp_hours(response.parameter_data.into());
+                                }
+                                ParameterId::LampStrikes => {
+                                    device.update_lamp_strikes(response.parameter_data.into());
+                                }
+                                ParameterId::LampState => {
+                                    device.update_lamp_state(response.parameter_data.into());
+                                }
+                                ParameterId::LampOnMode => {
+                                    device.update_lamp_on_mode(response.parameter_data.into());
+                                }
+                                ParameterId::DevicePowerCycles => {
+                                    device.update_device_power_cycles(response.parameter_data.into());
+                                }
+                                ParameterId::DisplayInvert => {
+                                    device.update_display_invert(response.parameter_data.into());
+                                }
                                 ParameterId::DimmerInfo => {
                                     device.update_dimmer_info(response.parameter_data.into());
                                 }
@@ -480,7 +498,7 @@ fn main() {
                                 ),
                             }
 
-                            println!("Devices: {:#02X?}", devices);
+                            // println!("Devices: {:#02X?}", devices);
                         } else {
                             // TODO consider if we should remove it from the devices array
                             println!("Device can't be found, skipping...");

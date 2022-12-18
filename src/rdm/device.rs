@@ -3,16 +3,17 @@ use std::collections::HashMap;
 use super::{
     parameter::{
         CurveDescriptionGetResponse, CurveGetResponse, DeviceHoursGetResponse, DeviceInfoResponse,
-        DeviceModelDescriptionGetResponse, DimmerInfoResponse,
-        DmxPersonalityDescriptionGetResponse, DmxPersonalityGetResponse, IdentifyDeviceResponse,
-        ManufacturerLabelResponse, ManufacturerSpecificParameter, MaximumLevelGetResponse,
-        MinimumLevelGetResponse, ModulationFrequencyDescriptionGetResponse,
-        ModulationFrequencyGetResponse, OutputResponseTimeDescriptionGetResponse,
-        OutputResponseTimeGetResponse, ParameterDescriptionGetResponse,
-        ProductDetailIdListGetResponse, SlotInfoResponse, SoftwareVersionLabelGetResponse,
-        SupportedParametersGetResponse,
+        DeviceModelDescriptionGetResponse, DevicePowerCyclesGetResponse, DimmerInfoResponse,
+        DisplayInvertGetResponse, DmxPersonalityDescriptionGetResponse, DmxPersonalityGetResponse,
+        IdentifyDeviceResponse, LampHoursGetResponse, LampOnModeGetResponse, LampStateGetResponse,
+        LampStrikesGetResponse, ManufacturerLabelResponse, ManufacturerSpecificParameter,
+        MaximumLevelGetResponse, MinimumLevelGetResponse,
+        ModulationFrequencyDescriptionGetResponse, ModulationFrequencyGetResponse,
+        OutputResponseTimeDescriptionGetResponse, OutputResponseTimeGetResponse,
+        ParameterDescriptionGetResponse, ProductDetailIdListGetResponse, SlotInfoResponse,
+        SoftwareVersionLabelGetResponse, SupportedParametersGetResponse,
     },
-    ParameterId, ProductCategory,
+    LampOnMode, LampState, ParameterId, ProductCategory, DisplayInvertMode
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -160,6 +161,12 @@ pub struct Device {
     pub product_detail_id_list: Option<Vec<u16>>, // TODO use enum types
     pub device_model_description: Option<String>,
     pub device_hours: Option<u32>,
+    pub lamp_hours: Option<u32>,
+    pub lamp_strikes: Option<u32>,
+    pub lamp_state: Option<LampState>,
+    pub lamp_on_mode: Option<LampOnMode>,
+    pub power_cycle_count: Option<u32>,
+    pub display_invert_mode: Option<DisplayInvertMode>,
     pub minimum_level_lower_limit: Option<u16>,
     pub minimum_level_upper_limit: Option<u16>,
     pub maximum_level_lower_limit: Option<u16>,
@@ -186,50 +193,7 @@ impl From<DeviceUID> for Device {
     fn from(device_uid: DeviceUID) -> Self {
         Device {
             uid: device_uid,
-            protocol_version: None,
-            model_id: None,
-            model_description: None,
-            product_category: None,
-            software_version_id: None,
-            software_version_label: None,
-            footprint: None,
-            current_personality: None,
-            personality_count: 0,
-            personalities: None,
-            start_address: None,
-            dmx_slots: None,
-            sub_device_id: 0,
-            sub_device_count: 0,
-            sub_devices: None,
-            sensor_count: 0,
-            sensors: None,
-            supported_standard_parameters: None,
-            supported_manufacturer_specific_parameters: None,
-            is_identifying: None,
-            manufacturer_label: None,
-            product_detail_id_list: None,
-            device_model_description: None,
-            device_hours: None,
-            minimum_level_lower_limit: None,
-            minimum_level_upper_limit: None,
-            maximum_level_lower_limit: None,
-            maximum_level_upper_limit: None,
-            num_of_supported_curves: None,
-            levels_resolution: None,
-            minimum_levels_split_levels_supports: None,
-            minimum_level_increasing: None,
-            minimum_level_decreasing: None,
-            on_below_minimum: None,
-            maximum_level: None,
-            current_curve: None,
-            curve_count: 0,
-            curves: None,
-            current_modulation_frequency: None,
-            modulation_frequency_count: 0,
-            modulation_frequencies: None,
-            current_output_response_time: None,
-            output_response_time_count: 0,
-            output_response_times: None,
+            ..Default::default()
         }
     }
 }
@@ -336,6 +300,30 @@ impl Device {
 
     pub fn update_device_hours(&mut self, data: DeviceHoursGetResponse) {
         self.device_hours = Some(data.device_hours);
+    }
+
+    pub fn update_lamp_hours(&mut self, data: LampHoursGetResponse) {
+        self.lamp_hours = Some(data.lamp_hours);
+    }
+
+    pub fn update_lamp_strikes(&mut self, data: LampStrikesGetResponse) {
+        self.lamp_strikes = Some(data.lamp_strikes);
+    }
+
+    pub fn update_lamp_state(&mut self, data: LampStateGetResponse) {
+        self.lamp_state = Some(data.lamp_state);
+    }
+
+    pub fn update_lamp_on_mode(&mut self, data: LampOnModeGetResponse) {
+        self.lamp_on_mode = Some(data.lamp_on_mode);
+    }
+
+    pub fn update_device_power_cycles(&mut self, data: DevicePowerCyclesGetResponse) {
+        self.power_cycle_count = Some(data.power_cycle_count);
+    }
+
+    pub fn update_display_invert(&mut self, data: DisplayInvertGetResponse) {
+        self.display_invert_mode = Some(data.display_invert_mode);
     }
 
     pub fn update_dimmer_info(&mut self, data: DimmerInfoResponse) {
