@@ -1,17 +1,18 @@
-use std::collections::{HashMap, hash_map};
+use std::collections::HashMap;
 
 use super::{
     parameter::{
         CurveDescriptionGetResponse, CurveGetResponse, DeviceHoursGetResponse, DeviceInfoResponse,
         DeviceModelDescriptionGetResponse, DimmerInfoResponse,
         DmxPersonalityDescriptionGetResponse, DmxPersonalityGetResponse, IdentifyDeviceResponse,
-        ManufacturerLabelResponse, MaximumLevelGetResponse, MinimumLevelGetResponse,
-        ModulationFrequencyDescriptionGetResponse, ModulationFrequencyGetResponse,
-        OutputResponseTimeDescriptionGetResponse, OutputResponseTimeGetResponse,
-        ParameterDescriptionGetResponse, ProductDetailIdListGetResponse,
-        SoftwareVersionLabelGetResponse, SupportedParametersGetResponse, SlotInfoResponse,
+        ManufacturerLabelResponse, ManufacturerSpecificParameter, MaximumLevelGetResponse,
+        MinimumLevelGetResponse, ModulationFrequencyDescriptionGetResponse,
+        ModulationFrequencyGetResponse, OutputResponseTimeDescriptionGetResponse,
+        OutputResponseTimeGetResponse, ParameterDescriptionGetResponse,
+        ProductDetailIdListGetResponse, SlotInfoResponse, SoftwareVersionLabelGetResponse,
+        SupportedParametersGetResponse,
     },
-    ManufacturerSpecificParameter, ParameterId, ProductCategory,
+    ParameterId, ProductCategory,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -116,7 +117,7 @@ pub struct DmxSlot {
     pub id: u16,
     pub kind: u8, // TODO use enum
     pub label_id: u16,
-    pub description: Option<String>
+    pub description: Option<String>,
 }
 
 impl From<&[u8]> for DmxSlot {
@@ -125,7 +126,7 @@ impl From<&[u8]> for DmxSlot {
             id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
             kind: bytes[2], // TODO use enum
             label_id: u16::from_be_bytes(bytes[3..=4].try_into().unwrap()),
-            description: None
+            description: None,
         }
     }
 }

@@ -37,28 +37,6 @@ impl TryFrom<u16> for PacketType {
     }
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct ManufacturerSpecificParameter {
-    parameter_id: u16,
-    parameter_data_size: Option<u8>, // TODO use enum
-    data_type: Option<u8>,           // TODO use enum
-    command_class: Option<SupportedCommandClasses>,
-    prefix: Option<u8>, // TODO use enum
-    minimum_valid_value: Option<u32>,
-    maximum_valid_value: Option<u32>,
-    default_value: Option<u32>,
-    description: Option<String>,
-}
-
-impl From<u16> for ManufacturerSpecificParameter {
-    fn from(parameter_id: u16) -> Self {
-        ManufacturerSpecificParameter {
-            parameter_id,
-            ..Default::default()
-        }
-    }
-}
-
 #[derive(Copy, Clone, Debug)]
 pub enum CommandClass {
     DiscoveryCommand = 0x10,
@@ -351,7 +329,6 @@ pub struct Request<T> {
 impl<T> From<Request<T>> for Vec<u8>
 where
     Vec<u8>: From<T>,
-    // &'a [u8]: From<T>,
 {
     fn from(request: Request<T>) -> Vec<u8> {
         let (parameter_data, parameter_data_len) = if let Some(data) = request.parameter_data {
@@ -361,9 +338,6 @@ where
         } else {
             (Vec::new(), 0)
         };
-
-        // let parameter_data: Vec<u8> = request.parameter_data.try_into().unwrap();
-        // let parameter_data_len = parameter_data.len() as u8;
 
         let mut packet = Vec::new();
         packet.write_u8(SC_RDM).unwrap(); // Start Code
@@ -395,56 +369,20 @@ where
     }
 }
 
-pub struct MessageHeader {
+pub struct Response {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub response_type: ResponseType,
     pub message_count: u8,
     pub sub_device: u16,
-}
-
-impl From<&[u8]> for MessageHeader {
-    fn from(packet: &[u8]) -> Self {
-        MessageHeader {
-            destination_uid: DeviceUID::from(&packet[3..=8]),
-            source_uid: DeviceUID::from(&packet[9..=14]),
-            transaction_number: packet[15],
-            response_type: ResponseType::try_from(packet[16]).unwrap(),
-            message_count: packet[17],
-            sub_device: u16::from_be_bytes(packet[18..=19].try_into().unwrap()),
-        }
-    }
-}
-
-pub struct MessageDataBlock {
     pub command_class: CommandClass,
     pub parameter_id: ParameterId,
     pub parameter_data_length: u8,
     pub parameter_data: Vec<u8>,
 }
 
-impl From<&[u8]> for MessageDataBlock {
-    fn from(packet: &[u8]) -> Self {
-        let parameter_data_length = packet[23];
-        let parameter_data = if parameter_data_length > 0 {
-            packet[24..packet.len() - 2].to_vec()
-        } else {
-            Vec::new()
-        };
-
-        MessageDataBlock {
-            command_class: CommandClass::try_from(packet[20]).unwrap(),
-            parameter_id: ParameterId::from(&packet[21..=22]),
-            parameter_data_length,
-            parameter_data,
-        }
-    }
-}
-
-pub struct Message;
-
-impl Message {
+impl Response {
     pub fn is_checksum_valid(packet: &Vec<u8>) -> bool {
         let packet_checksum =
             u16::from_be_bytes(packet[packet.len() - 2..packet.len()].try_into().unwrap());
@@ -453,9 +391,29 @@ impl Message {
 
         packet_checksum == calculated_checksum
     }
+}
 
-    pub fn parse_packet(packet: &[u8]) -> (MessageHeader, MessageDataBlock) {
-        (MessageHeader::from(packet), MessageDataBlock::from(packet))
+impl From<&[u8]> for Response {
+    fn from(packet: &[u8]) -> Self {
+        let parameter_data_length = packet[23];
+        let parameter_data = if parameter_data_length > 0 {
+            packet[24..packet.len() - 2].to_vec()
+        } else {
+            Vec::new()
+        };
+
+        Response {
+            destination_uid: DeviceUID::from(&packet[3..=8]),
+            source_uid: DeviceUID::from(&packet[9..=14]),
+            transaction_number: packet[15],
+            response_type: ResponseType::try_from(packet[16]).unwrap(),
+            message_count: packet[17],
+            sub_device: u16::from_be_bytes(packet[18..=19].try_into().unwrap()),
+            command_class: CommandClass::try_from(packet[20]).unwrap(),
+            parameter_id: ParameterId::from(&packet[21..=22]),
+            parameter_data_length,
+            parameter_data,
+        }
     }
 }
 
