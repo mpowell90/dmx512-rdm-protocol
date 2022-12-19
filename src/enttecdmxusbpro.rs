@@ -221,20 +221,6 @@ impl Driver {
             packet[5..(packet.len() - 1)].to_vec()
         };
 
-        // let packet_data_type = if packet_type == PacketResponseType::NullResponse {
-        //     // TODO consider if there is a better approach to this
-        //     PacketResponseDataType::NullResponse
-        // } else {
-        //     let data_type_u16 = u16::from_be_bytes(packet[5..=6].try_into().unwrap());
-        //     PacketResponseDataType::try_from(data_type_u16).unwrap()
-        // };
-
-        // println!("{:02X?}", packet_data_type);
-        // // TODO consider if we should try from array slice instead of the additional u16 conversion
-        // let packet_data_type =
-        //     PacketResponseDataType::try_from(u16::from_be_bytes(packet[5..=6].try_into().unwrap()))
-        //         .unwrap();
-
         Ok((packet_type, packet_data))
     }
 }
