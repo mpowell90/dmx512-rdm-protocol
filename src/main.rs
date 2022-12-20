@@ -26,6 +26,8 @@ use rdm::{
     DiscoveryRequest, GetRequest, PacketType, Response, ROOT_DEVICE,
 };
 
+use crate::rdm::parameter::{DiscMuteRequest, DiscMuteResponse};
+
 fn main() {
     let serialports = available_ports().unwrap();
     // dbg!(&serialports);
@@ -65,13 +67,15 @@ fn main() {
         .try_into()
         .unwrap();
 
-    // println!("{:02X?}", &rdm_packet);
     queue.push_back(Driver::create_discovery_packet(&disc_unmute));
 
-    // Broadcast DiscUniqueBranch to find all devices destination uids
     // TODO improve algorithm to handle branching properly
+    let upper_bound_uid = u48::new(0xffffffffffff);
+    let lower_bound_uid = u48::new(0x000000000000);
+
+    // Broadcast DiscUniqueBranch to find all devices destination uids
     let disc_unique_branch: Vec<u8> =
-        DiscUniqueBranchRequest::new(u48::new(0x000000000000), u48::new(0xffffffffffff))
+        DiscUniqueBranchRequest::new(lower_bound_uid, upper_bound_uid)
             .discovery_request(
                 DeviceUID::broadcast_all_devices(),
                 source_uid,
@@ -82,7 +86,6 @@ fn main() {
             .try_into()
             .unwrap();
 
-    // println!("{:02X?}", &rdm_packet);
     queue.push_back(Driver::create_discovery_packet(&disc_unique_branch));
 
     // Data sent between threads using a channel, on channel recv, send to serialport
@@ -101,24 +104,13 @@ fn main() {
         }
     });
 
-    let mut last_device_count = 0;
-
-    // TODO consider how we manage sending data over the channel
-    // an option could be to pause this
     let mut waiting_response = false;
-    // let mut clear_packet = false;
-
     let mut packet: Vec<u8> = Vec::new();
 
     loop {
-        // Log any changes in devices
-        if last_device_count != devices.len() {
-            println!("Found device count: {:#?}", devices);
-            last_device_count = devices.len();
-        }
-
+        // Its possible for responses to be split across multiple serialport reads
+        // However we must initialise the packet after each full packet has been handled
         if !waiting_response && packet.len() > 0 {
-            // println!("Packet Cleared!");
             packet = Vec::new();
         }
 
@@ -130,7 +122,8 @@ fn main() {
             }
         }
 
-        // Pre-sized buffer
+        // Pre-sized buffer sized to max size of packet that can be returned from the enttec driver
+        // In practice it is always around 64 bytes
         let mut serial_buf: Vec<u8> = vec![0; 600];
 
         match driver.port.read(serial_buf.as_mut_slice()) {
@@ -179,6 +172,23 @@ fn main() {
                     PacketType::DiscoveryResponse => {
                         match DiscUniqueBranchResponse::try_from(rdm_packet.as_slice()) {
                             Ok(disc_unique_response) => {
+                                // Device has been discovered!
+                                println!("{:#02X?}", disc_unique_response);
+
+                                // Broadcast DiscUnmute to all devices so they accept DiscUniqueBranch messages
+                                let disc_unmute: Vec<u8> = DiscMuteRequest
+                                    .discovery_request(
+                                        disc_unique_response.device_uid,
+                                        source_uid,
+                                        0x00,
+                                        port_id,
+                                        0x0000,
+                                    )
+                                    .into();
+
+                                // println!("{:02X?}", &rdm_packet);
+                                queue.push_back(Driver::create_discovery_packet(&disc_unmute));
+
                                 devices.insert(
                                     disc_unique_response.device_uid,
                                     Device::from(disc_unique_response.device_uid),
@@ -197,6 +207,22 @@ fn main() {
                                     .unwrap();
                                     queue.push_back(Driver::create_rdm_packet(&packet));
                                 }
+
+                                // Retry same branch
+                                let disc_unique_branch: Vec<u8> =
+                                DiscUniqueBranchRequest::new(lower_bound_uid, upper_bound_uid)
+                                    .discovery_request(
+                                        DeviceUID::broadcast_all_devices(),
+                                        source_uid,
+                                        0x00,
+                                        port_id,
+                                        0x0000,
+                                    )
+                                    .try_into()
+                                    .unwrap();
+                        
+                            // println!("{:02X?}", &rdm_packet);
+                            queue.push_back(Driver::create_discovery_packet(&disc_unique_branch));
                             }
                             Err(message) => {
                                 println!("Error Message: {}", message);
@@ -217,12 +243,13 @@ fn main() {
 
                         let response = Response::from(rdm_packet.as_slice());
 
+                        // As we run discovery first, the device we have sent messages to will likely be available
                         if let Some(found_device) = devices.get_mut(&response.source_uid) {
                             let mut device;
                             if response.sub_device == ROOT_DEVICE {
                                 device = found_device;
                             } else {
-                                // TODO find sub_device from within device.sub_devices and update that instead
+                                // find a sub_device if the received message was a response to a sub_device request
                                 if let Some(sub_devices) = found_device.sub_devices.as_mut() {
                                     if let Some(found_sub_device) =
                                         sub_devices.get_mut(&response.sub_device)
@@ -237,10 +264,18 @@ fn main() {
                             }
 
                             match response.parameter_id {
+                                ParameterId::DiscMute => {
+                                    let disc_mute_response: DiscMuteResponse = response.parameter_data.into();
+                                    println!("{:#02X?}", disc_mute_response);
+                                    // TODO handle updating device
+                                    // device.update_software_version_label(
+                                    //     response.parameter_data.into(),
+                                    // );
+                                }
                                 ParameterId::DeviceInfo => {
                                     device.update_device_info(response.parameter_data.into());
 
-                                    if device.sub_device_count > 0 {
+                                    if device.sub_device_id == ROOT_DEVICE && device.sub_device_count > 0 {
                                         // initialise device.sub_device
                                         let mut sub_devices: HashMap<u16, Device> = HashMap::new();
 
@@ -408,7 +443,8 @@ fn main() {
                                     device.update_lamp_on_mode(response.parameter_data.into());
                                 }
                                 ParameterId::DevicePowerCycles => {
-                                    device.update_device_power_cycles(response.parameter_data.into());
+                                    device
+                                        .update_device_power_cycles(response.parameter_data.into());
                                 }
                                 ParameterId::DisplayInvert => {
                                     device.update_display_invert(response.parameter_data.into());
@@ -512,5 +548,12 @@ fn main() {
             Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
             Err(e) => eprintln!("{:?}", e),
         }
+
+        if !waiting_response && queue.len() == 0 {
+            println!("Devices: {:#02X?}", devices);
+            break;
+        }
     }
+
+
 }

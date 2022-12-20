@@ -12,8 +12,8 @@ use super::{
 
 #[derive(Debug, Error)]
 pub enum ParameterError {
-    #[error("unsupported parameter")]
-    UnsupportedParameter,
+    #[error("unsupported parameter {0}")]
+    UnsupportedParameter(String),
     #[error("unknown parameter error")]
     Unknown,
 }
@@ -312,6 +312,8 @@ impl TryFrom<&[u8]> for DiscUniqueBranchResponse {
 
         let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
 
+        println!("checksum: {}, decoded_checksum: {}", checksum, decoded_checksum);
+
         if checksum != decoded_checksum {
             return Err("Checksum does not match decoded checksum");
         }
@@ -340,6 +342,13 @@ impl Protocol for DiscMuteRequest {
 }
 
 impl DiscoveryRequest for DiscMuteRequest {}
+
+impl From<DiscMuteRequest> for Vec<u8> {
+    fn from(_: DiscMuteRequest) -> Self {
+        Vec::new()
+    }
+}
+
 
 #[derive(Debug)]
 pub struct DiscMuteResponse {
@@ -2375,6 +2384,6 @@ pub fn create_standard_parameter_get_request_packet(
         // SelfTestDescription => ,
         // CapturePreset => ,
         // PresetPlayback => ,
-        _ => Err(ParameterError::UnsupportedParameter),
+        _ => Err(ParameterError::UnsupportedParameter(format!("{:02X?}", parameter_id as u16))),
     }
 }
