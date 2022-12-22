@@ -367,6 +367,16 @@ pub enum ResetType {
     Cold = 0xff
 }
 
+impl From<u8> for ResetType {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x01 => ResetType::Warm,
+            0xff => ResetType::Cold,
+            _ => panic!("Invalid value for ResetType: {:?}", byte),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct Request<T> {
     pub destination_uid: DeviceUID,
