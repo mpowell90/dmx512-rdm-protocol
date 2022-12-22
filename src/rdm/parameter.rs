@@ -14,8 +14,8 @@ use super::{
 pub enum ParameterError {
     #[error("unsupported parameter {0}")]
     UnsupportedParameter(String),
-    #[error("unknown parameter error")]
-    Unknown,
+    // #[error("unknown parameter error")]
+    // Unknown,
 }
 
 // TODO add remaining parameter ids
@@ -312,7 +312,10 @@ impl TryFrom<&[u8]> for DiscUniqueBranchResponse {
 
         let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
 
-        println!("checksum: {}, decoded_checksum: {}", checksum, decoded_checksum);
+        println!(
+            "checksum: {}, decoded_checksum: {}",
+            checksum, decoded_checksum
+        );
 
         if checksum != decoded_checksum {
             return Err("Checksum does not match decoded checksum");
@@ -348,7 +351,6 @@ impl From<DiscMuteRequest> for Vec<u8> {
         Vec::new()
     }
 }
-
 
 #[derive(Debug)]
 pub struct DiscMuteResponse {
@@ -736,6 +738,69 @@ impl From<Vec<u8>> for SupportedParametersGetResponse {
                     )
                 })
                 .collect(),
+        }
+    }
+}
+
+pub struct SensorDefinitionRequest {
+    sensor_id: u8,
+}
+
+impl SensorDefinitionRequest {
+    pub fn new(sensor_id: u8) -> Self {
+        SensorDefinitionRequest { sensor_id }
+    }
+}
+
+impl Protocol for SensorDefinitionRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::SensorDefinition
+    }
+}
+
+impl GetRequest for SensorDefinitionRequest {}
+
+impl From<SensorDefinitionRequest> for Vec<u8> {
+    fn from(sensor: SensorDefinitionRequest) -> Self {
+        Vec::from([sensor.sensor_id])
+    }
+}
+
+#[derive(Debug)]
+pub struct SensorDefinitionResponse {
+    pub sensor_id: u8,
+    pub kind: u8,
+    pub unit: u8,
+    pub prefix: u8,
+    pub range_minimum_value: u16,
+    pub range_maximum_value: u16,
+    pub normal_minimum_value: u16,
+    pub normal_maximum_value: u16,
+    pub recorded_value_support: u8,
+    pub description: String,
+}
+
+impl Protocol for SensorDefinitionResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::SensorDefinition
+    }
+}
+
+impl From<Vec<u8>> for SensorDefinitionResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        SensorDefinitionResponse {
+            sensor_id: bytes[0],
+            kind: bytes[1],
+            unit: bytes[2],
+            prefix: bytes[3],
+            range_minimum_value: u16::from_be_bytes(bytes[4..=5].try_into().unwrap()),
+            range_maximum_value: u16::from_be_bytes(bytes[6..=7].try_into().unwrap()),
+            normal_minimum_value: u16::from_be_bytes(bytes[8..=9].try_into().unwrap()),
+            normal_maximum_value: u16::from_be_bytes(bytes[10..=11].try_into().unwrap()),
+            recorded_value_support: bytes[12],
+            description: String::from_utf8_lossy(&bytes[13..])
+                .trim_end_matches("\0")
+                .to_string(),
         }
     }
 }
@@ -2384,6 +2449,9 @@ pub fn create_standard_parameter_get_request_packet(
         // SelfTestDescription => ,
         // CapturePreset => ,
         // PresetPlayback => ,
-        _ => Err(ParameterError::UnsupportedParameter(format!("{:02X?}", parameter_id as u16))),
+        _ => Err(ParameterError::UnsupportedParameter(format!(
+            "{:02X?}",
+            parameter_id as u16
+        ))),
     }
 }

@@ -10,10 +10,10 @@ use super::{
         MaximumLevelGetResponse, MinimumLevelGetResponse,
         ModulationFrequencyDescriptionGetResponse, ModulationFrequencyGetResponse,
         OutputResponseTimeDescriptionGetResponse, OutputResponseTimeGetResponse,
-        ParameterDescriptionGetResponse, ProductDetailIdListGetResponse, SlotInfoResponse,
-        SoftwareVersionLabelGetResponse, SupportedParametersGetResponse,
+        ParameterDescriptionGetResponse, ProductDetailIdListGetResponse, SensorDefinitionResponse,
+        SlotInfoResponse, SoftwareVersionLabelGetResponse, SupportedParametersGetResponse,
     },
-    LampOnMode, LampState, ParameterId, ProductCategory, DisplayInvertMode
+    DisplayInvertMode, LampOnMode, LampState, ParameterId, ProductCategory,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -93,7 +93,7 @@ pub struct ModulationFrequency {
     pub description: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub struct OutputResponseTime {
     pub id: u8,
     pub description: String,
@@ -207,6 +207,232 @@ impl Device {
         }
     }
 
+    pub fn print(self) {
+        println!("UID: {:#02X?}", self.uid);
+
+        println!("\n> Production Info:");
+        if let Some(manufacturer_label) = self.manufacturer_label {
+            println!("Manufacturer Label: {:?}", manufacturer_label);
+        }
+        if let Some(model_id) = self.model_id {
+            println!("Model ID: {:#02X?}", model_id);
+        }
+        if let Some(model_description) = self.model_description {
+            println!("Model Description: {:#02X?}", model_description);
+        }
+        if let Some(device_model_description) = self.device_model_description {
+            println!(
+                "Device Model Description: {:#02X?}",
+                device_model_description
+            );
+        }
+        if let Some(protocol_version) = self.protocol_version {
+            println!("RDM Protocol Version: {:?}", protocol_version);
+        }
+        if let Some(software_version_id) = self.software_version_id {
+            println!("Software Version ID: {:?}", software_version_id);
+        }
+        if let Some(software_version_label) = self.software_version_label {
+            println!("Software Version: {:?}", software_version_label);
+        }
+        if let Some(is_identifying) = self.is_identifying {
+            println!("Identifying: {:?}", is_identifying);
+        }
+        if let Some(device_hours) = self.device_hours {
+            println!("Device Hours: {:?}", device_hours);
+        }
+        if let Some(product_category) = self.product_category {
+            println!("Product Category: {:?}", product_category);
+        }
+
+        if let Some(manufacturer_specific) = self.supported_manufacturer_specific_parameters {
+            for parameter in manufacturer_specific.into_values() {
+                if let Some(description) = parameter.description {
+                    println!("{:?}", description);
+                }
+            }
+        }
+
+        println!("\n> Supported Parameters:");
+        if let Some(standard_parameters) = self.supported_standard_parameters {
+            for parameter in standard_parameters {
+                println!("{:?}", parameter);
+            }
+        }
+        if let Some(product_detail_id_list) = self.product_detail_id_list {
+            println!("Product Detail ID List: {:#?}", product_detail_id_list);
+        }
+
+        println!("\n> DMX Setup:");
+        if let Some(start_address) = self.start_address {
+            println!("Start Address: {:?}", start_address);
+        }
+
+        if self.personality_count > 0 {
+            println!("\n> Personalities:");
+            if let (Some(current_personality), Some(personalities)) =
+                (self.current_personality, self.personalities)
+            {
+                let mut personalities_vec =
+                    personalities.into_values().collect::<Vec<DmxPersonality>>();
+                personalities_vec.sort_by(|a, b| a.to_owned().id.cmp(&b.id));
+
+                for personality in personalities_vec {
+                    let current: &str = if personality.id == current_personality {
+                        "- Current"
+                    } else {
+                        ""
+                    };
+                    println!(
+                        "[{}] {:#?} {}",
+                        personality.id, personality.description, current
+                    );
+                }
+            }
+        }
+
+        if let Some(footprint) = self.footprint {
+            println!("DMX Footprint: {:?}", footprint);
+
+            if footprint > 0 {
+                if let Some(dmx_slots) = self.dmx_slots {
+                    println!("\nDMX Slots: {:#?}", dmx_slots);
+                }
+            }
+        }
+
+        if let (
+            Some(minimum_level_lower_limit),
+            Some(minimum_level_upper_limit),
+            Some(maximum_level_lower_limit),
+            Some(maximum_level_upper_limit),
+        ) = (
+            self.minimum_level_lower_limit,
+            self.minimum_level_upper_limit,
+            self.maximum_level_lower_limit,
+            self.maximum_level_upper_limit,
+        ) {
+            println!("minimum_level_lower_limit: {:?}", minimum_level_lower_limit);
+            println!("minimum_level_upper_limit: {:?}", minimum_level_upper_limit);
+            println!("maximum_level_lower_limit: {:?}", maximum_level_lower_limit);
+            println!("maximum_level_upper_limit: {:?}", maximum_level_upper_limit);
+        }
+        // pub num_of_supported_curves: Option<u8>,
+        // pub levels_resolution: Option<u8>,
+        // pub minimum_levels_split_levels_supports: Option<u8>,
+        // pub minimum_level_increasing: Option<u16>,
+        // pub minimum_level_decreasing: Option<u16>,
+        // pub on_below_minimum: Option<u8>,
+        // pub maximum_level: Option<u16>,
+
+        if self.sensor_count > 0 {
+            println!("\n> Sensors:");
+            println!("Sensor Count: {:?}", self.sensor_count);
+            if let Some(sensors) = self.sensors {
+                println!("Sensors: {:#?}", sensors);
+            }
+        }
+
+        println!("\n> Lamp Details:");
+        if let Some(lamp_hours) = self.lamp_hours {
+            println!("lamp_hours: {:?}", lamp_hours);
+        }
+        if let Some(lamp_strikes) = self.lamp_strikes {
+            println!("lamp_strikes: {:?}", lamp_strikes);
+        }
+        if let Some(lamp_state) = self.lamp_state {
+            println!("lamp_state: {:?}", lamp_state);
+        }
+        if let Some(lamp_on_mode) = self.lamp_on_mode {
+            println!("lamp_on_mode: {:?}", lamp_on_mode);
+        }
+        if let Some(power_cycle_count) = self.power_cycle_count {
+            println!("power_cycle_count: {:?}", power_cycle_count);
+        }
+        if let Some(display_invert_mode) = self.display_invert_mode {
+            println!("display_invert_mode: {:?}", display_invert_mode);
+        }
+
+        if self.curve_count > 0 {
+            println!("\n> Curves:");
+
+            if let (Some(current_curve), Some(curves)) = (self.current_curve, self.curves) {
+                let mut curves_vec = curves.into_values().collect::<Vec<Curve>>();
+                curves_vec.sort_by(|a, b| a.to_owned().id.cmp(&b.id));
+
+                for curve in curves_vec {
+                    let current: &str = if curve.id == current_curve {
+                        "- Current"
+                    } else {
+                        ""
+                    };
+                    println!("[{}] {:#?} {}", curve.id, curve.description, current);
+                }
+            }
+        }
+
+        if self.modulation_frequency_count > 0 {
+            println!("\n> Modulation Frequencies:");
+
+            if let (Some(current_modulation_frequency), Some(modulation_frequencies)) = (
+                self.current_modulation_frequency,
+                self.modulation_frequencies,
+            ) {
+                let mut modulation_frequencies_vec = modulation_frequencies
+                    .into_values()
+                    .collect::<Vec<ModulationFrequency>>();
+                modulation_frequencies_vec.sort_by(|a, b| a.to_owned().id.cmp(&b.id));
+
+                for modulation_frequency in modulation_frequencies_vec {
+                    let current: &str = if modulation_frequency.id == current_modulation_frequency {
+                        "- Current"
+                    } else {
+                        ""
+                    };
+                    println!(
+                        "[{}] {:#?} {}",
+                        modulation_frequency.id, modulation_frequency.description, current
+                    );
+                }
+            }
+        }
+
+        if self.output_response_time_count > 0 {
+            println!("\n> Output Response Time:");
+            if let (Some(current_output_response_time), Some(output_response_times)) = (
+                self.current_output_response_time,
+                self.output_response_times,
+            ) {
+                let mut output_response_times_vec = output_response_times
+                    .into_values()
+                    .collect::<Vec<OutputResponseTime>>();
+                output_response_times_vec.sort_by(|a, b| a.to_owned().id.cmp(&b.id));
+
+                for output_response_time in output_response_times_vec {
+                    let current: &str = if output_response_time.id == current_output_response_time {
+                        "- Current"
+                    } else {
+                        ""
+                    };
+                    println!(
+                        "[{}] {:#?} {}",
+                        output_response_time.id, output_response_time.description, current
+                    );
+                }
+            }
+        }
+
+        if self.sub_device_count > 0 {
+            if let Some(sub_devices) = self.sub_devices {
+                for sub_device in sub_devices.into_values() {
+                    sub_device.print();
+                }
+            }
+        }
+
+        println!("");
+    }
+
     pub fn update_device_info(&mut self, data: DeviceInfoResponse) {
         self.protocol_version = Some(data.protocol_version);
         self.model_id = Some(data.model_id);
@@ -218,6 +444,27 @@ impl Device {
         self.start_address = Some(data.start_address);
         self.sub_device_count = data.sub_device_count;
         self.sensor_count = data.sensor_count;
+    }
+
+    pub fn update_sensor_definition(&mut self, data: SensorDefinitionResponse) {
+        let sensor = Sensor {
+            id: data.sensor_id,
+            kind: data.kind,
+            unit: data.unit,
+            prefix: data.prefix,
+            range_minimum_value: data.range_minimum_value,
+            range_maximum_value: data.range_maximum_value,
+            normal_minimum_value: data.normal_minimum_value,
+            normal_maximum_value: data.normal_maximum_value,
+            recorded_value_support: data.recorded_value_support,
+            description: data.description,
+        };
+        self.sensors = if let Some(sensors) = self.sensors.as_mut() {
+            sensors.insert(data.sensor_id, sensor);
+            Some(sensors.to_owned())
+        } else {
+            Some(HashMap::from([(data.sensor_id, sensor)]))
+        }
     }
 
     pub fn update_software_version_label(&mut self, data: SoftwareVersionLabelGetResponse) {

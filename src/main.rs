@@ -13,20 +13,18 @@ use serialport::available_ports;
 use ux::u48;
 use yansi::Paint;
 
-use enttecdmxusbpro::{Driver, PacketResponseType};
-use rdm::{
+use crate::enttecdmxusbpro::{Driver, PacketResponseType};
+use crate::rdm::{
     device::{Device, DeviceUID},
     parameter::{
-        create_standard_parameter_get_request_packet, CurveDescriptionGetRequest,
-        DiscUniqueBranchRequest, DiscUniqueBranchResponse, DiscUnmuteRequest,
+        create_standard_parameter_get_request_packet, CurveDescriptionGetRequest, DiscMuteRequest,
+        DiscMuteResponse, DiscUniqueBranchRequest, DiscUniqueBranchResponse, DiscUnmuteRequest,
         DmxPersonalityDescriptionGetRequest, ModulationFrequencyDescriptionGetRequest,
         OutputResponseTimeDescriptionGetRequest, ParameterDescriptionGetRequest, ParameterId,
-        REQUIRED_PARAMETERS,
+        SensorDefinitionRequest, REQUIRED_PARAMETERS,
     },
     DiscoveryRequest, GetRequest, PacketType, Response, ROOT_DEVICE,
 };
-
-use crate::rdm::parameter::{DiscMuteRequest, DiscMuteResponse};
 
 fn main() {
     let serialports = available_ports().unwrap();
@@ -89,7 +87,7 @@ fn main() {
     queue.push_back(Driver::create_discovery_packet(&disc_unique_branch));
 
     // Data sent between threads using a channel, on channel recv, send to serialport
-    thread::spawn(move || loop {
+    let tx_handle = thread::spawn(move || loop {
         match rx.recv() {
             Ok(packet) => {
                 transmitter
@@ -210,19 +208,21 @@ fn main() {
 
                                 // Retry same branch
                                 let disc_unique_branch: Vec<u8> =
-                                DiscUniqueBranchRequest::new(lower_bound_uid, upper_bound_uid)
-                                    .discovery_request(
-                                        DeviceUID::broadcast_all_devices(),
-                                        source_uid,
-                                        0x00,
-                                        port_id,
-                                        0x0000,
-                                    )
-                                    .try_into()
-                                    .unwrap();
-                        
-                            // println!("{:02X?}", &rdm_packet);
-                            queue.push_back(Driver::create_discovery_packet(&disc_unique_branch));
+                                    DiscUniqueBranchRequest::new(lower_bound_uid, upper_bound_uid)
+                                        .discovery_request(
+                                            DeviceUID::broadcast_all_devices(),
+                                            source_uid,
+                                            0x00,
+                                            port_id,
+                                            0x0000,
+                                        )
+                                        .try_into()
+                                        .unwrap();
+
+                                // println!("{:02X?}", &rdm_packet);
+                                queue.push_back(Driver::create_discovery_packet(
+                                    &disc_unique_branch,
+                                ));
                             }
                             Err(message) => {
                                 println!("Error Message: {}", message);
@@ -265,7 +265,8 @@ fn main() {
 
                             match response.parameter_id {
                                 ParameterId::DiscMute => {
-                                    let disc_mute_response: DiscMuteResponse = response.parameter_data.into();
+                                    let disc_mute_response: DiscMuteResponse =
+                                        response.parameter_data.into();
                                     println!("{:#02X?}", disc_mute_response);
                                     // TODO handle updating device
                                     // device.update_software_version_label(
@@ -275,7 +276,9 @@ fn main() {
                                 ParameterId::DeviceInfo => {
                                     device.update_device_info(response.parameter_data.into());
 
-                                    if device.sub_device_id == ROOT_DEVICE && device.sub_device_count > 0 {
+                                    if device.sub_device_id == ROOT_DEVICE
+                                        && device.sub_device_count > 0
+                                    {
                                         // initialise device.sub_device
                                         let mut sub_devices: HashMap<u16, Device> = HashMap::new();
 
@@ -303,6 +306,22 @@ fn main() {
                                         device.sub_devices = Some(sub_devices);
                                     }
 
+                                    if device.sensor_count > 0 {
+                                        for idx in 0..device.sensor_count {
+                                            let packet: Vec<u8> = SensorDefinitionRequest::new(idx)
+                                                .get_request(
+                                                    device.uid,
+                                                    source_uid,
+                                                    0x00,
+                                                    port_id,
+                                                    response.sub_device,
+                                                )
+                                                .into();
+
+                                            queue.push_back(Driver::create_rdm_packet(&packet));
+                                        }
+                                    }
+
                                     // TODO causes a nack response
                                     // if let Some(footprint) = device.footprint {
                                     //     if footprint > 0 {
@@ -318,6 +337,9 @@ fn main() {
                                     //         queue.push_back(Driver::create_rdm_packet(&packet));
                                     //     }
                                     // }
+                                }
+                                ParameterId::SensorDefinition => {
+                                    device.update_sensor_definition(response.parameter_data.into());
                                 }
                                 ParameterId::SoftwareVersionLabel => {
                                     device.update_software_version_label(
@@ -550,10 +572,17 @@ fn main() {
         }
 
         if !waiting_response && queue.len() == 0 {
-            println!("Devices: {:#02X?}", devices);
+            // println!("Devices: {:#02X?}", devices);
+            for device in devices.into_values() {
+                device.print();
+            }
             break;
         }
     }
 
+    drop(tx);
 
+    tx_handle.join().unwrap();
+
+    drop(driver.port);
 }
