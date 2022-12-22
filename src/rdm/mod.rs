@@ -308,21 +308,21 @@ impl From<u8> for LampOnMode {
 }
 
 #[derive(Clone, Debug)]
-pub enum PowerStates {
+pub enum PowerState {
     FullOff = 0x00,  // 0x00 = "Full Off",
     Shutdown = 0x01, // 0x01 = "Shutdown",
     Standby = 0x02,  // 0x02 = "Standby",
     Normal = 0xff,   // 0xff = "Normal",
 }
 
-impl From<u8> for PowerStates {
+impl From<u8> for PowerState {
     fn from(byte: u8) -> Self {
         match byte {
-            0x00 => PowerStates::FullOff,
-            0x01 => PowerStates::Shutdown,
-            0x02 => PowerStates::Standby,
-            0x03 => PowerStates::Normal,
-            _ => panic!("Invalid value for PowerStates: {:?}", byte),
+            0x00 => PowerState::FullOff,
+            0x01 => PowerState::Shutdown,
+            0x02 => PowerState::Standby,
+            0x03 => PowerState::Normal,
+            _ => panic!("Invalid value for PowerState: {:?}", byte),
         }
     }
 }
@@ -359,6 +359,12 @@ impl From<u8> for DisplayInvertMode {
             _ => panic!("Invalid value for DisplayInvertMode: {:?}", byte),
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub enum ResetType {
+    Warm = 0x01,
+    Cold = 0xff
 }
 
 #[derive(Clone, Debug)]

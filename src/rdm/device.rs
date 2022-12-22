@@ -10,10 +10,12 @@ use super::{
         MaximumLevelGetResponse, MinimumLevelGetResponse,
         ModulationFrequencyDescriptionGetResponse, ModulationFrequencyGetResponse,
         OutputResponseTimeDescriptionGetResponse, OutputResponseTimeGetResponse,
-        ParameterDescriptionGetResponse, ProductDetailIdListGetResponse, SensorDefinitionResponse,
-        SlotInfoResponse, SoftwareVersionLabelGetResponse, SupportedParametersGetResponse,
+        ParameterDescriptionGetResponse, PerformSelfTestGetResponse, PowerStateGetResponse,
+        PresetPlaybackGetResponse, ProductDetailIdListGetResponse, SelfTestDescriptionGetResponse,
+        SensorDefinitionResponse, SlotInfoResponse, SoftwareVersionLabelGetResponse,
+        SupportedParametersGetResponse,
     },
-    DisplayInvertMode, LampOnMode, LampState, ParameterId, ProductCategory,
+    DisplayInvertMode, LampOnMode, LampState, ParameterId, PowerState, ProductCategory,
 };
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -187,6 +189,10 @@ pub struct Device {
     pub current_output_response_time: Option<u8>,
     pub output_response_time_count: u8,
     pub output_response_times: Option<HashMap<u8, OutputResponseTime>>,
+    pub power_state: Option<PowerState>,
+    pub self_test_is_active: Option<bool>,
+    pub preset_playback_mode: Option<u16>,
+    pub preset_playback_level: Option<u8>,
 }
 
 impl From<DeviceUID> for Device {
@@ -234,9 +240,6 @@ impl Device {
         }
         if let Some(software_version_label) = self.software_version_label {
             println!("Software Version: {:?}", software_version_label);
-        }
-        if let Some(is_identifying) = self.is_identifying {
-            println!("Identifying: {:?}", is_identifying);
         }
         if let Some(device_hours) = self.device_hours {
             println!("Device Hours: {:?}", device_hours);
@@ -422,7 +425,25 @@ impl Device {
             }
         }
 
+        println!("\n> Control:");
+        if let Some(is_identifying) = self.is_identifying {
+            println!("Identifying: {:?}", is_identifying);
+        }
+        if let Some(power_state) = self.power_state {
+            println!("Power State: {:?}", power_state);
+        }
+        if let Some(self_test_is_active) = self.self_test_is_active {
+            println!("Self Test Active: {:?}", self_test_is_active);
+        }
+        if let Some(preset_playback_mode) = self.preset_playback_mode {
+            println!("Preset Playback Mode: {:?}", preset_playback_mode);
+        }
+        if let Some(preset_playback_level) = self.preset_playback_level {
+            println!("Preset Playback Level: {:?}", preset_playback_level);
+        }
+
         if self.sub_device_count > 0 {
+            println!("\n> Sub devices:");
             if let Some(sub_devices) = self.sub_devices {
                 for sub_device in sub_devices.into_values() {
                     sub_device.print();
@@ -660,5 +681,22 @@ impl Device {
                     output_response_time,
                 )]))
             }
+    }
+
+    pub fn update_power_state(&mut self, data: PowerStateGetResponse) {
+        self.power_state = Some(data.power_state);
+    }
+
+    pub fn update_perform_self_state(&mut self, data: PerformSelfTestGetResponse) {
+        self.self_test_is_active = Some(data.is_active);
+    }
+
+    pub fn update_self_test_description(&mut self, data: SelfTestDescriptionGetResponse) {
+        todo!()
+    }
+
+    pub fn update_preset_playback(&mut self, data: PresetPlaybackGetResponse) {
+        self.preset_playback_mode = Some(data.mode);
+        self.preset_playback_level = Some(data.level);
     }
 }

@@ -1,4 +1,4 @@
-use byteorder::{BigEndian, WriteBytesExt};
+use byteorder::{BigEndian, ByteOrder, WriteBytesExt};
 use std::collections::HashMap;
 use thiserror::Error;
 use ux::u48;
@@ -6,8 +6,8 @@ use ux::u48;
 use super::{
     bsd_16_crc,
     device::{DeviceUID, DmxSlot},
-    DiscoveryRequest, DisplayInvertMode, GetRequest, LampOnMode, LampState, ProductCategory,
-    Protocol, SetRequest, SupportedCommandClasses,
+    DiscoveryRequest, DisplayInvertMode, GetRequest, LampOnMode, LampState, PowerState,
+    ProductCategory, Protocol, ResetType, SetRequest, SupportedCommandClasses,
 };
 
 #[derive(Debug, Error)]
@@ -2171,6 +2171,329 @@ impl From<Vec<u8>> for OutputResponseTimeDescriptionGetResponse {
     }
 }
 
+pub struct ResetDeviceTimeSetRequest {
+    kind: ResetType,
+}
+
+impl Protocol for ResetDeviceTimeSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ResetDevice
+    }
+}
+
+impl SetRequest for ResetDeviceTimeSetRequest {}
+
+impl From<ResetDeviceTimeSetRequest> for Vec<u8> {
+    fn from(reset_device: ResetDeviceTimeSetRequest) -> Self {
+        Vec::from([reset_device.kind as u8])
+    }
+}
+
+pub struct ResetDeviceTimeSetResponse;
+
+impl Protocol for ResetDeviceTimeSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::ResetDevice
+    }
+}
+
+impl From<Vec<u8>> for ResetDeviceTimeSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        ResetDeviceTimeSetResponse
+    }
+}
+
+pub struct PowerStateGetRequest;
+
+impl Protocol for PowerStateGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PowerState
+    }
+}
+
+impl GetRequest for PowerStateGetRequest {}
+
+impl From<PowerStateGetRequest> for Vec<u8> {
+    fn from(_: PowerStateGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+pub struct PowerStateGetResponse {
+    pub power_state: PowerState,
+}
+
+impl Protocol for PowerStateGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PowerState
+    }
+}
+
+impl From<Vec<u8>> for PowerStateGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        PowerStateGetResponse {
+            power_state: PowerState::from(bytes[0]),
+        }
+    }
+}
+
+pub struct PowerStateSetRequest {
+    power_state: PowerState,
+}
+
+impl Protocol for PowerStateSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PowerState
+    }
+}
+
+impl SetRequest for PowerStateSetRequest {}
+
+impl From<PowerStateSetRequest> for Vec<u8> {
+    fn from(power_state: PowerStateSetRequest) -> Self {
+        Vec::from([power_state.power_state as u8])
+    }
+}
+
+pub struct PowerStateSetResponse;
+
+impl Protocol for PowerStateSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PowerState
+    }
+}
+
+impl From<Vec<u8>> for PowerStateSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        PowerStateSetResponse
+    }
+}
+
+pub struct PerformSelfTestGetRequest;
+
+impl Protocol for PerformSelfTestGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PerformSelfTest
+    }
+}
+
+impl GetRequest for PerformSelfTestGetRequest {}
+
+impl From<PerformSelfTestGetRequest> for Vec<u8> {
+    fn from(_: PerformSelfTestGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+pub struct PerformSelfTestGetResponse {
+    pub is_active: bool,
+}
+
+impl Protocol for PerformSelfTestGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PerformSelfTest
+    }
+}
+
+impl From<Vec<u8>> for PerformSelfTestGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        PerformSelfTestGetResponse {
+            is_active: bytes[0] != 0,
+        }
+    }
+}
+
+pub struct PerformSelfTestSetRequest {
+    self_test_id: u8,
+}
+
+impl Protocol for PerformSelfTestSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PerformSelfTest
+    }
+}
+
+impl SetRequest for PerformSelfTestSetRequest {}
+
+impl From<PerformSelfTestSetRequest> for Vec<u8> {
+    fn from(perform_self_test: PerformSelfTestSetRequest) -> Self {
+        Vec::from([perform_self_test.self_test_id as u8])
+    }
+}
+
+pub struct PerformSelfTestSetResponse;
+
+impl Protocol for PerformSelfTestSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PerformSelfTest
+    }
+}
+
+impl From<Vec<u8>> for PerformSelfTestSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        PerformSelfTestSetResponse
+    }
+}
+
+// SelfTestDescription = 0x1021,
+pub struct SelfTestDescriptionGetRequest {
+    self_test_id: u8,
+}
+
+impl Protocol for SelfTestDescriptionGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::SelfTestDescription
+    }
+}
+
+impl GetRequest for SelfTestDescriptionGetRequest {}
+
+impl From<SelfTestDescriptionGetRequest> for Vec<u8> {
+    fn from(self_test_description: SelfTestDescriptionGetRequest) -> Self {
+        Vec::from([self_test_description.self_test_id])
+    }
+}
+
+pub struct SelfTestDescriptionGetResponse {
+    pub self_test_id: u8,
+    pub description: String,
+}
+
+impl Protocol for SelfTestDescriptionGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::SelfTestDescription
+    }
+}
+
+impl From<Vec<u8>> for SelfTestDescriptionGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        SelfTestDescriptionGetResponse {
+            self_test_id: bytes[0],
+            description: String::from_utf8_lossy(&bytes[1..])
+                .trim_end_matches("\0")
+                .to_string(),
+        }
+    }
+}
+
+// CapturePreset = 0x1030,
+pub struct CapturePresetSetRequest {
+    id: u16,
+    up_fade_time: u16,
+    down_fade_time: u16,
+    wait_time: u16,
+}
+
+impl Protocol for CapturePresetSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::CapturePreset
+    }
+}
+
+impl SetRequest for CapturePresetSetRequest {}
+
+impl From<CapturePresetSetRequest> for Vec<u8> {
+    fn from(capture_preset: CapturePresetSetRequest) -> Self {
+        let mut vec: Vec<u8> = Vec::new();
+        vec.write_u16::<BigEndian>(capture_preset.id.into())
+            .unwrap();
+        vec.write_u16::<BigEndian>(capture_preset.up_fade_time.into())
+            .unwrap();
+        vec.write_u16::<BigEndian>(capture_preset.down_fade_time.into())
+            .unwrap();
+        vec.write_u16::<BigEndian>(capture_preset.wait_time.into())
+            .unwrap();
+        vec
+    }
+}
+
+pub struct CapturePresetSetResponse;
+
+impl Protocol for CapturePresetSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::CapturePreset
+    }
+}
+
+impl From<Vec<u8>> for CapturePresetSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        CapturePresetSetResponse
+    }
+}
+
+pub struct PresetPlaybackGetRequest;
+
+impl Protocol for PresetPlaybackGetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PresetPlayback
+    }
+}
+
+impl GetRequest for PresetPlaybackGetRequest {}
+
+impl From<PresetPlaybackGetRequest> for Vec<u8> {
+    fn from(_: PresetPlaybackGetRequest) -> Self {
+        Vec::new()
+    }
+}
+
+pub struct PresetPlaybackGetResponse {
+    pub mode: u16,
+    pub level: u8,
+}
+
+impl Protocol for PresetPlaybackGetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PresetPlayback
+    }
+}
+
+impl From<Vec<u8>> for PresetPlaybackGetResponse {
+    fn from(bytes: Vec<u8>) -> Self {
+        PresetPlaybackGetResponse {
+            mode: BigEndian::read_u16(&bytes[..=1]),
+            level: bytes[2],
+        }
+    }
+}
+
+pub struct PresetPlaybackSetRequest {
+    pub mode: u16,
+    pub level: u8,
+}
+
+impl Protocol for PresetPlaybackSetRequest {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PresetPlayback
+    }
+}
+
+impl SetRequest for PresetPlaybackSetRequest {}
+
+impl From<PresetPlaybackSetRequest> for Vec<u8> {
+    fn from(preset_playback: PresetPlaybackSetRequest) -> Self {
+        let mut vec: Vec<u8> = Vec::new();
+        vec.write_u16::<BigEndian>(preset_playback.mode.into())
+            .unwrap();
+        vec.write_u8(preset_playback.level).unwrap();
+        vec
+    }
+}
+
+pub struct PresetPlaybackSetResponse;
+
+impl Protocol for PresetPlaybackSetResponse {
+    fn parameter_id() -> ParameterId {
+        ParameterId::PresetPlayback
+    }
+}
+
+impl From<Vec<u8>> for PresetPlaybackSetResponse {
+    fn from(_: Vec<u8>) -> Self {
+        PresetPlaybackSetResponse
+    }
+}
+
 pub fn create_standard_parameter_get_request_packet(
     parameter_id: ParameterId,
     destination_uid: DeviceUID,
@@ -2443,12 +2766,33 @@ pub fn create_standard_parameter_get_request_packet(
                 sub_device,
             )
             .into()),
-        // ResetDevice => ,
-        // PowerState => ,
-        // PerformSelfTest => ,
-        // SelfTestDescription => ,
-        // CapturePreset => ,
-        // PresetPlayback => ,
+        ParameterId::PowerState => Ok(PowerStateGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::PerformSelfTest => Ok(PerformSelfTestGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
+        ParameterId::PresetPlayback => Ok(PresetPlaybackGetRequest
+            .get_request(
+                destination_uid,
+                source_uid,
+                transaction_number,
+                port_id,
+                sub_device,
+            )
+            .into()),
         _ => Err(ParameterError::UnsupportedParameter(format!(
             "{:02X?}",
             parameter_id as u16

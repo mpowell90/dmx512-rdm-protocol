@@ -550,6 +550,18 @@ fn main() {
                                         response.parameter_data.into(),
                                     );
                                 }
+                                ParameterId::PowerState => {
+                                    device.update_power_state(response.parameter_data.into());
+                                }
+                                ParameterId::PerformSelfTest => {
+                                    device.update_perform_self_state(response.parameter_data.into());
+                                }
+                                ParameterId::SelfTestDescription => {
+                                    device.update_self_test_description(response.parameter_data.into());
+                                }
+                                ParameterId::PresetPlayback => {
+                                    device.update_preset_playback(response.parameter_data.into());
+                                }
                                 _ => println!(
                                     "Unsupported Parameter Id: {:?}",
                                     response.parameter_id
