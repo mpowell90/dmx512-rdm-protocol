@@ -2335,7 +2335,6 @@ impl From<Vec<u8>> for PerformSelfTestSetResponse {
     }
 }
 
-// SelfTestDescription = 0x1021,
 pub struct SelfTestDescriptionGetRequest {
     self_test_id: u8,
 }
@@ -2376,7 +2375,6 @@ impl From<Vec<u8>> for SelfTestDescriptionGetResponse {
     }
 }
 
-// CapturePreset = 0x1030,
 pub struct CapturePresetSetRequest {
     id: u16,
     up_fade_time: u16,
