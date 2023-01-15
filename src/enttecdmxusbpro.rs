@@ -310,26 +310,39 @@ enum MessageLabel {
 
 #[derive(Clone, Debug)]
 pub enum EnttecRequestMessage {
+    SendRdmPacketRequest(Option<Vec<u8>>), // TODO change to bytes
     SendRdmDiscoveryMessage(Option<Vec<u8>>), // TODO change to bytes
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum EnttecResponseMessage {
-    SendRdmDiscoveryMessage(Option<Vec<u8>>), // TODO change to bytes
+    SuccessResponse(Option<Bytes>),
+    NullResponse,
 }
 
 impl Encoder<EnttecRequestMessage> for EnttecDmxUsbProCodec {
     type Error = io::Error;
 
-    fn encode(&mut self, item: EnttecRequestMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
+    fn encode(
+        &mut self,
+        item: EnttecRequestMessage,
+        dst: &mut BytesMut,
+    ) -> Result<(), Self::Error> {
         let (label, data) = match item {
+            EnttecRequestMessage::SendRdmPacketRequest(data) => {
+                (MessageLabel::SendRdmPacketRequest, data)
+            }
             EnttecRequestMessage::SendRdmDiscoveryMessage(data) => {
                 (MessageLabel::SendRdmDiscoveryRequest, data)
             }
             _ => panic!("Unknown EnttecRequestMessage type"),
         };
 
-        let data_length = if let Some(bytes) = data.clone() { bytes.len() } else { 0 };
+        let data_length = if let Some(bytes) = data.clone() {
+            bytes.len()
+        } else {
+            0
+        };
 
         dst.reserve(data_length + 5);
 
@@ -349,7 +362,8 @@ impl Encoder<EnttecRequestMessage> for EnttecDmxUsbProCodec {
 
 impl Decoder for EnttecDmxUsbProCodec {
     // type Item = (PacketResponseType, Vec<u8>);
-    type Item = Bytes;
+    // type Item = Bytes;
+    type Item = EnttecResponseMessage;
     type Error = io::Error;
 
     // Application Message Format
@@ -389,10 +403,18 @@ impl Decoder for EnttecDmxUsbProCodec {
                 return Err(io::Error::new(io::ErrorKind::Other, "Invalid Stop Byte"));
             }
 
-            Ok(Some(
-                src.split_to(packet_length + Self::FRAME_HEADER_FOOTER_SIZE)
-                    .freeze(),
-            ))
+            let frame = src.split_to(packet_length + Self::FRAME_HEADER_FOOTER_SIZE).freeze();
+
+            let frame_type = PacketResponseType::try_from(frame[1]).unwrap();
+
+            let frame = match frame_type {
+                PacketResponseType::NullResponse => EnttecResponseMessage::NullResponse,
+                PacketResponseType::SuccessResponse => EnttecResponseMessage::SuccessResponse(
+                    Some(frame.slice(Self::FRAME_HEADER_FOOTER_SIZE..frame.len() - 1))
+                )
+            };
+
+            Ok(Some(frame))
         } else {
             // TODO might need to return Err() here
             return Ok(None);
@@ -510,19 +532,12 @@ mod tests {
     fn empty_buffer_correct_frame_single_decode() {
         let mut data = mock_valid_null_response();
 
-        println!("data.len() before decode: {}", data.len());
-
         let mut codec = EnttecDmxUsbProCodec::new();
 
         let result = codec.decode(&mut data);
 
-        println!("data.len() after decode: {}", data.len());
-
         match result {
-            Ok(Some(frame)) => {
-                println!("frame {:02X?}", frame.to_vec());
-                assert_eq!(frame.len(), mock_valid_null_response().len());
-            }
+            Ok(Some(frame)) => assert_eq!(frame, EnttecResponseMessage::NullResponse),
             _ => panic!("Failure for message with illegal trailing data"),
         }
     }
@@ -542,10 +557,7 @@ mod tests {
         println!("data.len() after decode: {}", data.len());
 
         match result {
-            Ok(Some(frame)) => {
-                println!("frame {:02X?}", frame.to_vec());
-                assert_eq!(frame.len(), mock_valid_null_response().len());
-            }
+            Ok(Some(frame)) => assert_eq!(frame, EnttecResponseMessage::NullResponse),
             _ => panic!("Failure for message with illegal trailing data"),
         }
     }
@@ -585,10 +597,7 @@ mod tests {
         let result = codec.decode(&mut data);
 
         match result {
-            Ok(Some(frame)) => {
-                println!("frame {:02X?}", frame.to_vec());
-                assert_eq!(frame.len(), mock_valid_null_response().len());
-            }
+            Ok(Some(frame)) => assert_eq!(frame, EnttecResponseMessage::NullResponse),
             _ => panic!("Failure for message with illegal trailing data"),
         }
     }
