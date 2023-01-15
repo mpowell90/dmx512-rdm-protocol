@@ -2,9 +2,11 @@
 pub mod device;
 pub mod parameter;
 
-use std::mem;
-
 use byteorder::{BigEndian, WriteBytesExt};
+use bytes::{BufMut, Bytes, BytesMut};
+use std::{io, mem, str};
+use thiserror::Error;
+use tokio_util::codec::{Decoder, Encoder};
 use ux::u48;
 
 use self::{device::DeviceUID, parameter::ParameterId};
@@ -18,7 +20,7 @@ pub const BROADCAST_ALL_DEVICES_ID: u48 = u48::new(0xffffffffffff);
 pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
 pub const ROOT_DEVICE: u16 = 0x0000;
 
-#[derive(PartialEq)]
+#[derive(Debug, PartialEq)]
 pub enum PacketType {
     RdmResponse = 0xcc01,
     DiscoveryResponse = 0xfefe,
@@ -364,7 +366,7 @@ impl From<u8> for DisplayInvertMode {
 #[derive(Clone, Debug)]
 pub enum ResetType {
     Warm = 0x01,
-    Cold = 0xff
+    Cold = 0xff,
 }
 
 impl From<u8> for ResetType {
@@ -374,6 +376,42 @@ impl From<u8> for ResetType {
             0xff => ResetType::Cold,
             _ => panic!("Invalid value for ResetType: {:?}", byte),
         }
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum DriverError {
+    #[error("invalid data length")]
+    InvalidDataLength,
+    #[error("invalid start byte")]
+    InvalidStartByte,
+    #[error("invalid stop byte")]
+    InvalidStopByte,
+    #[error("invalid packet type")]
+    UnsupportedPacketType,
+    #[error("malformed packet")]
+    MalformedPacket,
+    #[error("unknown driver error")]
+    Unknown,
+}
+
+// TODO the following is a quick and dirty test
+#[derive(Debug, PartialEq)]
+pub enum PacketResponseType {
+    SuccessResponse = 0x05,
+    NullResponse = 0x0c,
+}
+
+impl TryFrom<u8> for PacketResponseType {
+    type Error = DriverError;
+
+    fn try_from(byte: u8) -> Result<Self, Self::Error> {
+        let packet_type = match byte {
+            0x05 => PacketResponseType::SuccessResponse,
+            0x0c => PacketResponseType::NullResponse,
+            _ => return Err(DriverError::UnsupportedPacketType),
+        };
+        Ok(packet_type)
     }
 }
 
