@@ -11,3 +11,9 @@ byteorder = "1.4.3"
 ux = "0.1.5"
 yansi = "0.5.1"
 thiserror = "1.0.37"
+tokio-serial = "5.4.1"
+tokio = { version = "1.18.0", features = ["full", "io-util"] }
+tokio-stream = "0.1.11"
+futures = "0.3.21"
+tokio-util = { version = "0.7.4", features = ["codec"] }
+bytes = "1.2.1"
