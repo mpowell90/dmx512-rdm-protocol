@@ -1,15 +1,25 @@
-// #![allow(unused)]
+#![allow(unused)]
 pub mod device;
 pub mod parameter;
 
-use byteorder::{BigEndian, WriteBytesExt};
-use bytes::{BufMut, Bytes, BytesMut};
-use std::{io, mem, str};
+use byteorder::{BigEndian, LittleEndian, WriteBytesExt};
+use bytes::{Buf, BufMut, Bytes, BytesMut};
+use core::panic;
+use serialport::{DataBits, SerialPort, StopBits};
+use std::{
+    cmp::PartialEq,
+    collections::HashMap,
+    io::{self, Write},
+};
+use std::{mem, str};
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
 use ux::u48;
 
-use self::{device::DeviceUID, parameter::ParameterId};
+use self::{
+    device::{DeviceUID, DmxSlot},
+    parameter::{ManufacturerSpecificParameter, ParameterId},
+};
 
 pub const MIN_PACKET_LEN: usize = 26;
 
@@ -23,7 +33,7 @@ pub const ROOT_DEVICE: u16 = 0x0000;
 #[derive(Debug, PartialEq)]
 pub enum PacketType {
     RdmResponse = 0xcc01,
-    DiscoveryResponse = 0xfefe,
+    DiscoveryUniqueBranchResponse = 0xfefe,
 }
 
 impl TryFrom<u16> for PacketType {
@@ -32,7 +42,7 @@ impl TryFrom<u16> for PacketType {
     fn try_from(byte: u16) -> Result<Self, Self::Error> {
         let packet_type = match byte {
             0xcc01 => PacketType::RdmResponse,
-            0xfefe => PacketType::DiscoveryResponse,
+            0xfefe => PacketType::DiscoveryUniqueBranchResponse,
             _ => return Err("Invalid value for PacketRequestType"),
         };
         Ok(packet_type)
@@ -85,6 +95,12 @@ impl TryFrom<u8> for SupportedCommandClasses {
         };
         Ok(command_class)
     }
+}
+
+pub fn bsd_16_crc_bytes_mut(packet: &mut BytesMut) -> u16 {
+    packet
+        .iter()
+        .fold(0_u16, |sum, byte| (sum.overflowing_add(*byte as u16).0))
 }
 
 pub fn bsd_16_crc(packet: &Vec<u8>) -> u16 {
@@ -622,3 +638,690 @@ where
         )
     }
 }
+
+pub enum GetCommandParameterData {
+    ParameterDescription { parameter_id: u16 },
+    SensorDefinition { sensor_id: u8 },
+    DmxPersonalityDescription { personality: u8 },
+    CurveDescription { curve: u8 },
+    ModulationFrequencyDescription { modulation_frequency: u8 },
+    OutputResponseTimeDescription { output_response_time: u8 },
+    SelfTestDescription { self_test_id: u8 },
+}
+
+struct GetRequest2 {
+    destination_uid: DeviceUID,
+    source_uid: DeviceUID,
+    transaction_number: u8,
+    port_id: u8,
+    sub_device: u16,
+    parameter_id: ParameterId,
+    parameter_data: Option<GetCommandParameterData>,
+}
+
+enum RdmRequestMessage {
+    GetRequest(GetRequest2),
+    // SetCommand(SetCommandMessage)
+}
+
+#[derive(Debug)]
+pub enum DiscoveryResponseParameterData {
+    DiscMute {
+        control_field: u16,
+        binding_uid: Option<DeviceUID>,
+    },
+    DiscUnmute {
+        control_field: u16,
+        binding_uid: Option<DeviceUID>,
+    },
+}
+
+#[derive(Debug)]
+pub enum GetResponseParameterData {
+    ParameterDescription {
+        parameter_id: u16,
+        parameter_data_size: u8,
+        data_type: u8,
+        command_class: SupportedCommandClasses,
+        prefix: u8,
+        minimum_valid_value: u32,
+        maximum_valid_value: u32,
+        default_value: u32,
+        description: String,
+    },
+    DeviceInfo {
+        protocol_version: String,
+        model_id: u16,
+        product_category: ProductCategory,
+        software_version_id: u32,
+        footprint: u16,
+        current_personality: u8,
+        personality_count: u8,
+        start_address: u16,
+        sub_device_count: u16,
+        sensor_count: u8,
+    },
+    SoftwareVersionLabel {
+        software_version_label: String,
+    },
+    SupportedParameters {
+        standard_parameters: Vec<ParameterId>,
+        manufacturer_specific_parameters: HashMap<u16, ManufacturerSpecificParameter>,
+    },
+    SensorDefinition {
+        sensor_id: u8,
+        kind: u8,
+        unit: u8,
+        prefix: u8,
+        range_minimum_value: u16,
+        range_maximum_value: u16,
+        normal_minimum_value: u16,
+        normal_maximum_value: u16,
+        recorded_value_support: u8,
+        description: String,
+    },
+    IdentifyDevice {
+        is_identifying: bool,
+    },
+    ManufacturerLabel {
+        manufacturer_label: String,
+    },
+    FactoryDefaults {
+        factory_default: bool,
+    },
+    DeviceModelDescription {
+        device_model_description: String,
+    },
+    ProductDetailIdList {
+        product_detail_id_list: Vec<u16>,
+    },
+    DmxPersonality {
+        current_personality: u8,
+        personality_count: u8,
+    },
+    DmxPersonalityDescription {
+        personality: u8,
+        dmx_slots_required: u16,
+        description: String,
+    },
+    SlotInfoResponse {
+        dmx_slots: Vec<DmxSlot>,
+    },
+    DeviceHours {
+        device_hours: u32,
+    },
+    LampHours {
+        lamp_hours: u32,
+    },
+    LampStrikes {
+        lamp_strikes: u32,
+    },
+    LampState {
+        lamp_state: LampState,
+    },
+    LampOnMode {
+        lamp_on_mode: LampOnMode,
+    },
+    DevicePowerCycles {
+        power_cycle_count: u32,
+    },
+    DisplayInvert {
+        display_invert_mode: DisplayInvertMode,
+    },
+    Curve {
+        current_curve: u8,
+        curve_count: u8,
+    },
+    ModulationFrequency {
+        current_modulation_frequency: u8,
+        modulation_frequency_count: u8,
+    },
+    ModulationFrequencyDescription {
+        modulation_frequency: u8,
+        frequency: u32,
+        description: String,
+    },
+    DimmerInfoResponse {
+        minimum_level_lower_limit: u16,
+        minimum_level_upper_limit: u16,
+        maximum_level_lower_limit: u16,
+        maximum_level_upper_limit: u16,
+        num_of_supported_curves: u8,
+        levels_resolution: u8,
+        minimum_levels_split_levels_supports: u8,
+    },
+    MinimumLevel {
+        minimum_level_increasing: u16,
+        minimum_level_decreasing: u16,
+        on_below_minimum: u8, // TODO could be bool
+    },
+    MaximumLevel {
+        maximum_level: u16,
+    },
+    OutputResponseTime {
+        current_output_response_time: u8,
+        output_response_time_count: u8,
+    },
+    OutputResponseTimeDescription {
+        output_response_time: u8,
+        description: String,
+    },
+    PowerStateGetResponse {
+        power_state: PowerState,
+    },
+    PerformSelfTest {
+        is_active: bool,
+    },
+    SelfTestDescription {
+        self_test_id: u8,
+        description: String,
+    },
+    PresetPlayback {
+        mode: u16,
+        level: u8,
+    },
+}
+
+#[derive(Debug)]
+pub struct GetResponse {
+    pub destination_uid: DeviceUID,
+    pub source_uid: DeviceUID,
+    pub transaction_number: u8,
+    pub response_type: ResponseType,
+    pub message_count: u8,
+    pub sub_device: u16,
+    pub command_class: CommandClass,
+    pub parameter_id: ParameterId,
+    pub parameter_data: Option<GetResponseParameterData>,
+}
+
+#[derive(Debug)]
+pub struct DiscoveryResponse {
+    pub destination_uid: DeviceUID,
+    pub source_uid: DeviceUID,
+    pub transaction_number: u8,
+    pub response_type: ResponseType,
+    pub message_count: u8,
+    pub sub_device: u16,
+    pub command_class: CommandClass,
+    pub parameter_id: ParameterId,
+    pub parameter_data: Option<DiscoveryResponseParameterData>,
+}
+
+#[derive(Debug)]
+pub enum RdmResponseMessage {
+    DiscoveryUniqueBranchResponse(DeviceUID),
+    DiscoveryResponse(DiscoveryResponse),
+    GetResponse(GetResponse),
+    // SetCommand(SetCommandMessage)
+}
+
+#[derive(Default)]
+pub struct RdmCodec;
+
+impl RdmCodec {
+    const SC_RDM: u8 = 0xcc;
+    const SC_SUB_MESSAGE: u8 = 0x01;
+    const FRAME_HEADER_FOOTER_SIZE: usize = 4;
+
+    pub fn get_command_parameter_data_to_bytes(
+        parameter_data: GetCommandParameterData,
+    ) -> BytesMut {
+        let mut bytes = BytesMut::new();
+
+        match parameter_data {
+            GetCommandParameterData::ParameterDescription { parameter_id } => {
+                bytes.put_u16(parameter_id)
+            }
+            GetCommandParameterData::SensorDefinition { sensor_id } => bytes.put_u8(sensor_id),
+            GetCommandParameterData::DmxPersonalityDescription { personality } => {
+                bytes.put_u8(personality)
+            }
+            GetCommandParameterData::CurveDescription { curve } => bytes.put_u8(curve),
+            GetCommandParameterData::ModulationFrequencyDescription {
+                modulation_frequency,
+            } => bytes.put_u8(modulation_frequency),
+            GetCommandParameterData::OutputResponseTimeDescription {
+                output_response_time,
+            } => bytes.put_u8(output_response_time),
+            GetCommandParameterData::SelfTestDescription { self_test_id } => {
+                bytes.put_u8(self_test_id)
+            }
+        }
+
+        bytes
+    }
+
+    pub fn get_command_bytes_to_data(
+        parameter_id: ParameterId,
+        bytes: Bytes,
+    ) -> GetResponseParameterData {
+        println!("Parsing {:?}", parameter_id);
+        match parameter_id {
+            ParameterId::DeviceInfo => GetResponseParameterData::DeviceInfo {
+                protocol_version: format!("{}.{}", bytes[0], bytes[1]),
+                model_id: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
+                product_category: ProductCategory::from(&bytes[4..=5]),
+                software_version_id: u32::from_be_bytes(bytes[6..=9].try_into().unwrap()),
+                footprint: u16::from_be_bytes(bytes[10..=11].try_into().unwrap()),
+                current_personality: bytes[12],
+                personality_count: bytes[13],
+                start_address: u16::from_be_bytes(bytes[14..=15].try_into().unwrap()),
+                sub_device_count: u16::from_be_bytes(bytes[16..=17].try_into().unwrap()),
+                sensor_count: u8::from_be(bytes[18]),
+            },
+            ParameterId::IdentifyDevice => GetResponseParameterData::IdentifyDevice {
+                is_identifying: bytes[0] != 0,
+            },
+            _ => panic!("unsupported parameter"),
+        }
+    }
+
+    pub fn discovery_command_bytes_to_data(
+        parameter_id: ParameterId,
+        bytes: Bytes,
+    ) -> DiscoveryResponseParameterData {
+        println!("Parsing {:?}", parameter_id);
+        match parameter_id {
+            ParameterId::DiscMute => {
+                // TODO could deduplicate the code here
+                let binding_uid = if bytes.len() > 2 {
+                    Some(DeviceUID::from(&bytes[2..]))
+                } else {
+                    None
+                };
+                DiscoveryResponseParameterData::DiscMute {
+                    control_field: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
+                    binding_uid,
+                }
+            }
+            ParameterId::DiscUnMute => {
+                let binding_uid = if bytes.len() > 2 {
+                    Some(DeviceUID::from(&bytes[2..]))
+                } else {
+                    None
+                };
+                DiscoveryResponseParameterData::DiscMute {
+                    control_field: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
+                    binding_uid,
+                }
+            }
+            _ => panic!("unsupported parameter"),
+        }
+    }
+
+    pub fn is_checksum_valid(packet: &Vec<u8>) -> bool {
+        let packet_checksum =
+            u16::from_be_bytes(packet[packet.len() - 2..packet.len()].try_into().unwrap());
+
+        let calculated_checksum = bsd_16_crc(&packet[..packet.len() - 2].try_into().unwrap());
+
+        packet_checksum == calculated_checksum
+    }
+}
+
+impl Encoder<RdmRequestMessage> for RdmCodec {
+    type Error = io::Error;
+
+    fn encode(&mut self, item: RdmRequestMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        let (
+            command_class,
+            destination_uid,
+            source_uid,
+            transaction_number,
+            port_id,
+            sub_device,
+            parameter_id,
+            parameter_data,
+        ) = match item {
+            RdmRequestMessage::GetRequest(message) => (
+                CommandClass::GetCommand,
+                message.destination_uid,
+                message.source_uid,
+                message.transaction_number,
+                message.port_id,
+                message.sub_device,
+                message.parameter_id,
+                message
+                    .parameter_data
+                    .map(Self::get_command_parameter_data_to_bytes),
+            ),
+            // EnttecRequestMessage::SendRdmDiscoveryMessage(data) => {
+            //     (MessageLabel::SendRdmDiscoveryRequest, data)
+            // }
+            _ => panic!("Unknown RdmRequestMessage type"),
+        };
+
+        let parameter_data_length = if let Some(parameter_data) = parameter_data.clone() {
+            parameter_data.len()
+        } else {
+            0
+        };
+
+        dst.reserve(parameter_data_length + 26); // TODO double check length
+
+        dst.put_u8(Self::SC_RDM); // Start Code
+        dst.put_u8(Self::SC_SUB_MESSAGE); // Sub Start Code
+        dst.put_u8(parameter_data_length as u8 + 24); // Message Length: Range 24 to 255 excluding the checksum
+        dst.put_u16(destination_uid.manufacturer_id);
+        dst.put_u32(destination_uid.device_id);
+        dst.put_u16(source_uid.manufacturer_id); // Transaction Number; // Port Id / Response Type; // Message Count; // Sub Device;
+        dst.put_u32(source_uid.device_id); // Transaction Number; // Port Id / Response Type; // Message Count; // Sub Device;
+        dst.put_u16(parameter_id as u16);
+
+        dst.put_u8(parameter_data_length as u8);
+
+        if let Some(bytes) = parameter_data {
+            dst.put(bytes);
+        }
+
+        dst.put_u16(bsd_16_crc_bytes_mut(&mut dst.clone()));
+        Ok(())
+    }
+}
+
+impl Decoder for RdmCodec {
+    type Item = RdmResponseMessage;
+    type Error = io::Error;
+
+    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        let len = src.len();
+
+        let rdm_packet_type =
+            PacketType::try_from(u16::from_be_bytes(src[0..=1].try_into().unwrap())).unwrap();
+
+        let frame = match rdm_packet_type {
+            PacketType::DiscoveryUniqueBranchResponse => {
+                let euid_start_index = src.iter().position(|x| *x == 0xaa).unwrap();
+
+                let euid = Vec::from(&src[(euid_start_index + 1)..=(euid_start_index + 12)]);
+
+                let ecs = Vec::from(&src[(euid_start_index + 13)..=(euid_start_index + 16)]);
+
+                let decoded_checksum = bsd_16_crc(&euid);
+
+                let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
+
+                if checksum != decoded_checksum {
+                    return Err(io::Error::new(
+                        io::ErrorKind::Other,
+                        "decoded checksum incorrect",
+                    ));
+                }
+
+                let manufacturer_id = u16::from_be_bytes([euid[0] & euid[1], euid[2] & euid[3]]);
+
+                let device_id = u32::from_be_bytes([
+                    euid[4] & euid[5],
+                    euid[6] & euid[7],
+                    euid[8] & euid[9],
+                    euid[10] & euid[11],
+                ]);
+
+                RdmResponseMessage::DiscoveryUniqueBranchResponse(DeviceUID::new(
+                    manufacturer_id,
+                    device_id,
+                ))
+            }
+            PacketType::RdmResponse => {
+                // if let Some(start_byte) = src.iter().position(|b| *b == Self::SC_RDM) {
+                // We can safely ignore any bytes before and including the START_BYTE
+                // let _ = src.split_to(start_byte);
+
+                // TODO should be checking if checksum is valid
+
+                if len < Self::FRAME_HEADER_FOOTER_SIZE {
+                    return Ok(None);
+                }
+
+                let packet_length = src[2] as usize;
+
+                // if len < Self::FRAME_HEADER_FOOTER_SIZE + 3 {
+                //     return Ok(None);
+                // }
+
+                let frame = src
+                    .split_to(len)
+                    // .split_to(packet_length + Self::FRAME_HEADER_FOOTER_SIZE)
+                    .freeze();
+
+                let command_class = CommandClass::try_from(frame[20]).unwrap();
+                let destination_uid = DeviceUID::from(&frame[3..=8]);
+                let source_uid = DeviceUID::from(&frame[9..=14]);
+                let transaction_number = frame[15];
+                let response_type = ResponseType::try_from(frame[16]).unwrap();
+                let message_count = frame[17];
+                let sub_device = u16::from_be_bytes(frame[18..=19].try_into().unwrap());
+                let parameter_id = ParameterId::from(&frame[21..=22]);
+
+                let parameter_data_length = frame[23];
+                let parameter_data: Option<Bytes> = if parameter_data_length > 0 {
+                    Some(frame.slice(24..frame.len() - 2))
+                } else {
+                    None
+                };
+
+                dbg!(command_class);
+
+                let frame = match command_class {
+                    CommandClass::GetCommandResponse => {
+                        RdmResponseMessage::GetResponse(GetResponse {
+                            destination_uid,
+                            source_uid,
+                            transaction_number,
+                            response_type,
+                            message_count,
+                            command_class,
+                            sub_device,
+                            parameter_id,
+                            parameter_data: parameter_data.map(|parameter_data| {
+                                Self::get_command_bytes_to_data(parameter_id, parameter_data)
+                            }),
+                        })
+                    }
+                    CommandClass::DiscoveryCommandResponse => {
+                        RdmResponseMessage::DiscoveryResponse(DiscoveryResponse {
+                            destination_uid,
+                            source_uid,
+                            transaction_number,
+                            response_type,
+                            message_count,
+                            command_class,
+                            sub_device,
+                            parameter_id,
+                            parameter_data: parameter_data.map(|parameter_data| {
+                                Self::discovery_command_bytes_to_data(parameter_id, parameter_data)
+                            }),
+                        })
+                    }
+                    _ => todo!("Unknown CommandClass"),
+                };
+
+                frame
+
+                // } else {
+                //     println!("packet length");
+                //     // TODO might need to return Err() here
+                //     return Ok(None);
+                // }
+            }
+        };
+
+        Ok(Some(frame))
+    }
+}
+
+// //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// #[cfg(test)]
+// mod tests {
+//     use crate::rdm::{parameter::ParameterId, CommandClass, ResponseType};
+
+//     use super::*;
+//     use bytes::Bytes;
+
+//     fn mock_enttec_frame(packet_type: PacketResponseType, data: BytesMut) -> BytesMut {
+//         let mut packet = BytesMut::new();
+//         packet.put_u8(EnttecDmxUsbProCodec::START_BYTE);
+//         packet.put_u8(packet_type as u8);
+//         packet.put_u16_le(data.len() as u16); // no bytes in response
+//         if data.len() > 0 {
+//             packet.put(data);
+//         }
+//         packet.put_u8(EnttecDmxUsbProCodec::STOP_BYTE);
+//         packet
+//     }
+
+//     fn mock_valid_null_response() -> BytesMut {
+//         mock_enttec_frame(PacketResponseType::NullResponse, BytesMut::new())
+//     }
+
+//     fn encoded_enttec_packet(rdm_packet: Bytes) -> Bytes {
+//         let mut packet = BytesMut::new();
+//         packet.put_u8(EnttecDmxUsbProCodec::START_BYTE);
+//         packet.put_u8(PacketRequestType::SendRdmPacketRequest as u8);
+//         packet.put_u16_le(rdm_packet.len() as u16);
+//         packet.put(rdm_packet);
+//         packet.put_u8(EnttecDmxUsbProCodec::STOP_BYTE);
+//         packet.freeze()
+//     }
+
+//     // RDM PID: Identify
+//     fn mock_valid_raw_rdm_request() -> Bytes {
+//         let manufacturer_id: u16 = 0x0001;
+//         let source_device_id: u32 = 0x00000001;
+//         let target_device_id: u32 = 0x00000002;
+
+//         let mut packet = BytesMut::new();
+//         packet.put_u8(EnttecDmxUsbProCodec::SC_RDM); // RDM Start Code
+//         packet.put_u8(EnttecDmxUsbProCodec::SC_SUB_MESSAGE); // RDM Sub Start Code
+//         packet.put_u8(25_u8); // Message Length: Range 24 to 255 excluding the checksum
+//         packet.put_u16(manufacturer_id);
+//         packet.put_u32(source_device_id);
+//         packet.put_u16(manufacturer_id);
+//         packet.put_u32(target_device_id);
+//         packet.put_u8(0x01); // Transaction Number
+//         packet.put_u8(0x01); // Port Id / Response Type
+//         packet.put_u8(0x00); // Message Count
+//         packet.put_u16(0x0000); // Sub Device (Root)
+//         packet.put_u8(CommandClass::SetCommand as u8);
+//         packet.put_u16(ParameterId::IdentifyDevice as u16);
+//         packet.put_u8(0x01); // Parameter Data Length
+//         packet.put_u8(0x01); // Set Target Device Identify to True
+//         packet.put_u16(bsd_16_crc(packet.clone()));
+//         packet.freeze()
+//     }
+
+//     // RDM PID: Identify
+//     fn mock_valid_enttec_rdm_response() -> BytesMut {
+//         let manufacturer_id: u16 = 0x0001;
+//         let source_device_id: u32 = 0x00000001;
+//         let target_device_id: u32 = 0x00000002;
+
+//         let mut packet = BytesMut::new();
+//         packet.put_u8(ENTTEC_PACKET_START_BYTE);
+//         packet.put_u8(PacketResponseType::SuccessResponse as u8);
+//         packet.put_u16_le(27_u16); // 0x1b00
+//         packet.put_u8(EnttecDmxUsbProCodec::SC_RDM); // RDM Start Code
+//         packet.put_u8(EnttecDmxUsbProCodec::SC_SUB_MESSAGE); // RDM Sub Start Code
+//         packet.put_u8(25_u8); // Message Length: Range 24 to 255 excluding the checksum
+//         packet.put_u16(manufacturer_id);
+//         packet.put_u32(target_device_id);
+//         packet.put_u16(manufacturer_id);
+//         packet.put_u32(source_device_id);
+//         packet.put_u8(0x01); // Transaction Number
+//         packet.put_u8(ResponseType::Ack as u8); // Port Id / Response Type
+//         packet.put_u8(0x00); // Message Count
+//         packet.put_u16(0x0000); // Sub Device (Root)
+//         packet.put_u8(CommandClass::SetCommandResponse as u8);
+//         packet.put_u16(ParameterId::IdentifyDevice as u16);
+//         packet.put_u8(0x01); // Parameter Data Length
+//         packet.put_u8(0x01); // Set Target Device Identify to True
+//         packet.put_u16(bsd_16_crc(packet.clone()));
+//         packet.put_u8(ENTTEC_PACKET_STOP_BYTE);
+//         packet
+//     }
+
+//     #[test]
+//     fn can_construct_without_error() {
+//         let _m = EnttecDmxUsbProCodec::new();
+//     }
+
+//     #[test]
+//     fn implements_default() {
+//         let _m = EnttecDmxUsbProCodec::default();
+//     }
+
+//     #[test]
+//     fn empty_buffer_correct_frame_single_decode() {
+//         let mut data = mock_valid_null_response();
+
+//         let mut codec = EnttecDmxUsbProCodec::new();
+
+//         let result = codec.decode(&mut data);
+
+//         match result {
+//             Ok(Some(frame)) => assert_eq!(frame, EnttecResponseMessage::NullResponse),
+//             _ => panic!("Failure for message with illegal trailing data"),
+//         }
+//     }
+
+//     #[test]
+//     fn empty_buffer_ignore_beginning_bytes_correct_frame_single_decode() {
+//         let mut data = BytesMut::new();
+//         data.put_u8(0xff);
+//         data.put(mock_valid_null_response());
+
+//         println!("data.len() before decode: {}", data.len());
+
+//         let mut codec = EnttecDmxUsbProCodec::new();
+
+//         let result = codec.decode(&mut data);
+
+//         println!("data.len() after decode: {}", data.len());
+
+//         match result {
+//             Ok(Some(frame)) => assert_eq!(frame, EnttecResponseMessage::NullResponse),
+//             _ => panic!("Failure for message with illegal trailing data"),
+//         }
+//     }
+
+//     #[test]
+//     fn empty_buffer_correct_frame_multiple_decodes() {
+//         let mut data = BytesMut::new();
+//         data.put_u8(EnttecDmxUsbProCodec::START_BYTE);
+//         data.put_u8(PacketResponseType::NullResponse as u8);
+
+//         let mut codec = EnttecDmxUsbProCodec::new();
+
+//         let result = codec.decode(&mut data);
+
+//         match result {
+//             Ok(None) => {
+//                 println!("Full frame not found, awaiting more data");
+//             }
+//             _ => panic!("Failure for message with illegal trailing data"),
+//         }
+
+//         // Add packet_length but no stop byte
+//         data.put_u16_le(0); // no bytes in frame data
+
+//         let result = codec.decode(&mut data);
+
+//         match result {
+//             Ok(None) => {
+//                 println!("Full frame not found, awaiting more data");
+//             }
+//             _ => panic!("Failure for message with illegal trailing data"),
+//         }
+
+//         // Add packet_length but no stop byte
+//         data.put_u8(EnttecDmxUsbProCodec::STOP_BYTE); // no bytes in frame data
+
+//         let result = codec.decode(&mut data);
+
+//         match result {
+//             Ok(Some(frame)) => assert_eq!(frame, EnttecResponseMessage::NullResponse),
+//             _ => panic!("Failure for message with illegal trailing data"),
+//         }
+//     }
+// }

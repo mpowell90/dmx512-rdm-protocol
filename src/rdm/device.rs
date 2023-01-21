@@ -20,8 +20,8 @@ use super::{
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct DeviceUID {
-    manufacturer_id: u16,
-    device_id: u32,
+    pub manufacturer_id: u16,
+    pub device_id: u32,
 }
 
 impl DeviceUID {
