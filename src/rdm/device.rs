@@ -58,7 +58,6 @@ impl From<DeviceUID> for u64 {
 impl From<Vec<u8>> for DeviceUID {
     fn from(buffer: Vec<u8>) -> Self {
         DeviceUID {
-            // TODO we might be able to simplify this use .read_u16()
             manufacturer_id: u16::from_be_bytes(buffer[..2].try_into().unwrap()),
             device_id: u32::from_be_bytes(buffer[2..].try_into().unwrap()),
         }
@@ -68,7 +67,6 @@ impl From<Vec<u8>> for DeviceUID {
 impl From<&[u8]> for DeviceUID {
     fn from(buffer: &[u8]) -> Self {
         DeviceUID {
-            // TODO we might be able to simplify this use .read_u16()
             manufacturer_id: u16::from_be_bytes(buffer[..2].try_into().unwrap()),
             device_id: u32::from_be_bytes(buffer[2..].try_into().unwrap()),
         }

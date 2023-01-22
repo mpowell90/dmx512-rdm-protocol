@@ -17,7 +17,7 @@ use tokio_util::codec::{Decoder, Encoder};
 use ux::u48;
 
 use self::{
-    device::{DeviceUID, DmxSlot},
+    device::{DeviceUID, DmxSlot, Sensor},
     parameter::{ManufacturerSpecificParameter, ParameterId},
 };
 
@@ -678,6 +678,13 @@ pub enum DiscoveryResponseParameterData {
 
 #[derive(Debug)]
 pub enum GetResponseParameterData {
+    ProxiedDeviceCount {
+        device_count: u16,
+        list_change: bool,
+    },
+    ProxiedDevices {
+        device_uids: Vec<DeviceUID>,
+    },
     ParameterDescription {
         parameter_id: u16,
         parameter_data_size: u8,
@@ -688,6 +695,9 @@ pub enum GetResponseParameterData {
         maximum_valid_value: u32,
         default_value: u32,
         description: String,
+    },
+    DeviceLabel {
+        device_label: String,
     },
     DeviceInfo {
         protocol_version: String,
@@ -709,16 +719,7 @@ pub enum GetResponseParameterData {
         manufacturer_specific_parameters: HashMap<u16, ManufacturerSpecificParameter>,
     },
     SensorDefinition {
-        sensor_id: u8,
-        kind: u8,
-        unit: u8,
-        prefix: u8,
-        range_minimum_value: u16,
-        range_maximum_value: u16,
-        normal_minimum_value: u16,
-        normal_maximum_value: u16,
-        recorded_value_support: u8,
-        description: String,
+        sensor: Sensor
     },
     IdentifyDevice {
         is_identifying: bool,
@@ -740,11 +741,11 @@ pub enum GetResponseParameterData {
         personality_count: u8,
     },
     DmxPersonalityDescription {
-        personality: u8,
+        id: u8,
         dmx_slots_required: u16,
         description: String,
     },
-    SlotInfoResponse {
+    SlotInfo {
         dmx_slots: Vec<DmxSlot>,
     },
     DeviceHours {
@@ -772,16 +773,20 @@ pub enum GetResponseParameterData {
         current_curve: u8,
         curve_count: u8,
     },
+    CurveDescription {
+        id: u8,
+        description: String,
+    },
     ModulationFrequency {
         current_modulation_frequency: u8,
         modulation_frequency_count: u8,
     },
     ModulationFrequencyDescription {
-        modulation_frequency: u8,
+        id: u8,
         frequency: u32,
         description: String,
     },
-    DimmerInfoResponse {
+    DimmerInfo {
         minimum_level_lower_limit: u16,
         minimum_level_upper_limit: u16,
         maximum_level_lower_limit: u16,
@@ -803,10 +808,10 @@ pub enum GetResponseParameterData {
         output_response_time_count: u8,
     },
     OutputResponseTimeDescription {
-        output_response_time: u8,
+        id: u8,
         description: String,
     },
-    PowerStateGetResponse {
+    PowerState {
         power_state: PowerState,
     },
     PerformSelfTest {
@@ -896,8 +901,32 @@ impl RdmCodec {
         parameter_id: ParameterId,
         bytes: Bytes,
     ) -> GetResponseParameterData {
-        println!("Parsing {:?}", parameter_id);
         match parameter_id {
+            ParameterId::ProxiedDeviceCount => GetResponseParameterData::ProxiedDeviceCount {
+                device_count: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
+                list_change: bytes[2] != 0,
+            },
+            ParameterId::ProxiedDevices => GetResponseParameterData::ProxiedDevices {
+                device_uids: bytes.chunks(6).map(DeviceUID::from).collect(),
+            },
+            ParameterId::ParameterDescription => GetResponseParameterData::ParameterDescription {
+                parameter_id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
+                parameter_data_size: bytes[2],
+                data_type: bytes[3],
+                command_class: SupportedCommandClasses::try_from(bytes[4]).unwrap(),
+                prefix: bytes[5],
+                minimum_valid_value: u32::from_be_bytes(bytes[8..=11].try_into().unwrap()),
+                maximum_valid_value: u32::from_be_bytes(bytes[12..=15].try_into().unwrap()),
+                default_value: u32::from_be_bytes(bytes[16..=19].try_into().unwrap()),
+                description: String::from_utf8_lossy(&bytes[20..])
+                    .trim_end_matches("\0")
+                    .to_string(),
+            },
+            ParameterId::DeviceLabel => GetResponseParameterData::DeviceLabel {
+                device_label: String::from_utf8_lossy(&bytes)
+                    .trim_end_matches("\0")
+                    .to_string(),
+            },
             ParameterId::DeviceInfo => GetResponseParameterData::DeviceInfo {
                 protocol_version: format!("{}.{}", bytes[0], bytes[1]),
                 model_id: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
@@ -910,8 +939,183 @@ impl RdmCodec {
                 sub_device_count: u16::from_be_bytes(bytes[16..=17].try_into().unwrap()),
                 sensor_count: u8::from_be(bytes[18]),
             },
+            ParameterId::SoftwareVersionLabel => GetResponseParameterData::SoftwareVersionLabel {
+                software_version_label: String::from_utf8_lossy(&bytes)
+                    .trim_end_matches("\0")
+                    .to_string(),
+            },
+            ParameterId::SupportedParameters => {
+                let parameters = bytes
+                    .chunks(2)
+                    .map(|chunk| u16::from_be_bytes(chunk.try_into().unwrap()));
+                GetResponseParameterData::SupportedParameters {
+                    standard_parameters: parameters
+                        .clone()
+                        .filter(|parameter_id| {
+                            // TODO consider if we should filter parameters here or before we add to the queue
+                            let parameter_id = *parameter_id;
+                            parameter_id >= 0x0060_u16 && parameter_id < 0x8000_u16
+                        })
+                        .map(ParameterId::from)
+                        .collect(),
+                    manufacturer_specific_parameters: parameters
+                        .filter(|parameter_id| *parameter_id >= 0x8000_u16)
+                        .map(|parameter_id| {
+                            (
+                                parameter_id,
+                                ManufacturerSpecificParameter {
+                                    parameter_id,
+                                    ..Default::default()
+                                },
+                            )
+                        })
+                        .collect(),
+                }
+            }
+            ParameterId::SensorDefinition => GetResponseParameterData::SensorDefinition {
+                sensor: Sensor {
+                    id: bytes[0],
+                    kind: bytes[1],
+                    unit: bytes[2],
+                    prefix: bytes[3],
+                    range_minimum_value: u16::from_be_bytes(bytes[4..=5].try_into().unwrap()),
+                    range_maximum_value: u16::from_be_bytes(bytes[6..=7].try_into().unwrap()),
+                    normal_minimum_value: u16::from_be_bytes(bytes[8..=9].try_into().unwrap()),
+                    normal_maximum_value: u16::from_be_bytes(bytes[10..=11].try_into().unwrap()),
+                    recorded_value_support: bytes[12],
+                    description: String::from_utf8_lossy(&bytes[13..])
+                        .trim_end_matches("\0")
+                        .to_string(),
+                }
+            },
             ParameterId::IdentifyDevice => GetResponseParameterData::IdentifyDevice {
                 is_identifying: bytes[0] != 0,
+            },
+            ParameterId::ManufacturerLabel => GetResponseParameterData::ManufacturerLabel {
+                manufacturer_label: String::from_utf8_lossy(&bytes)
+                    .trim_end_matches("\0")
+                    .to_string(),
+            },
+            ParameterId::FactoryDefaults => GetResponseParameterData::FactoryDefaults {
+                factory_default: bytes[0] != 0,
+            },
+            ParameterId::DeviceModelDescription => {
+                GetResponseParameterData::DeviceModelDescription {
+                    device_model_description: String::from_utf8_lossy(&bytes)
+                        .trim_end_matches("\0")
+                        .to_string(),
+                }
+            }
+            ParameterId::ProductDetailIdList => GetResponseParameterData::ProductDetailIdList {
+                product_detail_id_list: bytes
+                    .chunks(2)
+                    .map(|id| u16::from_be_bytes(id.try_into().unwrap()))
+                    .collect(),
+            },
+            ParameterId::DmxPersonality => GetResponseParameterData::DmxPersonality {
+                current_personality: bytes[0],
+                personality_count: bytes[1],
+            },
+            ParameterId::DmxPersonalityDescription => {
+                GetResponseParameterData::DmxPersonalityDescription {
+                    id: bytes[0],
+                    dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into().unwrap()),
+                    description: String::from_utf8_lossy(&bytes[3..])
+                        .trim_end_matches("\0")
+                        .to_string(),
+                }
+            }
+            ParameterId::SlotInfo => GetResponseParameterData::SlotInfo {
+                dmx_slots: bytes.chunks(5).map(DmxSlot::from).collect(),
+            },
+            ParameterId::DeviceHours => GetResponseParameterData::DeviceHours {
+                device_hours: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
+            },
+            ParameterId::LampHours => GetResponseParameterData::LampHours {
+                lamp_hours: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
+            },
+            ParameterId::LampStrikes => GetResponseParameterData::LampStrikes {
+                lamp_strikes: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
+            },
+            ParameterId::LampState => GetResponseParameterData::LampState {
+                lamp_state: LampState::from(bytes[0]),
+            },
+            ParameterId::LampOnMode => GetResponseParameterData::LampOnMode {
+                lamp_on_mode: LampOnMode::from(bytes[0]),
+            },
+            ParameterId::DevicePowerCycles => GetResponseParameterData::DevicePowerCycles {
+                power_cycle_count: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
+            },
+            ParameterId::DisplayInvert => GetResponseParameterData::DisplayInvert {
+                display_invert_mode: DisplayInvertMode::from(bytes[0]),
+            },
+            ParameterId::Curve => GetResponseParameterData::Curve {
+                current_curve: bytes[0],
+                curve_count: bytes[1],
+            },
+            ParameterId::CurveDescription => GetResponseParameterData::CurveDescription {
+                id: bytes[0],
+                description: String::from_utf8_lossy(&bytes[1..])
+                    .trim_end_matches("\0")
+                    .to_string(),
+            },
+            ParameterId::ModulationFrequency => GetResponseParameterData::ModulationFrequency {
+                current_modulation_frequency: bytes[0],
+                modulation_frequency_count: bytes[1],
+            },
+            ParameterId::ModulationFrequencyDescription => {
+                GetResponseParameterData::ModulationFrequencyDescription {
+                    id: bytes[0],
+                    frequency: u32::from_be_bytes(bytes[1..=4].try_into().unwrap()),
+                    description: String::from_utf8_lossy(&bytes[5..])
+                        .trim_end_matches("\0")
+                        .to_string(),
+                }
+            }
+            ParameterId::DimmerInfo => GetResponseParameterData::DimmerInfo {
+                minimum_level_lower_limit: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
+                minimum_level_upper_limit: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
+                maximum_level_lower_limit: u16::from_be_bytes(bytes[4..=5].try_into().unwrap()),
+                maximum_level_upper_limit: u16::from_be_bytes(bytes[6..=7].try_into().unwrap()),
+                num_of_supported_curves: bytes[8],
+                levels_resolution: bytes[9],
+                minimum_levels_split_levels_supports: bytes[10], // TODO could be bool
+            },
+            ParameterId::MinimumLevel => GetResponseParameterData::MinimumLevel {
+                minimum_level_increasing: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
+                minimum_level_decreasing: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
+                on_below_minimum: bytes[4],
+            },
+            ParameterId::MaximumLevel => GetResponseParameterData::MaximumLevel {
+                maximum_level: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
+            },
+            ParameterId::OutputResponseTime => GetResponseParameterData::OutputResponseTime {
+                current_output_response_time: bytes[0],
+                output_response_time_count: bytes[1],
+            },
+            ParameterId::OutputResponseTimeDescription => {
+                GetResponseParameterData::OutputResponseTimeDescription {
+                    id: bytes[0],
+                    description: String::from_utf8_lossy(&bytes[1..])
+                        .trim_end_matches("\0")
+                        .to_string(),
+                }
+            }
+            ParameterId::PowerState => GetResponseParameterData::PowerState {
+                power_state: PowerState::from(bytes[0]),
+            },
+            ParameterId::PerformSelfTest => GetResponseParameterData::PerformSelfTest {
+                is_active: bytes[0] != 0,
+            },
+            ParameterId::SelfTestDescription => GetResponseParameterData::SelfTestDescription {
+                self_test_id: bytes[0],
+                description: String::from_utf8_lossy(&bytes[1..])
+                    .trim_end_matches("\0")
+                    .to_string(),
+            },
+            ParameterId::PresetPlayback => GetResponseParameterData::PresetPlayback {
+                mode: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
+                level: bytes[2],
             },
             _ => panic!("unsupported parameter"),
         }
@@ -921,7 +1125,6 @@ impl RdmCodec {
         parameter_id: ParameterId,
         bytes: Bytes,
     ) -> DiscoveryResponseParameterData {
-        println!("Parsing {:?}", parameter_id);
         match parameter_id {
             ParameterId::DiscMute => {
                 // TODO could deduplicate the code here
@@ -1100,8 +1303,6 @@ impl Decoder for RdmCodec {
                 } else {
                     None
                 };
-
-                dbg!(command_class);
 
                 let frame = match command_class {
                     CommandClass::GetCommandResponse => {
