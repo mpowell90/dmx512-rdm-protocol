@@ -6,7 +6,7 @@ use std::{
     cmp::PartialEq,
     io::{self, Write},
 };
-use std::{mem, str};
+use std::{str};
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
 
@@ -310,8 +310,8 @@ enum MessageLabel {
 
 #[derive(Clone, Debug)]
 pub enum EnttecRequestMessage {
-    SendRdmPacketRequest(Option<Vec<u8>>), // TODO change to bytes
-    SendRdmDiscoveryMessage(Option<Vec<u8>>), // TODO change to bytes
+    SendRdmPacketRequest(Option<BytesMut>), // TODO change to bytes
+    SendRdmDiscoveryMessage(Option<BytesMut>), // TODO change to bytes
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -403,15 +403,17 @@ impl Decoder for EnttecDmxUsbProCodec {
                 return Err(io::Error::new(io::ErrorKind::Other, "Invalid Stop Byte"));
             }
 
-            let frame = src.split_to(packet_length + Self::FRAME_HEADER_FOOTER_SIZE).freeze();
+            let frame = src
+                .split_to(packet_length + Self::FRAME_HEADER_FOOTER_SIZE)
+                .freeze();
 
             let frame_type = PacketResponseType::try_from(frame[1]).unwrap();
 
             let frame = match frame_type {
                 PacketResponseType::NullResponse => EnttecResponseMessage::NullResponse,
                 PacketResponseType::SuccessResponse => EnttecResponseMessage::SuccessResponse(
-                    Some(frame.slice(Self::FRAME_HEADER_FOOTER_SIZE..frame.len() - 1))
-                )
+                    Some(frame.slice(Self::FRAME_HEADER_FOOTER_SIZE..frame.len() - 1)),
+                ),
             };
 
             Ok(Some(frame))
@@ -428,10 +430,9 @@ pub fn bsd_16_crc(packet: BytesMut) -> u16 {
         .fold(0_u16, |sum, byte| (sum.overflowing_add(*byte as u16).0))
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 #[cfg(test)]
 mod tests {
-    use crate::rdm::{parameter::ParameterId, CommandClass, ResponseType};
+    use crate::rdm::{CommandClass, ResponseType};
 
     use super::*;
     use bytes::Bytes;
@@ -481,7 +482,7 @@ mod tests {
         packet.put_u8(0x00); // Message Count
         packet.put_u16(0x0000); // Sub Device (Root)
         packet.put_u8(CommandClass::SetCommand as u8);
-        packet.put_u16(ParameterId::IdentifyDevice as u16);
+        packet.put_u16(0x1000); // IdentifyDevice PID
         packet.put_u8(0x01); // Parameter Data Length
         packet.put_u8(0x01); // Set Target Device Identify to True
         packet.put_u16(bsd_16_crc(packet.clone()));
@@ -510,7 +511,7 @@ mod tests {
         packet.put_u8(0x00); // Message Count
         packet.put_u16(0x0000); // Sub Device (Root)
         packet.put_u8(CommandClass::SetCommandResponse as u8);
-        packet.put_u16(ParameterId::IdentifyDevice as u16);
+        packet.put_u16(0x1000); // IdentifyDevice PID
         packet.put_u8(0x01); // Parameter Data Length
         packet.put_u8(0x01); // Set Target Device Identify to True
         packet.put_u16(bsd_16_crc(packet.clone()));

@@ -10,29 +10,28 @@ use std::{
 
 use bytes::{BufMut, BytesMut};
 use tokio_serial::SerialPortBuilderExt;
-use tokio_util::codec::Decoder;
+use tokio_util::codec::{Decoder, Encoder};
 use ux::u48;
 use yansi::Paint;
 
-use crate::enttecdmxusbpro::{EnttecDmxUsbProCodec, EnttecRequestMessage, EnttecResponseMessage};
-use crate::rdm::device::{Curve, DmxPersonality, DmxSlot, ModulationFrequency, OutputResponseTime};
-use crate::rdm::{
-    device::{Device, DeviceUID},
-    parameter::{
-        create_standard_parameter_get_request_packet, CurveDescriptionGetRequest, DiscMuteRequest,
-        DiscUniqueBranchRequest, DiscUnmuteRequest, DmxPersonalityDescriptionGetRequest,
-        ModulationFrequencyDescriptionGetRequest, OutputResponseTimeDescriptionGetRequest,
-        ParameterDescriptionGetRequest, ParameterId, SensorDefinitionRequest, REQUIRED_PARAMETERS,
+use crate::{
+    enttecdmxusbpro::{EnttecDmxUsbProCodec, EnttecRequestMessage, EnttecResponseMessage},
+    rdm::{
+        device::{
+            Curve, Device, DeviceUID, DmxPersonality, DmxSlot, ModulationFrequency,
+            OutputResponseTime,
+        },
+        DiscoveryRequest, DiscoveryRequestParameterData, GetRequest, GetRequestParameterData,
+        GetResponseParameterData, ParameterId, RdmCodec, RdmRequestMessage, RdmResponseMessage,
+        StandardParameterId, REQUIRED_PARAMETERS, ROOT_DEVICE,
     },
-    DiscoveryRequest, GetRequest, GetResponseParameterData, RdmCodec, RdmResponseMessage,
-    ROOT_DEVICE,
 };
 
 // const DEFAULT_TTY: &str = "/dev/tty.usbserial-EN137670";
 const DEFAULT_TTY: &str = "/dev/ttyUSB0";
 
 #[tokio::main]
-async fn main() -> tokio_serial::Result<()> {
+async fn main() -> anyhow::Result<()> {
     let tty_path: String = DEFAULT_TTY.into();
     let port = tokio_serial::new(tty_path, 115_200).open_native_async()?;
 
@@ -55,6 +54,8 @@ async fn main() -> tokio_serial::Result<()> {
     // TODO improve algorithm to handle branching properly
     let upper_bound_uid = u48::new(0xffffffffffff);
     let lower_bound_uid = u48::new(0x000000000000);
+
+    let mut rdm_codec = RdmCodec;
 
     tokio::spawn(async move {
         loop {
@@ -89,8 +90,6 @@ async fn main() -> tokio_serial::Result<()> {
                 continue;
             };
 
-            let mut rdm_codec = RdmCodec;
-
             let rdm_frame = if let Ok(Some(rdm_frame)) = rdm_codec.decode(&mut rdm_packet) {
                 rdm_frame
             } else {
@@ -103,50 +102,107 @@ async fn main() -> tokio_serial::Result<()> {
                     // Device has been discovered!
                     println!("{:#02X?}", device_uid);
 
-                    // Broadcast DiscUnmute to all devices so they accept DiscUniqueBranch messages
-                    let disc_unmute: Vec<u8> = DiscMuteRequest
-                        .discovery_request(device_uid, source_uid, 0x00, port_id, 0x0000)
-                        .into();
-
-                    queue_clone.lock().unwrap().push_back(
-                        EnttecRequestMessage::SendRdmDiscoveryMessage(Some(disc_unmute)),
-                    );
-
                     devices_clone
                         .lock()
                         .unwrap()
                         .insert(device_uid, Device::from(device_uid));
 
+                    // Broadcast DiscUnmute to all devices so they accept DiscUniqueBranch messages
+                    let mut disc_mute = BytesMut::new();
+
+                    rdm_codec
+                        .encode(
+                            RdmRequestMessage::DiscoveryRequest(DiscoveryRequest {
+                                destination_uid: device_uid,
+                                source_uid,
+                                transaction_number: 0x00,
+                                port_id,
+                                sub_device: ROOT_DEVICE,
+                                parameter_id: ParameterId::StandardParameter(
+                                    StandardParameterId::DiscMute,
+                                ),
+                                parameter_data: None,
+                            }),
+                            &mut disc_mute,
+                        )
+                        .unwrap(); // TODO better error handling
+
+                    queue_clone.lock().unwrap().push_back(
+                        EnttecRequestMessage::SendRdmDiscoveryMessage(Some(disc_mute)),
+                    );
+
                     // Push subsequent required parameter requests for root device
                     for parameter_id in REQUIRED_PARAMETERS {
-                        let packet = create_standard_parameter_get_request_packet(
-                            parameter_id,
-                            device_uid,
-                            source_uid,
-                            0x00,
-                            port_id,
-                            0x0000,
-                        )
-                        .unwrap();
+                        // let packet = create_standard_parameter_get_request_packet(
+                        //     parameter_id,
+                        //     device_uid,
+                        //     source_uid,
+                        //     0x00,
+                        //     port_id,
+                        //     0x0000,
+                        // )
+                        // .unwrap();
 
-                        queue_clone
-                            .lock()
-                            .unwrap()
-                            .push_back(EnttecRequestMessage::SendRdmPacketRequest(Some(packet)));
+                        let mut required_parameter_request = BytesMut::new();
+
+                        rdm_codec
+                            .encode(
+                                RdmRequestMessage::GetRequest(GetRequest {
+                                    destination_uid: device_uid,
+                                    source_uid,
+                                    transaction_number: 0x00,
+                                    port_id,
+                                    sub_device: ROOT_DEVICE,
+                                    parameter_id,
+                                    parameter_data: None,
+                                }),
+                                &mut required_parameter_request,
+                            )
+                            .unwrap(); // TODO better error handling
+
+                        queue_clone.lock().unwrap().push_back(
+                            EnttecRequestMessage::SendRdmPacketRequest(Some(
+                                required_parameter_request,
+                            )),
+                        );
                     }
 
-                    // Retry same branch
-                    let disc_unique_branch: Vec<u8> =
-                        DiscUniqueBranchRequest::new(lower_bound_uid, upper_bound_uid)
-                            .discovery_request(
-                                DeviceUID::broadcast_all_devices(),
+                    // // Retry same branch
+                    // let disc_unique_branch: Vec<u8> =
+                    //     DiscUniqueBranchRequest::new(lower_bound_uid, upper_bound_uid)
+                    //         .discovery_request(
+                    //             DeviceUID::broadcast_all_devices(),
+                    //             source_uid,
+                    //             0x00,
+                    //             port_id,
+                    //             0x0000,
+                    //         )
+                    //         .try_into()
+                    //         .unwrap();
+
+                    let mut disc_unique_branch = BytesMut::new();
+
+                    rdm_codec
+                        .encode(
+                            RdmRequestMessage::DiscoveryRequest(DiscoveryRequest {
+                                destination_uid: DeviceUID::broadcast_all_devices(),
                                 source_uid,
-                                0x00,
+                                transaction_number: 0x00,
                                 port_id,
-                                0x0000,
-                            )
-                            .try_into()
-                            .unwrap();
+                                sub_device: ROOT_DEVICE,
+                                parameter_id: ParameterId::StandardParameter(
+                                    StandardParameterId::DiscUniqueBranch,
+                                ),
+                                parameter_data: Some(
+                                    DiscoveryRequestParameterData::DiscUniqueBranch {
+                                        lower_bound_uid,
+                                        upper_bound_uid,
+                                    },
+                                ),
+                            }),
+                            &mut disc_unique_branch,
+                        )
+                        .unwrap(); // TODO better error handling
 
                     queue_clone.lock().unwrap().push_back(
                         EnttecRequestMessage::SendRdmDiscoveryMessage(Some(disc_unique_branch)),
@@ -156,10 +212,11 @@ async fn main() -> tokio_serial::Result<()> {
                     // dbg!(response);
 
                     match response.parameter_id {
-                        ParameterId::DiscMute => {
+                        ParameterId::StandardParameter(StandardParameterId::DiscMute) => {
+                            // TODO can we simplify this?
                             dbg!(response.parameter_data);
                         }
-                        ParameterId::DiscUnMute => {
+                        ParameterId::StandardParameter(StandardParameterId::DiscUnMute) => {
                             dbg!(response.parameter_data);
                         }
                         _ => todo!(),
@@ -232,20 +289,39 @@ async fn main() -> tokio_serial::Result<()> {
                                                 Device::new(device.uid, sub_device_id),
                                             );
                                             // Push subsequent required parameter requests for root device
+                                            // Push subsequent required parameter requests for root device
                                             for parameter_id in REQUIRED_PARAMETERS {
-                                                let packet =
-                                                    create_standard_parameter_get_request_packet(
-                                                        parameter_id,
-                                                        device.uid,
-                                                        source_uid,
-                                                        0x00,
-                                                        port_id,
-                                                        sub_device_id,
+                                                // let packet = create_standard_parameter_get_request_packet(
+                                                //     parameter_id,
+                                                //     device_uid,
+                                                //     source_uid,
+                                                //     0x00,
+                                                //     port_id,
+                                                //     0x0000,
+                                                // )
+                                                // .unwrap();
+
+                                                let mut required_parameter_request =
+                                                    BytesMut::new();
+
+                                                rdm_codec
+                                                    .encode(
+                                                        RdmRequestMessage::GetRequest(GetRequest {
+                                                            destination_uid: device.uid,
+                                                            source_uid,
+                                                            transaction_number: 0x00,
+                                                            port_id,
+                                                            sub_device: sub_device_id,
+                                                            parameter_id,
+                                                            parameter_data: None,
+                                                        }),
+                                                        &mut required_parameter_request,
                                                     )
-                                                    .unwrap();
+                                                    .unwrap(); // TODO better error handling
+
                                                 queue_clone.lock().unwrap().push_back(
                                                     EnttecRequestMessage::SendRdmPacketRequest(
-                                                        Some(packet),
+                                                        Some(required_parameter_request),
                                                     ),
                                                 );
                                             }
@@ -256,19 +332,36 @@ async fn main() -> tokio_serial::Result<()> {
 
                                     if device.sensor_count > 0 {
                                         for idx in 0..device.sensor_count {
-                                            let packet: Vec<u8> = SensorDefinitionRequest::new(idx)
-                                                .get_request(
-                                                    device.uid,
+                                            // let packet: Vec<u8> = SensorDefinitionRequest::new(idx)
+                                            //     .get_request(
+                                            //         device.uid,
+                                            //         source_uid,
+                                            //         0x00,
+                                            //         port_id,
+                                            //         response.sub_device,
+                                            //     )
+                                            //     .into();
+
+                                            let mut request = BytesMut::new();
+
+                                            rdm_codec.encode(
+                                                RdmRequestMessage::GetRequest(GetRequest {
+                                                    destination_uid: device.uid,
                                                     source_uid,
-                                                    0x00,
+                                                    transaction_number: 0x00,
                                                     port_id,
-                                                    response.sub_device,
-                                                )
-                                                .into();
+                                                    sub_device: device.sub_device_id,
+                                                    parameter_id: ParameterId::StandardParameter(
+                                                        StandardParameterId::SensorDefinition,
+                                                    ),
+                                                    parameter_data: None,
+                                                }),
+                                                &mut request,
+                                            ).unwrap(); // TODO better error handling
 
                                             queue_clone.lock().unwrap().push_back(
                                                 EnttecRequestMessage::SendRdmPacketRequest(Some(
-                                                    packet,
+                                                    request,
                                                 )),
                                             );
                                         }
@@ -317,28 +410,51 @@ async fn main() -> tokio_serial::Result<()> {
                                         device.supported_standard_parameters.clone()
                                     {
                                         for parameter_id in standard_parameters {
-                                            match create_standard_parameter_get_request_packet(
-                                                parameter_id,
-                                                device.uid,
-                                                source_uid,
-                                                0x00,
-                                                port_id,
-                                                response.sub_device,
-                                            ) {
-                                                Ok(packet) => {
-                                                    queue_clone.lock().unwrap().push_back(
-                                                        EnttecRequestMessage::SendRdmPacketRequest(
-                                                            Some(packet),
-                                                        ),
-                                                    );
-                                                }
-                                                Err(error) => {
-                                                    println!(
-                                                        "Error whilst creating packet: {}",
-                                                        error
-                                                    )
-                                                }
-                                            }
+                                            // match create_standard_parameter_get_request_packet(
+                                            //     parameter_id,
+                                            //     device.uid,
+                                            //     source_uid,
+                                            //     0x00,
+                                            //     port_id,
+                                            //     response.sub_device,
+                                            // ) {
+                                            //     Ok(packet) => {
+                                            //         queue_clone.lock().unwrap().push_back(
+                                            //             EnttecRequestMessage::SendRdmPacketRequest(
+                                            //                 Some(packet),
+                                            //             ),
+                                            //         );
+                                            //     }
+                                            //     Err(error) => {
+                                            //         println!(
+                                            //             "Error whilst creating packet: {}",
+                                            //             error
+                                            //         )
+                                            //     }
+                                            // }
+
+                                            let mut request = BytesMut::new();
+
+                                            rdm_codec
+                                                .encode(
+                                                    RdmRequestMessage::GetRequest(GetRequest {
+                                                        destination_uid: device.uid,
+                                                        source_uid,
+                                                        transaction_number: 0x00,
+                                                        port_id,
+                                                        sub_device: device.sub_device_id,
+                                                        parameter_id,
+                                                        parameter_data: None,
+                                                    }),
+                                                    &mut request,
+                                                )
+                                                .unwrap(); // TODO better error handling
+
+                                            queue_clone.lock().unwrap().push_back(
+                                                EnttecRequestMessage::SendRdmPacketRequest(Some(
+                                                    request,
+                                                )),
+                                            );
                                         }
                                     }
 
@@ -346,24 +462,51 @@ async fn main() -> tokio_serial::Result<()> {
                                     if let Some(manufacturer_specific_parameters) =
                                         device.supported_manufacturer_specific_parameters.clone()
                                     {
-                                        for parameter_id in
-                                            manufacturer_specific_parameters.into_keys()
+                                        for (parameter_id, manufacturer_specific_parameter) in
+                                            manufacturer_specific_parameters
                                         {
-                                            let get_manufacturer_label: Vec<u8> =
-                                                ParameterDescriptionGetRequest::new(parameter_id)
-                                                    .get_request(
-                                                        device.uid,
-                                                        source_uid,
-                                                        0x00,
-                                                        port_id,
-                                                        response.sub_device,
-                                                    )
-                                                    .into();
-                                            queue_clone.lock().unwrap().push_back(
-                                                EnttecRequestMessage::SendRdmPacketRequest(Some(
-                                                    get_manufacturer_label,
-                                                )),
-                                            );
+                                            // TODO old implementation
+                                            // let get_manufacturer_label: Vec<u8> =
+                                            //     ParameterDescriptionGetRequest::new(parameter_id)
+                                            //         .get_request(
+                                            //             device.uid,
+                                            //             source_uid,
+                                            //             0x00,
+                                            //             port_id,
+                                            //             response.sub_device,
+                                            //         )
+                                            //         .into();
+                                            // queue_clone.lock().unwrap().push_back(
+                                            //     EnttecRequestMessage::SendRdmPacketRequest(Some(
+                                            //         get_manufacturer_label,
+                                            //     )),
+                                            // );
+
+                                            // let mut request = BytesMut::new();
+
+                                            // rdm_codec.encode(
+                                            //     RdmRequestMessage::GetRequest(GetRequest {
+                                            //         // TODO Might need a custom type for manu spec pids
+                                            //         destination_uid: device.uid,
+                                            //         source_uid,
+                                            //         transaction_number: 0x00,
+                                            //         port_id,
+                                            //         sub_device: device.sub_device_id,
+                                            //         parameter_id: ParameterId::ManufacturerSpecific(
+                                            //             parameter_id,
+                                            //         ),
+                                            //         parameter_data: Some(
+                                            //             manufacturer_specific_parameter.into(),
+                                            //         ), // TODO manufacturer_specific_parameter into BytesMut
+                                            //     }),
+                                            //     &mut request,
+                                            // );
+
+                                            // queue_clone.lock().unwrap().push_back(
+                                            //     EnttecRequestMessage::SendRdmPacketRequest(Some(
+                                            //         request,
+                                            //     )),
+                                            // );
                                         }
                                     }
                                 }
@@ -431,20 +574,41 @@ async fn main() -> tokio_serial::Result<()> {
                                     device.current_personality = Some(current_personality);
 
                                     for idx in 1..device.personality_count + 1 {
-                                        let packet: Vec<u8> =
-                                            DmxPersonalityDescriptionGetRequest::new(idx)
-                                                .get_request(
-                                                    device.uid,
-                                                    source_uid,
-                                                    0x00,
-                                                    port_id,
-                                                    response.sub_device,
-                                                )
-                                                .into();
+                                        // let packet: Vec<u8> =
+                                        //     DmxPersonalityDescriptionGetRequest::new(idx)
+                                        //         .get_request(
+                                        //             device.uid,
+                                        //             source_uid,
+                                        //             0x00,
+                                        //             port_id,
+                                        //             response.sub_device,
+                                        //         )
+                                        //         .into();
+
+                                        // queue_clone.lock().unwrap().push_back(
+                                        //     EnttecRequestMessage::SendRdmPacketRequest(Some(
+                                        //         packet,
+                                        //     )),
+                                        // );
+
+                                        let mut request = BytesMut::new();
+
+                                        rdm_codec.encode(
+                                            RdmRequestMessage::GetRequest(GetRequest {
+                                                destination_uid: device.uid,
+                                                source_uid,
+                                                transaction_number: 0x00,
+                                                port_id,
+                                                sub_device: device.sub_device_id,
+                                                parameter_id: ParameterId::StandardParameter(StandardParameterId::DmxPersonalityDescription),
+                                                parameter_data: Some(GetRequestParameterData::DmxPersonalityDescription { personality: idx }),
+                                            }),
+                                            &mut request,
+                                        ).unwrap(); // TODO better error handling
 
                                         queue_clone.lock().unwrap().push_back(
                                             EnttecRequestMessage::SendRdmPacketRequest(Some(
-                                                packet,
+                                                request,
                                             )),
                                         );
                                     }
@@ -543,19 +707,48 @@ async fn main() -> tokio_serial::Result<()> {
                                     device.current_curve = Some(current_curve);
 
                                     for idx in 1..device.curve_count + 1 {
-                                        let packet: Vec<u8> = CurveDescriptionGetRequest::new(idx)
-                                            .get_request(
-                                                device.uid,
-                                                source_uid,
-                                                0x00,
-                                                port_id,
-                                                response.sub_device,
+                                        // let packet: Vec<u8> = CurveDescriptionGetRequest::new(idx)
+                                        //     .get_request(
+                                        //         device.uid,
+                                        //         source_uid,
+                                        //         0x00,
+                                        //         port_id,
+                                        //         response.sub_device,
+                                        //     )
+                                        //     .into();
+
+                                        // queue_clone.lock().unwrap().push_back(
+                                        //     EnttecRequestMessage::SendRdmPacketRequest(Some(
+                                        //         packet,
+                                        //     )),
+                                        // );
+
+                                        let mut request = BytesMut::new();
+
+                                        rdm_codec
+                                            .encode(
+                                                RdmRequestMessage::GetRequest(GetRequest {
+                                                    destination_uid: device.uid,
+                                                    source_uid,
+                                                    transaction_number: 0x00,
+                                                    port_id,
+                                                    sub_device: device.sub_device_id,
+                                                    parameter_id: ParameterId::StandardParameter(
+                                                        StandardParameterId::CurveDescription,
+                                                    ),
+                                                    parameter_data: Some(
+                                                        GetRequestParameterData::CurveDescription {
+                                                            curve: idx,
+                                                        },
+                                                    ),
+                                                }),
+                                                &mut request,
                                             )
-                                            .into();
+                                            .unwrap(); // TODO better error handling
 
                                         queue_clone.lock().unwrap().push_back(
                                             EnttecRequestMessage::SendRdmPacketRequest(Some(
-                                                packet,
+                                                request,
                                             )),
                                         );
                                     }
@@ -578,20 +771,41 @@ async fn main() -> tokio_serial::Result<()> {
                                         Some(current_modulation_frequency);
 
                                     for idx in 1..device.modulation_frequency_count + 1 {
-                                        let packet: Vec<u8> =
-                                            ModulationFrequencyDescriptionGetRequest::new(idx)
-                                                .get_request(
-                                                    device.uid,
-                                                    source_uid,
-                                                    0x00,
-                                                    port_id,
-                                                    response.sub_device,
-                                                )
-                                                .into();
+                                        // let packet: Vec<u8> =
+                                        //     ModulationFrequencyDescriptionGetRequest::new(idx)
+                                        //         .get_request(
+                                        //             device.uid,
+                                        //             source_uid,
+                                        //             0x00,
+                                        //             port_id,
+                                        //             response.sub_device,
+                                        //         )
+                                        //         .into();
+
+                                        // queue_clone.lock().unwrap().push_back(
+                                        //     EnttecRequestMessage::SendRdmPacketRequest(Some(
+                                        //         packet,
+                                        //     )),
+                                        // );
+
+                                        let mut request = BytesMut::new();
+
+                                        rdm_codec.encode(
+                                            RdmRequestMessage::GetRequest(GetRequest {
+                                                destination_uid: device.uid,
+                                                source_uid,
+                                                transaction_number: 0x00,
+                                                port_id,
+                                                sub_device: device.sub_device_id,
+                                                parameter_id: ParameterId::StandardParameter(StandardParameterId::ModulationFrequencyDescription),
+                                                parameter_data: Some(GetRequestParameterData::ModulationFrequencyDescription { modulation_frequency: idx }),
+                                            }),
+                                            &mut request,
+                                        ).unwrap(); // TODO better error handling
 
                                         queue_clone.lock().unwrap().push_back(
                                             EnttecRequestMessage::SendRdmPacketRequest(Some(
-                                                packet,
+                                                request,
                                             )),
                                         );
                                     }
@@ -625,20 +839,41 @@ async fn main() -> tokio_serial::Result<()> {
                                         Some(current_output_response_time);
 
                                     for idx in 1..device.output_response_time_count + 1 {
-                                        let packet: Vec<u8> =
-                                            OutputResponseTimeDescriptionGetRequest::new(idx)
-                                                .get_request(
-                                                    device.uid,
-                                                    source_uid,
-                                                    0x00,
-                                                    port_id,
-                                                    response.sub_device,
-                                                )
-                                                .into();
+                                        // let packet: Vec<u8> =
+                                        //     OutputResponseTimeDescriptionGetRequest::new(idx)
+                                        //         .get_request(
+                                        //             device.uid,
+                                        //             source_uid,
+                                        //             0x00,
+                                        //             port_id,
+                                        //             response.sub_device,
+                                        //         )
+                                        //         .into();
+
+                                        // queue_clone.lock().unwrap().push_back(
+                                        //     EnttecRequestMessage::SendRdmPacketRequest(Some(
+                                        //         packet,
+                                        //     )),
+                                        // );
+
+                                        let mut request = BytesMut::new();
+
+                                        rdm_codec.encode(
+                                            RdmRequestMessage::GetRequest(GetRequest {
+                                                destination_uid: device.uid,
+                                                source_uid,
+                                                transaction_number: 0x00,
+                                                port_id,
+                                                sub_device: device.sub_device_id,
+                                                parameter_id: ParameterId::StandardParameter(StandardParameterId::OutputResponseTimeDescription),
+                                                parameter_data: Some(GetRequestParameterData::OutputResponseTimeDescription { output_response_time: idx }),
+                                            }),
+                                            &mut request,
+                                        ).unwrap(); // TODO better error handling
 
                                         queue_clone.lock().unwrap().push_back(
                                             EnttecRequestMessage::SendRdmPacketRequest(Some(
-                                                packet,
+                                                request,
                                             )),
                                         );
                                     }
@@ -688,37 +923,61 @@ async fn main() -> tokio_serial::Result<()> {
         }
     });
 
-    // Broadcast DiscUnmute to all devices so they accept DiscUniqueBranch messages
-    let disc_unmute: Vec<u8> = DiscUnmuteRequest
-        .discovery_request(
-            DeviceUID::broadcast_all_devices(),
-            source_uid,
-            0x00,
-            port_id,
-            0x0000,
+    // // Broadcast DiscUnmute to all devices so they accept DiscUniqueBranch messages
+    // let disc_unmute: Vec<u8> = DiscUnmuteRequest
+    //     .discovery_request(
+    //         DeviceUID::broadcast_all_devices(),
+    //         source_uid,
+    //         0x00,
+    //         port_id,
+    //         0x0000,
+    //     )
+    //     .try_into()
+    //     .unwrap();
+
+    let mut disc_unmute_request = BytesMut::new();
+
+    rdm_codec
+        .encode(
+            RdmRequestMessage::DiscoveryRequest(DiscoveryRequest {
+                destination_uid: DeviceUID::broadcast_all_devices(),
+                source_uid,
+                transaction_number: 0x00,
+                port_id,
+                sub_device: ROOT_DEVICE,
+                parameter_id: ParameterId::StandardParameter(StandardParameterId::DiscUnMute),
+                parameter_data: None,
+            }),
+            &mut disc_unmute_request,
         )
-        .try_into()
-        .unwrap();
+        .unwrap(); // TODO better error handling
 
     queue
         .lock()
         .unwrap()
         .push_back(EnttecRequestMessage::SendRdmDiscoveryMessage(Some(
-            disc_unmute,
+            disc_unmute_request,
         )));
 
-    // Broadcast DiscUniqueBranch to find all devices destination uids
-    let disc_unique_branch: Vec<u8> =
-        DiscUniqueBranchRequest::new(lower_bound_uid, upper_bound_uid)
-            .discovery_request(
-                DeviceUID::broadcast_all_devices(),
+    let mut disc_unique_branch = BytesMut::new();
+
+    rdm_codec
+        .encode(
+            RdmRequestMessage::DiscoveryRequest(DiscoveryRequest {
+                destination_uid: DeviceUID::broadcast_all_devices(),
                 source_uid,
-                0x00,
+                transaction_number: 0x00,
                 port_id,
-                0x0000,
-            )
-            .try_into()
-            .unwrap();
+                sub_device: ROOT_DEVICE,
+                parameter_id: ParameterId::StandardParameter(StandardParameterId::DiscUniqueBranch),
+                parameter_data: Some(DiscoveryRequestParameterData::DiscUniqueBranch {
+                    lower_bound_uid,
+                    upper_bound_uid,
+                }),
+            }),
+            &mut disc_unique_branch,
+        )
+        .unwrap(); // TODO better error handling
 
     queue
         .lock()

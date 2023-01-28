@@ -17,3 +17,4 @@ tokio-stream = "0.1.11"
 futures = "0.3.21"
 tokio-util = { version = "0.7.4", features = ["codec"] }
 bytes = "1.2.1"
+anyhow = "1.0.68"
