@@ -879,7 +879,11 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    println!("Devices: {:?}", devices.lock().unwrap());
+    let available_devices = devices.lock().unwrap();
+
+    for device in available_devices.clone().into_values() {
+        device.print();
+    }
 
     Ok(())
 }
