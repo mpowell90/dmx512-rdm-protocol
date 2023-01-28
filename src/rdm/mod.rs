@@ -7,7 +7,6 @@ use core::panic;
 use std::{cmp::PartialEq, collections::HashMap};
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
-use ux::u48;
 
 use self::device::{DeviceUID, DmxSlot, Sensor};
 
@@ -16,7 +15,7 @@ pub const MIN_PACKET_LEN: usize = 26;
 pub const SC_RDM: u8 = 0xcc;
 pub const SC_SUB_MESSAGE: u8 = 0x01;
 
-pub const BROADCAST_ALL_DEVICES_ID: u48 = u48::new(0xffffffffffff);
+pub const BROADCAST_ALL_DEVICES_ID: u64 = 0xffffffffffff;
 pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
 pub const ROOT_DEVICE: u16 = 0x0000;
 
@@ -686,8 +685,8 @@ pub fn is_checksum_valid(packet: &Vec<u8>) -> bool {
 
 pub enum DiscoveryRequestParameterData {
     DiscUniqueBranch {
-        lower_bound_uid: u48,
-        upper_bound_uid: u48,
+        lower_bound_uid: DeviceUID,
+        upper_bound_uid: DeviceUID,
     },
 }
 
@@ -725,12 +724,6 @@ pub enum RdmRequestMessage {
     DiscoveryRequest(DiscoveryRequest),
     GetRequest(GetRequest),
     // SetCommand(SetCommandMessage)
-}
-
-impl From<RdmRequestMessage> for BytesMut {
-    fn from(value: RdmRequestMessage) -> Self {
-        todo!()
-    }
 }
 
 #[derive(Debug)]
@@ -1204,6 +1197,26 @@ impl RdmCodec {
         }
     }
 
+    pub fn discovery_request_parameter_data_to_bytes(
+        parameter_data: DiscoveryRequestParameterData,
+    ) -> BytesMut {
+        let mut bytes = BytesMut::new();
+
+        match parameter_data {
+            DiscoveryRequestParameterData::DiscUniqueBranch {
+                lower_bound_uid,
+                upper_bound_uid,
+            } => {
+                bytes.put_u16(lower_bound_uid.manufacturer_id);
+                bytes.put_u32(lower_bound_uid.device_id);
+                bytes.put_u16(upper_bound_uid.manufacturer_id);
+                bytes.put_u32(upper_bound_uid.device_id);
+            }
+        }
+
+        bytes
+    }
+
     pub fn discovery_response_bytes_to_parameter_data(
         parameter_id: StandardParameterId,
         bytes: Bytes,
@@ -1268,7 +1281,9 @@ impl Encoder<RdmRequestMessage> for RdmCodec {
                 message.port_id,
                 message.sub_device,
                 message.parameter_id,
-                None,
+                message
+                    .parameter_data
+                    .map(Self::discovery_request_parameter_data_to_bytes),
             ),
             RdmRequestMessage::GetRequest(message) => (
                 CommandClass::GetCommand,

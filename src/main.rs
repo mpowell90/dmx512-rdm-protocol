@@ -11,7 +11,6 @@ use std::{
 use bytes::{BufMut, BytesMut};
 use tokio_serial::SerialPortBuilderExt;
 use tokio_util::codec::{Decoder, Encoder};
-use ux::u48;
 use yansi::Paint;
 
 use crate::{
@@ -52,8 +51,8 @@ async fn main() -> anyhow::Result<()> {
     let source_uid = DeviceUID::new(0x454e, 0x02137670);
     let port_id: u8 = 0x01;
     // TODO improve algorithm to handle branching properly
-    let upper_bound_uid = u48::new(0xffffffffffff);
-    let lower_bound_uid = u48::new(0x000000000000);
+    let upper_bound_uid = 0xffffffffffff;
+    let lower_bound_uid = 0x000000000000;
 
     let mut rdm_codec = RdmCodec;
 
@@ -195,8 +194,8 @@ async fn main() -> anyhow::Result<()> {
                                 ),
                                 parameter_data: Some(
                                     DiscoveryRequestParameterData::DiscUniqueBranch {
-                                        lower_bound_uid,
-                                        upper_bound_uid,
+                                        lower_bound_uid: lower_bound_uid.into(),
+                                        upper_bound_uid: upper_bound_uid.into(),
                                     },
                                 ),
                             }),
@@ -923,18 +922,6 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    // // Broadcast DiscUnmute to all devices so they accept DiscUniqueBranch messages
-    // let disc_unmute: Vec<u8> = DiscUnmuteRequest
-    //     .discovery_request(
-    //         DeviceUID::broadcast_all_devices(),
-    //         source_uid,
-    //         0x00,
-    //         port_id,
-    //         0x0000,
-    //     )
-    //     .try_into()
-    //     .unwrap();
-
     let mut disc_unmute_request = BytesMut::new();
 
     rdm_codec
@@ -951,6 +938,8 @@ async fn main() -> anyhow::Result<()> {
             &mut disc_unmute_request,
         )
         .unwrap(); // TODO better error handling
+
+    println!("{:#?}", disc_unmute_request);
 
     queue
         .lock()
@@ -971,8 +960,8 @@ async fn main() -> anyhow::Result<()> {
                 sub_device: ROOT_DEVICE,
                 parameter_id: ParameterId::StandardParameter(StandardParameterId::DiscUniqueBranch),
                 parameter_data: Some(DiscoveryRequestParameterData::DiscUniqueBranch {
-                    lower_bound_uid,
-                    upper_bound_uid,
+                    lower_bound_uid: lower_bound_uid.into(),
+                    upper_bound_uid: upper_bound_uid.into(),
                 }),
             }),
             &mut disc_unique_branch,

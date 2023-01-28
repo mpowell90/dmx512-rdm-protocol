@@ -8,7 +8,6 @@ edition = "2021"
 [dependencies]
 serialport = "4.2.0"
 byteorder = "1.4.3"
-ux = "0.1.5"
 yansi = "0.5.1"
 thiserror = "1.0.37"
 tokio-serial = "5.4.1"

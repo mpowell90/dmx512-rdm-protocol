@@ -2,11 +2,11 @@
 use byteorder::{LittleEndian, WriteBytesExt};
 use bytes::{Buf, BufMut, Bytes, BytesMut};
 use serialport::{DataBits, SerialPort, StopBits};
+use std::str;
 use std::{
     cmp::PartialEq,
     io::{self, Write},
 };
-use std::{str};
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
 
