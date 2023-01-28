@@ -356,6 +356,8 @@ impl Encoder<EnttecRequestMessage> for EnttecDmxUsbProCodec {
 
         dst.put_u8(ENTTEC_PACKET_STOP_BYTE);
 
+        println!("{:02X?}", dst.to_vec());
+
         Ok(())
     }
 }

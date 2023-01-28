@@ -22,12 +22,12 @@ use crate::{
         },
         DiscoveryRequest, DiscoveryRequestParameterData, GetRequest, GetRequestParameterData,
         GetResponseParameterData, ParameterId, RdmCodec, RdmRequestMessage, RdmResponseMessage,
-        StandardParameterId, REQUIRED_PARAMETERS, ROOT_DEVICE,
+        StandardParameterId, REQUIRED_PARAMETERS, ROOT_DEVICE, GET_PARAMETERS
     },
 };
 
-// const DEFAULT_TTY: &str = "/dev/tty.usbserial-EN137670";
-const DEFAULT_TTY: &str = "/dev/ttyUSB0";
+const DEFAULT_TTY: &str = "/dev/tty.usbserial-EN137670";
+// const DEFAULT_TTY: &str = "/dev/ttyUSB0";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -64,20 +64,25 @@ async fn main() -> anyhow::Result<()> {
                 .expect("Error awaiting future in RX stream.")
                 .expect("Reading stream resulted in an error");
 
-            println!(
-                "{} {:02X?}",
-                Paint::green("RX:"),
-                Paint::green(item.clone())
-            );
-
             let mut ready_to_send = rx_ready_to_send.lock().unwrap();
 
             let enttec_frame = match item {
                 EnttecResponseMessage::NullResponse => {
+                    println!(
+                        "{}",
+                        Paint::green("RX: NullResponse")
+                    );        
                     *ready_to_send = true;
                     continue;
                 }
-                EnttecResponseMessage::SuccessResponse(bytes) => bytes,
+                EnttecResponseMessage::SuccessResponse(bytes) => {
+                    println!(
+                        "{} {:02X?}",
+                        Paint::green("RX:"),
+                        Paint::green(bytes.clone().unwrap().to_vec())
+                    );        
+                    bytes
+                },
             };
 
             let mut rdm_packet = if let Some(bytes) = enttec_frame {
@@ -132,16 +137,6 @@ async fn main() -> anyhow::Result<()> {
 
                     // Push subsequent required parameter requests for root device
                     for parameter_id in REQUIRED_PARAMETERS {
-                        // let packet = create_standard_parameter_get_request_packet(
-                        //     parameter_id,
-                        //     device_uid,
-                        //     source_uid,
-                        //     0x00,
-                        //     port_id,
-                        //     0x0000,
-                        // )
-                        // .unwrap();
-
                         let mut required_parameter_request = BytesMut::new();
 
                         rdm_codec
@@ -165,19 +160,6 @@ async fn main() -> anyhow::Result<()> {
                             )),
                         );
                     }
-
-                    // // Retry same branch
-                    // let disc_unique_branch: Vec<u8> =
-                    //     DiscUniqueBranchRequest::new(lower_bound_uid, upper_bound_uid)
-                    //         .discovery_request(
-                    //             DeviceUID::broadcast_all_devices(),
-                    //             source_uid,
-                    //             0x00,
-                    //             port_id,
-                    //             0x0000,
-                    //         )
-                    //         .try_into()
-                    //         .unwrap();
 
                     let mut disc_unique_branch = BytesMut::new();
 
@@ -287,19 +269,9 @@ async fn main() -> anyhow::Result<()> {
                                                 sub_device_id,
                                                 Device::new(device.uid, sub_device_id),
                                             );
-                                            // Push subsequent required parameter requests for root device
+
                                             // Push subsequent required parameter requests for root device
                                             for parameter_id in REQUIRED_PARAMETERS {
-                                                // let packet = create_standard_parameter_get_request_packet(
-                                                //     parameter_id,
-                                                //     device_uid,
-                                                //     source_uid,
-                                                //     0x00,
-                                                //     port_id,
-                                                //     0x0000,
-                                                // )
-                                                // .unwrap();
-
                                                 let mut required_parameter_request =
                                                     BytesMut::new();
 
@@ -330,17 +302,7 @@ async fn main() -> anyhow::Result<()> {
                                     }
 
                                     if device.sensor_count > 0 {
-                                        for idx in 0..device.sensor_count {
-                                            // let packet: Vec<u8> = SensorDefinitionRequest::new(idx)
-                                            //     .get_request(
-                                            //         device.uid,
-                                            //         source_uid,
-                                            //         0x00,
-                                            //         port_id,
-                                            //         response.sub_device,
-                                            //     )
-                                            //     .into();
-
+                                        for sensor_id in 0..device.sensor_count {
                                             let mut request = BytesMut::new();
 
                                             rdm_codec.encode(
@@ -353,7 +315,7 @@ async fn main() -> anyhow::Result<()> {
                                                     parameter_id: ParameterId::StandardParameter(
                                                         StandardParameterId::SensorDefinition,
                                                     ),
-                                                    parameter_data: None,
+                                                    parameter_data: Some(GetRequestParameterData::SensorDefinition { sensor_id }),
                                                 }),
                                                 &mut request,
                                             ).unwrap(); // TODO better error handling
@@ -408,29 +370,12 @@ async fn main() -> anyhow::Result<()> {
                                     if let Some(standard_parameters) =
                                         device.supported_standard_parameters.clone()
                                     {
-                                        for parameter_id in standard_parameters {
-                                            // match create_standard_parameter_get_request_packet(
-                                            //     parameter_id,
-                                            //     device.uid,
-                                            //     source_uid,
-                                            //     0x00,
-                                            //     port_id,
-                                            //     response.sub_device,
-                                            // ) {
-                                            //     Ok(packet) => {
-                                            //         queue_clone.lock().unwrap().push_back(
-                                            //             EnttecRequestMessage::SendRdmPacketRequest(
-                                            //                 Some(packet),
-                                            //             ),
-                                            //         );
-                                            //     }
-                                            //     Err(error) => {
-                                            //         println!(
-                                            //             "Error whilst creating packet: {}",
-                                            //             error
-                                            //         )
-                                            //     }
-                                            // }
+                                        for parameter_id in standard_parameters.into_iter().filter(|x| GET_PARAMETERS.contains(x)) {
+                                            let parameter_data = if parameter_id == ParameterId::StandardParameter(StandardParameterId::SelfTestDescription) {
+                                                Some(GetRequestParameterData::SelfTestDescription { self_test_id: 0x01 })
+                                            } else {
+                                                None
+                                            };
 
                                             let mut request = BytesMut::new();
 
@@ -443,7 +388,7 @@ async fn main() -> anyhow::Result<()> {
                                                         port_id,
                                                         sub_device: device.sub_device_id,
                                                         parameter_id,
-                                                        parameter_data: None,
+                                                        parameter_data,
                                                     }),
                                                     &mut request,
                                                 )
@@ -457,13 +402,13 @@ async fn main() -> anyhow::Result<()> {
                                         }
                                     }
 
-                                    // Iterate over manufacturer specific parameters to get their parameter descriptions
-                                    if let Some(manufacturer_specific_parameters) =
-                                        device.supported_manufacturer_specific_parameters.clone()
-                                    {
-                                        for (parameter_id, manufacturer_specific_parameter) in
-                                            manufacturer_specific_parameters
-                                        {
+                                    // // Iterate over manufacturer specific parameters to get their parameter descriptions
+                                    // if let Some(manufacturer_specific_parameters) =
+                                    //     device.supported_manufacturer_specific_parameters.clone()
+                                    // {
+                                    //     for (parameter_id, manufacturer_specific_parameter) in
+                                    //         manufacturer_specific_parameters
+                                    //     {
                                             // TODO old implementation
                                             // let get_manufacturer_label: Vec<u8> =
                                             //     ParameterDescriptionGetRequest::new(parameter_id)
@@ -506,8 +451,8 @@ async fn main() -> anyhow::Result<()> {
                                             //         request,
                                             //     )),
                                             // );
-                                        }
-                                    }
+                                    //     }
+                                    // }
                                 }
                                 GetResponseParameterData::ParameterDescription {
                                     parameter_id,
@@ -573,23 +518,6 @@ async fn main() -> anyhow::Result<()> {
                                     device.current_personality = Some(current_personality);
 
                                     for idx in 1..device.personality_count + 1 {
-                                        // let packet: Vec<u8> =
-                                        //     DmxPersonalityDescriptionGetRequest::new(idx)
-                                        //         .get_request(
-                                        //             device.uid,
-                                        //             source_uid,
-                                        //             0x00,
-                                        //             port_id,
-                                        //             response.sub_device,
-                                        //         )
-                                        //         .into();
-
-                                        // queue_clone.lock().unwrap().push_back(
-                                        //     EnttecRequestMessage::SendRdmPacketRequest(Some(
-                                        //         packet,
-                                        //     )),
-                                        // );
-
                                         let mut request = BytesMut::new();
 
                                         rdm_codec.encode(
@@ -629,6 +557,9 @@ async fn main() -> anyhow::Result<()> {
                                         } else {
                                             Some(HashMap::from([(id, personality)]))
                                         }
+                                }
+                                GetResponseParameterData::DmxStartAddress { dmx_start_address } => {
+                                    device.start_address = Some(dmx_start_address);
                                 }
                                 GetResponseParameterData::SlotInfo { dmx_slots } => {
                                     let mut hash_map: HashMap<u16, DmxSlot> = HashMap::new();
@@ -706,22 +637,6 @@ async fn main() -> anyhow::Result<()> {
                                     device.current_curve = Some(current_curve);
 
                                     for idx in 1..device.curve_count + 1 {
-                                        // let packet: Vec<u8> = CurveDescriptionGetRequest::new(idx)
-                                        //     .get_request(
-                                        //         device.uid,
-                                        //         source_uid,
-                                        //         0x00,
-                                        //         port_id,
-                                        //         response.sub_device,
-                                        //     )
-                                        //     .into();
-
-                                        // queue_clone.lock().unwrap().push_back(
-                                        //     EnttecRequestMessage::SendRdmPacketRequest(Some(
-                                        //         packet,
-                                        //     )),
-                                        // );
-
                                         let mut request = BytesMut::new();
 
                                         rdm_codec
@@ -770,23 +685,6 @@ async fn main() -> anyhow::Result<()> {
                                         Some(current_modulation_frequency);
 
                                     for idx in 1..device.modulation_frequency_count + 1 {
-                                        // let packet: Vec<u8> =
-                                        //     ModulationFrequencyDescriptionGetRequest::new(idx)
-                                        //         .get_request(
-                                        //             device.uid,
-                                        //             source_uid,
-                                        //             0x00,
-                                        //             port_id,
-                                        //             response.sub_device,
-                                        //         )
-                                        //         .into();
-
-                                        // queue_clone.lock().unwrap().push_back(
-                                        //     EnttecRequestMessage::SendRdmPacketRequest(Some(
-                                        //         packet,
-                                        //     )),
-                                        // );
-
                                         let mut request = BytesMut::new();
 
                                         rdm_codec.encode(
@@ -838,23 +736,6 @@ async fn main() -> anyhow::Result<()> {
                                         Some(current_output_response_time);
 
                                     for idx in 1..device.output_response_time_count + 1 {
-                                        // let packet: Vec<u8> =
-                                        //     OutputResponseTimeDescriptionGetRequest::new(idx)
-                                        //         .get_request(
-                                        //             device.uid,
-                                        //             source_uid,
-                                        //             0x00,
-                                        //             port_id,
-                                        //             response.sub_device,
-                                        //         )
-                                        //         .into();
-
-                                        // queue_clone.lock().unwrap().push_back(
-                                        //     EnttecRequestMessage::SendRdmPacketRequest(Some(
-                                        //         packet,
-                                        //     )),
-                                        // );
-
                                         let mut request = BytesMut::new();
 
                                         rdm_codec.encode(
@@ -903,11 +784,14 @@ async fn main() -> anyhow::Result<()> {
                                     self_test_id,
                                     description,
                                 } => {
-                                    todo!();
+                                    println!("{}: {}", self_test_id, description);
                                 }
                                 GetResponseParameterData::PresetPlayback { mode, level } => {
                                     device.preset_playback_mode = Some(mode);
                                     device.preset_playback_level = Some(level);
+                                }
+                                GetResponseParameterData::DeviceLabel { device_label } => {
+                                    device.device_label = Some(device_label);
                                 }
                                 _ => todo!(),
                             }
@@ -936,10 +820,7 @@ async fn main() -> anyhow::Result<()> {
                 parameter_data: None,
             }),
             &mut disc_unmute_request,
-        )
-        .unwrap(); // TODO better error handling
-
-    println!("{:#?}", disc_unmute_request);
+        )?;
 
     queue
         .lock()
@@ -965,8 +846,7 @@ async fn main() -> anyhow::Result<()> {
                 }),
             }),
             &mut disc_unique_branch,
-        )
-        .unwrap(); // TODO better error handling
+        )?;
 
     queue
         .lock()

@@ -28,7 +28,7 @@ pub enum ParameterError {
 }
 
 // TODO add remaining parameter ids
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StandardParameterId {
     DiscUniqueBranch = 0x0001,
     DiscMute = 0x0002,
@@ -238,7 +238,7 @@ impl From<u16> for StandardParameterId {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterId {
     StandardParameter(StandardParameterId),
     ManufacturerSpecificParameter(u16),
@@ -249,6 +249,63 @@ pub const REQUIRED_PARAMETERS: [ParameterId; 4] = [
     ParameterId::StandardParameter(StandardParameterId::SupportedParameters),
     ParameterId::StandardParameter(StandardParameterId::SoftwareVersionLabel),
     ParameterId::StandardParameter(StandardParameterId::IdentifyDevice),
+];
+
+pub const GET_PARAMETERS: [ParameterId; 46] = [
+    ParameterId::StandardParameter(StandardParameterId::ProxiedDevices),
+    ParameterId::StandardParameter(StandardParameterId::ProxiedDeviceCount),
+    ParameterId::StandardParameter(StandardParameterId::CommsStatus),
+    ParameterId::StandardParameter(StandardParameterId::QueuedMessage),
+    ParameterId::StandardParameter(StandardParameterId::StatusMessages),
+    ParameterId::StandardParameter(StandardParameterId::StatusIdDescription),
+    ParameterId::StandardParameter(StandardParameterId::SubDeviceStatusReportThreshold),
+    ParameterId::StandardParameter(StandardParameterId::SupportedParameters),
+    ParameterId::StandardParameter(StandardParameterId::ParameterDescription),
+    ParameterId::StandardParameter(StandardParameterId::DeviceInfo),
+    ParameterId::StandardParameter(StandardParameterId::ProductDetailIdList),
+    ParameterId::StandardParameter(StandardParameterId::DeviceModelDescription),
+    ParameterId::StandardParameter(StandardParameterId::ManufacturerLabel),
+    ParameterId::StandardParameter(StandardParameterId::DeviceLabel),
+    ParameterId::StandardParameter(StandardParameterId::FactoryDefaults),
+    ParameterId::StandardParameter(StandardParameterId::LanguageCapabilities),
+    ParameterId::StandardParameter(StandardParameterId::Language),
+    ParameterId::StandardParameter(StandardParameterId::SoftwareVersionLabel),
+    ParameterId::StandardParameter(StandardParameterId::BootSoftwareVersionId),
+    ParameterId::StandardParameter(StandardParameterId::BootSoftwareVersionLabel),
+    ParameterId::StandardParameter(StandardParameterId::DmxPersonality),
+    // ParameterId::StandardParameter(StandardParameterId::DmxPersonalityDescription),
+    ParameterId::StandardParameter(StandardParameterId::DmxStartAddress),
+    ParameterId::StandardParameter(StandardParameterId::SlotInfo),
+    // ParameterId::StandardParameter(StandardParameterId::SlotDescription),
+    ParameterId::StandardParameter(StandardParameterId::DefaultSlotValue),
+    // ParameterId::StandardParameter(StandardParameterId::SensorDefinition),
+    // ParameterId::StandardParameter(StandardParameterId::SensorValue),
+    ParameterId::StandardParameter(StandardParameterId::DimmerInfo),
+    ParameterId::StandardParameter(StandardParameterId::MinimumLevel),
+    ParameterId::StandardParameter(StandardParameterId::MaximumLevel),
+    ParameterId::StandardParameter(StandardParameterId::Curve),
+    // ParameterId::StandardParameter(StandardParameterId::CurveDescription),
+    ParameterId::StandardParameter(StandardParameterId::OutputResponseTime),
+    // ParameterId::StandardParameter(StandardParameterId::OutputResponseTimeDescription),
+    ParameterId::StandardParameter(StandardParameterId::ModulationFrequency),
+    // ParameterId::StandardParameter(StandardParameterId::ModulationFrequencyDescription),
+    ParameterId::StandardParameter(StandardParameterId::DeviceHours),
+    ParameterId::StandardParameter(StandardParameterId::LampHours),
+    ParameterId::StandardParameter(StandardParameterId::LampStrikes),
+    ParameterId::StandardParameter(StandardParameterId::LampState),
+    ParameterId::StandardParameter(StandardParameterId::LampOnMode),
+    ParameterId::StandardParameter(StandardParameterId::DevicePowerCycles),
+    ParameterId::StandardParameter(StandardParameterId::DisplayInvert),
+    ParameterId::StandardParameter(StandardParameterId::DisplayLevel),
+    ParameterId::StandardParameter(StandardParameterId::PanInvert),
+    ParameterId::StandardParameter(StandardParameterId::TiltInvert),
+    ParameterId::StandardParameter(StandardParameterId::PanTiltSwap),
+    ParameterId::StandardParameter(StandardParameterId::RealTimeClock),
+    ParameterId::StandardParameter(StandardParameterId::IdentifyDevice),
+    ParameterId::StandardParameter(StandardParameterId::PowerState),
+    ParameterId::StandardParameter(StandardParameterId::PerformSelfTest),
+    // ParameterId::StandardParameter(StandardParameterId::SelfTestDescription),
+    ParameterId::StandardParameter(StandardParameterId::PresetPlayback),
 ];
 
 #[derive(Clone, Debug, Default)]
@@ -726,7 +783,7 @@ pub enum RdmRequestMessage {
     // SetCommand(SetCommandMessage)
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum DiscoveryResponseParameterData {
     DiscMute {
         control_field: u16,
@@ -738,7 +795,7 @@ pub enum DiscoveryResponseParameterData {
     },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum GetResponseParameterData {
     ProxiedDeviceCount {
         device_count: u16,
@@ -806,6 +863,9 @@ pub enum GetResponseParameterData {
         id: u8,
         dmx_slots_required: u16,
         description: String,
+    },
+    DmxStartAddress {
+        dmx_start_address: u16,
     },
     SlotInfo {
         dmx_slots: Vec<DmxSlot>,
@@ -889,7 +949,7 @@ pub enum GetResponseParameterData {
     },
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct GetResponse {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
@@ -902,7 +962,7 @@ pub struct GetResponse {
     pub parameter_data: Option<GetResponseParameterData>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct DiscoveryResponse {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
@@ -915,7 +975,7 @@ pub struct DiscoveryResponse {
     pub parameter_data: Option<DiscoveryResponseParameterData>,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum RdmResponseMessage {
     DiscoveryUniqueBranchResponse(DeviceUID),
     DiscoveryResponse(DiscoveryResponse),
@@ -952,6 +1012,7 @@ impl RdmCodec {
                 output_response_time,
             } => bytes.put_u8(output_response_time),
             GetRequestParameterData::SelfTestDescription { self_test_id } => {
+                println!("self_test_id: {}", self_test_id);
                 bytes.put_u8(self_test_id)
             }
         }
@@ -1040,22 +1101,27 @@ impl RdmCodec {
                         .collect(),
                 }
             }
-            StandardParameterId::SensorDefinition => GetResponseParameterData::SensorDefinition {
-                sensor: Sensor {
-                    id: bytes[0],
-                    kind: bytes[1],
-                    unit: bytes[2],
-                    prefix: bytes[3],
-                    range_minimum_value: u16::from_be_bytes(bytes[4..=5].try_into().unwrap()),
-                    range_maximum_value: u16::from_be_bytes(bytes[6..=7].try_into().unwrap()),
-                    normal_minimum_value: u16::from_be_bytes(bytes[8..=9].try_into().unwrap()),
-                    normal_maximum_value: u16::from_be_bytes(bytes[10..=11].try_into().unwrap()),
-                    recorded_value_support: bytes[12],
-                    description: String::from_utf8_lossy(&bytes[13..])
-                        .trim_end_matches("\0")
-                        .to_string(),
-                },
-            },
+            StandardParameterId::SensorDefinition => {
+                println!("bytes: {:02X?}", bytes);
+                GetResponseParameterData::SensorDefinition {
+                    sensor: Sensor {
+                        id: bytes[0],
+                        kind: bytes[1],
+                        unit: bytes[2],
+                        prefix: bytes[3],
+                        range_minimum_value: u16::from_be_bytes(bytes[4..=5].try_into().unwrap()),
+                        range_maximum_value: u16::from_be_bytes(bytes[6..=7].try_into().unwrap()),
+                        normal_minimum_value: u16::from_be_bytes(bytes[8..=9].try_into().unwrap()),
+                        normal_maximum_value: u16::from_be_bytes(
+                            bytes[10..=11].try_into().unwrap(),
+                        ),
+                        recorded_value_support: bytes[12],
+                        description: String::from_utf8_lossy(&bytes[13..])
+                            .trim_end_matches("\0")
+                            .to_string(),
+                    },
+                }
+            }
             StandardParameterId::IdentifyDevice => GetResponseParameterData::IdentifyDevice {
                 is_identifying: bytes[0] != 0,
             },
@@ -1095,6 +1161,9 @@ impl RdmCodec {
                         .to_string(),
                 }
             }
+            StandardParameterId::DmxStartAddress => GetResponseParameterData::DmxStartAddress {
+                dmx_start_address: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
+            },
             StandardParameterId::SlotInfo => GetResponseParameterData::SlotInfo {
                 dmx_slots: bytes.chunks(5).map(DmxSlot::from).collect(),
             },
@@ -1313,8 +1382,13 @@ impl Encoder<RdmRequestMessage> for RdmCodec {
         dst.put_u8(parameter_data_length as u8 + 24); // Message Length: Range 24 to 255 excluding the checksum
         dst.put_u16(destination_uid.manufacturer_id);
         dst.put_u32(destination_uid.device_id);
-        dst.put_u16(source_uid.manufacturer_id); // Transaction Number; // Port Id / Response Type; // Message Count; // Sub Device;
-        dst.put_u32(source_uid.device_id); // Transaction Number; // Port Id / Response Type; // Message Count; // Sub Device;
+        dst.put_u16(source_uid.manufacturer_id);
+        dst.put_u32(source_uid.device_id);
+        dst.put_u8(transaction_number);
+        dst.put_u8(port_id);
+        dst.put_u8(0x00); // Message Count, should always be set to 0x00 for all controller created requests
+        dst.put_u16(sub_device); // Sub Device;
+        dst.put_u8(command_class as u8);
 
         match parameter_id {
             ParameterId::StandardParameter(parameter_id) => dst.put_u16(parameter_id as u16),

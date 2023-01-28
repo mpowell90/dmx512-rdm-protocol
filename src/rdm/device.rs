@@ -145,6 +145,7 @@ pub struct Device {
         Option<HashMap<u16, ManufacturerSpecificParameter>>,
     pub is_identifying: Option<bool>,
     pub manufacturer_label: Option<String>,
+    pub device_label: Option<String>,
     pub product_detail_id_list: Option<Vec<u16>>, // TODO use enum types
     pub device_model_description: Option<String>,
     pub device_hours: Option<u32>,
