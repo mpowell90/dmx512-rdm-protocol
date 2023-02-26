@@ -1,14 +1,12 @@
-#![allow(unused)]
 pub mod device;
 
 use anyhow::anyhow;
 use bytes::{BufMut, Bytes, BytesMut};
-use core::panic;
 use std::{cmp::PartialEq, collections::HashMap};
 use thiserror::Error;
 use tokio_util::codec::{Decoder, Encoder};
 
-use self::device::{DeviceUID, DmxSlot, Sensor};
+use crate::device::{DeviceUID, DmxSlot, Sensor};
 
 pub const MIN_PACKET_LEN: usize = 26;
 
@@ -1366,7 +1364,7 @@ impl Encoder<RdmRequestMessage> for RdmCodec {
                     .parameter_data
                     .map(Self::get_request_parameter_data_to_bytes),
             ),
-            _ => panic!("Unknown RdmRequestMessage type"),
+            // _ => panic!("Unknown RdmRequestMessage type"),
         };
 
         let parameter_data_length = if let Some(parameter_data) = parameter_data.clone() {
@@ -1461,7 +1459,7 @@ impl Decoder for RdmCodec {
                     return Ok(None);
                 }
 
-                let packet_length = src[2] as usize;
+                // let packet_length = src[2] as usize;
 
                 // if len < Self::FRAME_HEADER_FOOTER_SIZE + 3 {
                 //     return Ok(None);

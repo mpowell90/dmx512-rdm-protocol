@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use super::{
+use crate::{
     DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId,
     PowerState, ProductCategory,
 };
