@@ -1,12 +1,5 @@
 use crate::{
-    bsd_16_crc, bsd_16_crc_bytes_mut,
-    device::{DeviceUID, DmxSlot},
-    sensor::Sensor,
-    CommandClass, DiscoveryRequestParameterData, DiscoveryResponse, DiscoveryResponseParameterData,
-    DisplayInvertMode, GetRequestParameterData, GetResponse, GetResponseParameterData, LampOnMode,
-    LampState, ManufacturerSpecificParameter, PacketType, ParameterId, PowerState, ProductCategory,
-    RdmRequestMessage, RdmResponseMessage, ResponseType, SetRequestParameterData, SetResponse,
-    SetResponseParameterData, SupportedCommandClasses,
+    bsd_16_crc, bsd_16_crc_bytes_mut, device::{DeviceUID, DmxSlot}, parameter::{ManufacturerSpecificParameter, ParameterError, ParameterId}, sensor::Sensor, CommandClass, DiscoveryRequestParameterData, DiscoveryResponse, DiscoveryResponseParameterData, DisplayInvertMode, GetRequestParameterData, GetResponse, GetResponseParameterData, LampOnMode, LampState, PacketType, PowerState, ProductCategory, RdmRequestMessage, RdmResponseMessage, ResponseType, SetRequestParameterData, SetResponse, SetResponseParameterData
 };
 use bytes::{BufMut, Bytes, BytesMut};
 use tokio_util::codec::{Decoder, Encoder};
@@ -92,7 +85,7 @@ impl RdmCodec {
                 parameter_id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
                 parameter_data_size: bytes[2],
                 data_type: bytes[3],
-                command_class: SupportedCommandClasses::try_from(bytes[4]).unwrap(),
+                command_class: CommandClass::try_from(bytes[4]).unwrap(),
                 prefix: bytes[5],
                 minimum_valid_value: u32::from_be_bytes(bytes[8..=11].try_into().unwrap()),
                 maximum_valid_value: u32::from_be_bytes(bytes[12..=15].try_into().unwrap()),
@@ -137,7 +130,7 @@ impl RdmCodec {
                             (0x0060_u16..0x8000_u16).contains(&parameter_id)
                         })
                         .map(ParameterId::try_from)
-                        .collect::<Result<Vec<ParameterId>, String>>().unwrap(), // TODO handle this error properly
+                        .collect::<Result<Vec<ParameterId>, ParameterError>>().unwrap(), // TODO handle this error properly
                     manufacturer_specific_parameters: parameters
                         .filter(|parameter_id| *parameter_id >= 0x8000_u16)
                         .map(|parameter_id| {

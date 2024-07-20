@@ -1,6 +1,7 @@
 use crate::{
-    sensor::Sensor, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter,
-    ParameterId, PowerState, ProductCategory,
+    parameter::{ManufacturerSpecificParameter, ParameterId},
+    sensor::Sensor,
+    DisplayInvertMode, LampOnMode, LampState, PowerState, ProductCategory,
 };
 use std::collections::HashMap;
 
