@@ -6,6 +6,7 @@ pub mod response;
 pub mod sensor;
 
 use bytes::BytesMut;
+use thiserror::Error;
 
 pub const MIN_PACKET_LEN: usize = 26;
 
@@ -16,6 +17,12 @@ pub const BROADCAST_ALL_DEVICES_ID: u64 = 0xffffffffffff;
 pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
 pub const ROOT_DEVICE: u16 = 0x0000;
 
+#[derive(Debug, Error)]
+pub enum PacketTypeError {
+    #[error("Unsupported PacketType: {0}")]
+    UnsupportedPacketType(u16),
+}
+
 #[derive(Debug, PartialEq)]
 pub enum PacketType {
     RdmResponse = 0xcc01,
@@ -23,16 +30,21 @@ pub enum PacketType {
 }
 
 impl TryFrom<u16> for PacketType {
-    type Error = &'static str;
+    type Error = PacketTypeError;
 
-    fn try_from(byte: u16) -> Result<Self, Self::Error> {
-        let packet_type = match byte {
-            0xcc01 => PacketType::RdmResponse,
-            0xfefe => PacketType::DiscoveryUniqueBranchResponse,
-            _ => return Err("Invalid value for PacketRequestType"),
-        };
-        Ok(packet_type)
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            0xcc01 => Ok(Self::RdmResponse),
+            0xfefe => Ok(Self::DiscoveryUniqueBranchResponse),
+            _ => Err(PacketTypeError::UnsupportedPacketType(value)),
+        }
     }
+}
+
+#[derive(Debug, Error)]
+pub enum CommandClassError {
+    #[error("Invalid CommandClass: {0}")]
+    InvalidCommandClass(u8),
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -46,19 +58,18 @@ pub enum CommandClass {
 }
 
 impl TryFrom<u8> for CommandClass {
-    type Error = &'static str;
+    type Error = CommandClassError;
 
-    fn try_from(byte: u8) -> Result<Self, Self::Error> {
-        let command_class = match byte {
-            0x10 => CommandClass::DiscoveryCommand,
-            0x11 => CommandClass::DiscoveryCommandResponse,
-            0x20 => CommandClass::GetCommand,
-            0x21 => CommandClass::GetCommandResponse,
-            0x30 => CommandClass::SetCommand,
-            0x31 => CommandClass::SetCommandResponse,
-            _ => return Err("Invalid value for CommandClass"),
-        };
-        Ok(command_class)
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x10 => Ok(Self::DiscoveryCommand),
+            0x11 => Ok(Self::DiscoveryCommandResponse),
+            0x20 => Ok(Self::GetCommand),
+            0x21 => Ok(Self::GetCommandResponse),
+            0x30 => Ok(Self::SetCommand),
+            0x31 => Ok(Self::SetCommandResponse),
+            _ => Err(CommandClassError::InvalidCommandClass(value)),
+        }
     }
 }
 
