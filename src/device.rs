@@ -1,9 +1,8 @@
-use std::collections::HashMap;
-
 use crate::{
-    DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId,
-    PowerState, ProductCategory,
+    sensor::Sensor, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter,
+    ParameterId, PowerState, ProductCategory,
 };
+use std::collections::HashMap;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct DeviceUID {
@@ -30,7 +29,7 @@ impl DeviceUID {
 impl From<u64> for DeviceUID {
     fn from(value: u64) -> Self {
         DeviceUID {
-            manufacturer_id: ((value >> 32_u64) & (0xffff as u64)) as u16,
+            manufacturer_id: ((value >> 32_u64) & 0xffff) as u16,
             device_id: (value & 0xffffffff) as u32,
         }
     }
@@ -87,20 +86,6 @@ pub struct OutputResponseTime {
 }
 
 #[derive(Clone, Debug)]
-pub struct Sensor {
-    pub id: u8,
-    pub kind: u8,
-    pub unit: u8,
-    pub prefix: u8,
-    pub range_minimum_value: u16,
-    pub range_maximum_value: u16,
-    pub normal_minimum_value: u16,
-    pub normal_maximum_value: u16,
-    pub recorded_value_support: u8,
-    pub description: String,
-}
-
-#[derive(Clone, Debug)]
 pub struct DmxSlot {
     pub id: u16,
     pub kind: u8, // TODO use enum
@@ -110,6 +95,7 @@ pub struct DmxSlot {
 
 impl From<&[u8]> for DmxSlot {
     fn from(bytes: &[u8]) -> Self {
+        dbg!(bytes);
         DmxSlot {
             id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
             kind: bytes[2], // TODO use enum
@@ -129,15 +115,14 @@ pub struct Device {
     pub product_category: Option<ProductCategory>,
     pub software_version_id: Option<u32>,
     pub software_version_label: Option<String>,
-    pub footprint: Option<u16>,
+    pub footprint: u16,
     pub current_personality: Option<u8>,
     pub personality_count: u8,
     pub personalities: Option<HashMap<u8, DmxPersonality>>,
-    pub start_address: Option<u16>,
+    pub start_address: u16,
     pub dmx_slots: Option<HashMap<u16, DmxSlot>>,
     pub sub_device_id: u16,
     pub sub_device_count: u16,
-    pub sub_devices: Option<HashMap<u16, Device>>,
     pub sensor_count: u8,
     pub sensors: Option<HashMap<u8, Sensor>>,
     pub supported_standard_parameters: Option<Vec<ParameterId>>,
@@ -253,9 +238,7 @@ impl Device {
         }
 
         println!("\n> DMX Setup:");
-        if let Some(start_address) = self.start_address {
-            println!("Start Address: {:?}", start_address);
-        }
+        println!("Start Address: {:?}", self.start_address);
 
         if self.personality_count > 0 {
             println!("\n> Personalities:");
@@ -280,13 +263,10 @@ impl Device {
             }
         }
 
-        if let Some(footprint) = self.footprint {
-            println!("DMX Footprint: {:?}", footprint);
-
-            if footprint > 0 {
-                if let Some(dmx_slots) = self.dmx_slots {
-                    println!("\nDMX Slots: {:#?}", dmx_slots);
-                }
+        if self.footprint > 0 {
+            println!("DMX Footprint: {:?}", self.footprint);
+            if let Some(dmx_slots) = self.dmx_slots {
+                println!("\nDMX Slots: {:#?}", dmx_slots);
             }
         }
 
@@ -427,16 +407,5 @@ impl Device {
         if let Some(preset_playback_level) = self.preset_playback_level {
             println!("Preset Playback Level: {:?}", preset_playback_level);
         }
-
-        if self.sub_device_count > 0 {
-            println!("\n> Sub devices:");
-            if let Some(sub_devices) = self.sub_devices {
-                for sub_device in sub_devices.into_values() {
-                    sub_device.print();
-                }
-            }
-        }
-
-        println!("");
     }
 }

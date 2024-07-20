@@ -1,12 +1,14 @@
+pub mod codec;
 pub mod device;
+pub mod sensor;
 
-use anyhow::anyhow;
-use bytes::{BufMut, Bytes, BytesMut};
+use crate::{
+    device::{DeviceUID, DmxSlot},
+    sensor::Sensor,
+};
+use bytes::BytesMut;
 use std::{cmp::PartialEq, collections::HashMap};
 use thiserror::Error;
-use tokio_util::codec::{Decoder, Encoder};
-
-use crate::device::{DeviceUID, DmxSlot, Sensor};
 
 pub const MIN_PACKET_LEN: usize = 26;
 
@@ -26,8 +28,8 @@ pub enum ParameterError {
 }
 
 // TODO add remaining parameter ids
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum StandardParameterId {
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ParameterId {
     DiscUniqueBranch = 0x0001,
     DiscMute = 0x0002,
     DiscUnMute = 0x0003,
@@ -94,216 +96,213 @@ pub enum StandardParameterId {
 }
 
 // TODO this could use try_from and return a result rather than panic
-impl From<&[u8]> for StandardParameterId {
+impl From<&[u8]> for ParameterId {
     fn from(bytes: &[u8]) -> Self {
         match u16::from_be_bytes(bytes.try_into().unwrap()) {
-            0x0001 => StandardParameterId::DiscUniqueBranch,
-            0x0002 => StandardParameterId::DiscMute,
-            0x0003 => StandardParameterId::DiscUnMute,
-            0x0010 => StandardParameterId::ProxiedDevices,
-            0x0011 => StandardParameterId::ProxiedDeviceCount,
-            0x0015 => StandardParameterId::CommsStatus,
-            0x0020 => StandardParameterId::QueuedMessage,
-            0x0030 => StandardParameterId::StatusMessages,
-            0x0031 => StandardParameterId::StatusIdDescription,
-            0x0032 => StandardParameterId::ClearStatusId,
-            0x0033 => StandardParameterId::SubDeviceStatusReportThreshold,
-            0x0050 => StandardParameterId::SupportedParameters,
-            0x0051 => StandardParameterId::ParameterDescription,
-            0x0060 => StandardParameterId::DeviceInfo,
-            0x0070 => StandardParameterId::ProductDetailIdList,
-            0x0080 => StandardParameterId::DeviceModelDescription,
-            0x0081 => StandardParameterId::ManufacturerLabel,
-            0x0082 => StandardParameterId::DeviceLabel,
-            0x0090 => StandardParameterId::FactoryDefaults,
-            0x00a0 => StandardParameterId::LanguageCapabilities,
-            0x00b0 => StandardParameterId::Language,
-            0x00c0 => StandardParameterId::SoftwareVersionLabel,
-            0x00c1 => StandardParameterId::BootSoftwareVersionId,
-            0x00c2 => StandardParameterId::BootSoftwareVersionLabel,
-            0x00e0 => StandardParameterId::DmxPersonality,
-            0x00e1 => StandardParameterId::DmxPersonalityDescription,
-            0x00f0 => StandardParameterId::DmxStartAddress,
-            0x0120 => StandardParameterId::SlotInfo,
-            0x0121 => StandardParameterId::SlotDescription,
-            0x0122 => StandardParameterId::DefaultSlotValue,
-            0x0200 => StandardParameterId::SensorDefinition,
-            0x0201 => StandardParameterId::SensorValue,
-            0x0202 => StandardParameterId::RecordSensors,
-            0x0340 => StandardParameterId::DimmerInfo,
-            0x0341 => StandardParameterId::MinimumLevel,
-            0x0342 => StandardParameterId::MaximumLevel,
-            0x0343 => StandardParameterId::Curve,
-            0x0344 => StandardParameterId::CurveDescription,
-            0x0345 => StandardParameterId::OutputResponseTime,
-            0x0346 => StandardParameterId::OutputResponseTimeDescription,
-            0x0347 => StandardParameterId::ModulationFrequency,
-            0x0348 => StandardParameterId::ModulationFrequencyDescription,
-            0x0400 => StandardParameterId::DeviceHours,
-            0x0401 => StandardParameterId::LampHours,
-            0x0402 => StandardParameterId::LampStrikes,
-            0x0403 => StandardParameterId::LampState,
-            0x0404 => StandardParameterId::LampOnMode,
-            0x0405 => StandardParameterId::DevicePowerCycles,
-            0x0500 => StandardParameterId::DisplayInvert,
-            0x0501 => StandardParameterId::DisplayLevel,
-            0x0600 => StandardParameterId::PanInvert,
-            0x0601 => StandardParameterId::TiltInvert,
-            0x0602 => StandardParameterId::PanTiltSwap,
-            0x0603 => StandardParameterId::RealTimeClock,
-            0x1000 => StandardParameterId::IdentifyDevice,
-            0x1001 => StandardParameterId::ResetDevice,
-            0x1010 => StandardParameterId::PowerState,
-            0x1020 => StandardParameterId::PerformSelfTest,
-            0x1021 => StandardParameterId::SelfTestDescription,
-            0x1030 => StandardParameterId::CapturePreset,
-            0x1031 => StandardParameterId::PresetPlayback,
-            _ => panic!("Invalid value for StandardParameterId: 0x{:04X?}", bytes),
+            0x0001 => ParameterId::DiscUniqueBranch,
+            0x0002 => ParameterId::DiscMute,
+            0x0003 => ParameterId::DiscUnMute,
+            0x0010 => ParameterId::ProxiedDevices,
+            0x0011 => ParameterId::ProxiedDeviceCount,
+            0x0015 => ParameterId::CommsStatus,
+            0x0020 => ParameterId::QueuedMessage,
+            0x0030 => ParameterId::StatusMessages,
+            0x0031 => ParameterId::StatusIdDescription,
+            0x0032 => ParameterId::ClearStatusId,
+            0x0033 => ParameterId::SubDeviceStatusReportThreshold,
+            0x0050 => ParameterId::SupportedParameters,
+            0x0051 => ParameterId::ParameterDescription,
+            0x0060 => ParameterId::DeviceInfo,
+            0x0070 => ParameterId::ProductDetailIdList,
+            0x0080 => ParameterId::DeviceModelDescription,
+            0x0081 => ParameterId::ManufacturerLabel,
+            0x0082 => ParameterId::DeviceLabel,
+            0x0090 => ParameterId::FactoryDefaults,
+            0x00a0 => ParameterId::LanguageCapabilities,
+            0x00b0 => ParameterId::Language,
+            0x00c0 => ParameterId::SoftwareVersionLabel,
+            0x00c1 => ParameterId::BootSoftwareVersionId,
+            0x00c2 => ParameterId::BootSoftwareVersionLabel,
+            0x00e0 => ParameterId::DmxPersonality,
+            0x00e1 => ParameterId::DmxPersonalityDescription,
+            0x00f0 => ParameterId::DmxStartAddress,
+            0x0120 => ParameterId::SlotInfo,
+            0x0121 => ParameterId::SlotDescription,
+            0x0122 => ParameterId::DefaultSlotValue,
+            0x0200 => ParameterId::SensorDefinition,
+            0x0201 => ParameterId::SensorValue,
+            0x0202 => ParameterId::RecordSensors,
+            0x0340 => ParameterId::DimmerInfo,
+            0x0341 => ParameterId::MinimumLevel,
+            0x0342 => ParameterId::MaximumLevel,
+            0x0343 => ParameterId::Curve,
+            0x0344 => ParameterId::CurveDescription,
+            0x0345 => ParameterId::OutputResponseTime,
+            0x0346 => ParameterId::OutputResponseTimeDescription,
+            0x0347 => ParameterId::ModulationFrequency,
+            0x0348 => ParameterId::ModulationFrequencyDescription,
+            0x0400 => ParameterId::DeviceHours,
+            0x0401 => ParameterId::LampHours,
+            0x0402 => ParameterId::LampStrikes,
+            0x0403 => ParameterId::LampState,
+            0x0404 => ParameterId::LampOnMode,
+            0x0405 => ParameterId::DevicePowerCycles,
+            0x0500 => ParameterId::DisplayInvert,
+            0x0501 => ParameterId::DisplayLevel,
+            0x0600 => ParameterId::PanInvert,
+            0x0601 => ParameterId::TiltInvert,
+            0x0602 => ParameterId::PanTiltSwap,
+            0x0603 => ParameterId::RealTimeClock,
+            0x1000 => ParameterId::IdentifyDevice,
+            0x1001 => ParameterId::ResetDevice,
+            0x1010 => ParameterId::PowerState,
+            0x1020 => ParameterId::PerformSelfTest,
+            0x1021 => ParameterId::SelfTestDescription,
+            0x1030 => ParameterId::CapturePreset,
+            0x1031 => ParameterId::PresetPlayback,
+            _ => panic!("Invalid value for ParameterId: 0x{:04X?}", bytes),
         }
     }
 }
 
 // TODO this could use try_from and return a result rather than panic
-impl From<u16> for StandardParameterId {
+impl From<u16> for ParameterId {
     fn from(parameter_id: u16) -> Self {
         match parameter_id {
-            0x0001 => StandardParameterId::DiscUniqueBranch,
-            0x0002 => StandardParameterId::DiscMute,
-            0x0003 => StandardParameterId::DiscUnMute,
-            0x0010 => StandardParameterId::ProxiedDevices,
-            0x0011 => StandardParameterId::ProxiedDeviceCount,
-            0x0015 => StandardParameterId::CommsStatus,
-            0x0020 => StandardParameterId::QueuedMessage,
-            0x0030 => StandardParameterId::StatusMessages,
-            0x0031 => StandardParameterId::StatusIdDescription,
-            0x0032 => StandardParameterId::ClearStatusId,
-            0x0033 => StandardParameterId::SubDeviceStatusReportThreshold,
-            0x0050 => StandardParameterId::SupportedParameters,
-            0x0051 => StandardParameterId::ParameterDescription,
-            0x0060 => StandardParameterId::DeviceInfo,
-            0x0070 => StandardParameterId::ProductDetailIdList,
-            0x0080 => StandardParameterId::DeviceModelDescription,
-            0x0081 => StandardParameterId::ManufacturerLabel,
-            0x0082 => StandardParameterId::DeviceLabel,
-            0x0090 => StandardParameterId::FactoryDefaults,
-            0x00a0 => StandardParameterId::LanguageCapabilities,
-            0x00b0 => StandardParameterId::Language,
-            0x00c0 => StandardParameterId::SoftwareVersionLabel,
-            0x00c1 => StandardParameterId::BootSoftwareVersionId,
-            0x00c2 => StandardParameterId::BootSoftwareVersionLabel,
-            0x00e0 => StandardParameterId::DmxPersonality,
-            0x00e1 => StandardParameterId::DmxPersonalityDescription,
-            0x00f0 => StandardParameterId::DmxStartAddress,
-            0x0120 => StandardParameterId::SlotInfo,
-            0x0121 => StandardParameterId::SlotDescription,
-            0x0122 => StandardParameterId::DefaultSlotValue,
-            0x0200 => StandardParameterId::SensorDefinition,
-            0x0201 => StandardParameterId::SensorValue,
-            0x0202 => StandardParameterId::RecordSensors,
-            0x0340 => StandardParameterId::DimmerInfo,
-            0x0341 => StandardParameterId::MinimumLevel,
-            0x0342 => StandardParameterId::MaximumLevel,
-            0x0343 => StandardParameterId::Curve,
-            0x0344 => StandardParameterId::CurveDescription,
-            0x0345 => StandardParameterId::OutputResponseTime,
-            0x0346 => StandardParameterId::OutputResponseTimeDescription,
-            0x0347 => StandardParameterId::ModulationFrequency,
-            0x0348 => StandardParameterId::ModulationFrequencyDescription,
-            0x0400 => StandardParameterId::DeviceHours,
-            0x0401 => StandardParameterId::LampHours,
-            0x0402 => StandardParameterId::LampStrikes,
-            0x0403 => StandardParameterId::LampState,
-            0x0404 => StandardParameterId::LampOnMode,
-            0x0405 => StandardParameterId::DevicePowerCycles,
-            0x0500 => StandardParameterId::DisplayInvert,
-            0x0501 => StandardParameterId::DisplayLevel,
-            0x0600 => StandardParameterId::PanInvert,
-            0x0601 => StandardParameterId::TiltInvert,
-            0x0602 => StandardParameterId::PanTiltSwap,
-            0x0603 => StandardParameterId::RealTimeClock,
-            0x1000 => StandardParameterId::IdentifyDevice,
-            0x1001 => StandardParameterId::ResetDevice,
-            0x1010 => StandardParameterId::PowerState,
-            0x1020 => StandardParameterId::PerformSelfTest,
-            0x1021 => StandardParameterId::SelfTestDescription,
-            0x1030 => StandardParameterId::CapturePreset,
-            0x1031 => StandardParameterId::PresetPlayback,
-            _ => panic!(
-                "Invalid value for StandardParameterId: 0x{:04X?}",
-                parameter_id
-            ),
+            0x0001 => ParameterId::DiscUniqueBranch,
+            0x0002 => ParameterId::DiscMute,
+            0x0003 => ParameterId::DiscUnMute,
+            0x0010 => ParameterId::ProxiedDevices,
+            0x0011 => ParameterId::ProxiedDeviceCount,
+            0x0015 => ParameterId::CommsStatus,
+            0x0020 => ParameterId::QueuedMessage,
+            0x0030 => ParameterId::StatusMessages,
+            0x0031 => ParameterId::StatusIdDescription,
+            0x0032 => ParameterId::ClearStatusId,
+            0x0033 => ParameterId::SubDeviceStatusReportThreshold,
+            0x0050 => ParameterId::SupportedParameters,
+            0x0051 => ParameterId::ParameterDescription,
+            0x0060 => ParameterId::DeviceInfo,
+            0x0070 => ParameterId::ProductDetailIdList,
+            0x0080 => ParameterId::DeviceModelDescription,
+            0x0081 => ParameterId::ManufacturerLabel,
+            0x0082 => ParameterId::DeviceLabel,
+            0x0090 => ParameterId::FactoryDefaults,
+            0x00a0 => ParameterId::LanguageCapabilities,
+            0x00b0 => ParameterId::Language,
+            0x00c0 => ParameterId::SoftwareVersionLabel,
+            0x00c1 => ParameterId::BootSoftwareVersionId,
+            0x00c2 => ParameterId::BootSoftwareVersionLabel,
+            0x00e0 => ParameterId::DmxPersonality,
+            0x00e1 => ParameterId::DmxPersonalityDescription,
+            0x00f0 => ParameterId::DmxStartAddress,
+            0x0120 => ParameterId::SlotInfo,
+            0x0121 => ParameterId::SlotDescription,
+            0x0122 => ParameterId::DefaultSlotValue,
+            0x0200 => ParameterId::SensorDefinition,
+            0x0201 => ParameterId::SensorValue,
+            0x0202 => ParameterId::RecordSensors,
+            0x0340 => ParameterId::DimmerInfo,
+            0x0341 => ParameterId::MinimumLevel,
+            0x0342 => ParameterId::MaximumLevel,
+            0x0343 => ParameterId::Curve,
+            0x0344 => ParameterId::CurveDescription,
+            0x0345 => ParameterId::OutputResponseTime,
+            0x0346 => ParameterId::OutputResponseTimeDescription,
+            0x0347 => ParameterId::ModulationFrequency,
+            0x0348 => ParameterId::ModulationFrequencyDescription,
+            0x0400 => ParameterId::DeviceHours,
+            0x0401 => ParameterId::LampHours,
+            0x0402 => ParameterId::LampStrikes,
+            0x0403 => ParameterId::LampState,
+            0x0404 => ParameterId::LampOnMode,
+            0x0405 => ParameterId::DevicePowerCycles,
+            0x0500 => ParameterId::DisplayInvert,
+            0x0501 => ParameterId::DisplayLevel,
+            0x0600 => ParameterId::PanInvert,
+            0x0601 => ParameterId::TiltInvert,
+            0x0602 => ParameterId::PanTiltSwap,
+            0x0603 => ParameterId::RealTimeClock,
+            0x1000 => ParameterId::IdentifyDevice,
+            0x1001 => ParameterId::ResetDevice,
+            0x1010 => ParameterId::PowerState,
+            0x1020 => ParameterId::PerformSelfTest,
+            0x1021 => ParameterId::SelfTestDescription,
+            0x1030 => ParameterId::CapturePreset,
+            0x1031 => ParameterId::PresetPlayback,
+            _ => panic!("Invalid value for ParameterId: 0x{:04X?}", parameter_id),
         }
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ParameterId {
-    StandardParameter(StandardParameterId),
-    ManufacturerSpecificParameter(u16),
-}
+// #[derive(Copy, Clone, Debug, Enum, Eq, PartialEq)]
+// pub enum ParameterId {
+//     StandardParameter(ParameterId),
+//     ManufacturerSpecificParameter(u16),
+// }
 
 pub const REQUIRED_PARAMETERS: [ParameterId; 4] = [
-    ParameterId::StandardParameter(StandardParameterId::DeviceInfo),
-    ParameterId::StandardParameter(StandardParameterId::SupportedParameters),
-    ParameterId::StandardParameter(StandardParameterId::SoftwareVersionLabel),
-    ParameterId::StandardParameter(StandardParameterId::IdentifyDevice),
+    ParameterId::DeviceInfo,
+    ParameterId::SupportedParameters,
+    ParameterId::SoftwareVersionLabel,
+    ParameterId::IdentifyDevice,
 ];
 
 pub const GET_PARAMETERS: [ParameterId; 46] = [
-    ParameterId::StandardParameter(StandardParameterId::ProxiedDevices),
-    ParameterId::StandardParameter(StandardParameterId::ProxiedDeviceCount),
-    ParameterId::StandardParameter(StandardParameterId::CommsStatus),
-    ParameterId::StandardParameter(StandardParameterId::QueuedMessage),
-    ParameterId::StandardParameter(StandardParameterId::StatusMessages),
-    ParameterId::StandardParameter(StandardParameterId::StatusIdDescription),
-    ParameterId::StandardParameter(StandardParameterId::SubDeviceStatusReportThreshold),
-    ParameterId::StandardParameter(StandardParameterId::SupportedParameters),
-    ParameterId::StandardParameter(StandardParameterId::ParameterDescription),
-    ParameterId::StandardParameter(StandardParameterId::DeviceInfo),
-    ParameterId::StandardParameter(StandardParameterId::ProductDetailIdList),
-    ParameterId::StandardParameter(StandardParameterId::DeviceModelDescription),
-    ParameterId::StandardParameter(StandardParameterId::ManufacturerLabel),
-    ParameterId::StandardParameter(StandardParameterId::DeviceLabel),
-    ParameterId::StandardParameter(StandardParameterId::FactoryDefaults),
-    ParameterId::StandardParameter(StandardParameterId::LanguageCapabilities),
-    ParameterId::StandardParameter(StandardParameterId::Language),
-    ParameterId::StandardParameter(StandardParameterId::SoftwareVersionLabel),
-    ParameterId::StandardParameter(StandardParameterId::BootSoftwareVersionId),
-    ParameterId::StandardParameter(StandardParameterId::BootSoftwareVersionLabel),
-    ParameterId::StandardParameter(StandardParameterId::DmxPersonality),
-    // ParameterId::StandardParameter(StandardParameterId::DmxPersonalityDescription),
-    ParameterId::StandardParameter(StandardParameterId::DmxStartAddress),
-    ParameterId::StandardParameter(StandardParameterId::SlotInfo),
-    // ParameterId::StandardParameter(StandardParameterId::SlotDescription),
-    ParameterId::StandardParameter(StandardParameterId::DefaultSlotValue),
-    // ParameterId::StandardParameter(StandardParameterId::SensorDefinition),
-    // ParameterId::StandardParameter(StandardParameterId::SensorValue),
-    ParameterId::StandardParameter(StandardParameterId::DimmerInfo),
-    ParameterId::StandardParameter(StandardParameterId::MinimumLevel),
-    ParameterId::StandardParameter(StandardParameterId::MaximumLevel),
-    ParameterId::StandardParameter(StandardParameterId::Curve),
-    // ParameterId::StandardParameter(StandardParameterId::CurveDescription),
-    ParameterId::StandardParameter(StandardParameterId::OutputResponseTime),
-    // ParameterId::StandardParameter(StandardParameterId::OutputResponseTimeDescription),
-    ParameterId::StandardParameter(StandardParameterId::ModulationFrequency),
-    // ParameterId::StandardParameter(StandardParameterId::ModulationFrequencyDescription),
-    ParameterId::StandardParameter(StandardParameterId::DeviceHours),
-    ParameterId::StandardParameter(StandardParameterId::LampHours),
-    ParameterId::StandardParameter(StandardParameterId::LampStrikes),
-    ParameterId::StandardParameter(StandardParameterId::LampState),
-    ParameterId::StandardParameter(StandardParameterId::LampOnMode),
-    ParameterId::StandardParameter(StandardParameterId::DevicePowerCycles),
-    ParameterId::StandardParameter(StandardParameterId::DisplayInvert),
-    ParameterId::StandardParameter(StandardParameterId::DisplayLevel),
-    ParameterId::StandardParameter(StandardParameterId::PanInvert),
-    ParameterId::StandardParameter(StandardParameterId::TiltInvert),
-    ParameterId::StandardParameter(StandardParameterId::PanTiltSwap),
-    ParameterId::StandardParameter(StandardParameterId::RealTimeClock),
-    ParameterId::StandardParameter(StandardParameterId::IdentifyDevice),
-    ParameterId::StandardParameter(StandardParameterId::PowerState),
-    ParameterId::StandardParameter(StandardParameterId::PerformSelfTest),
-    // ParameterId::StandardParameter(StandardParameterId::SelfTestDescription),
-    ParameterId::StandardParameter(StandardParameterId::PresetPlayback),
+    ParameterId::ProxiedDevices,
+    ParameterId::ProxiedDeviceCount,
+    ParameterId::CommsStatus,
+    ParameterId::QueuedMessage,
+    ParameterId::StatusMessages,
+    ParameterId::StatusIdDescription,
+    ParameterId::SubDeviceStatusReportThreshold,
+    ParameterId::SupportedParameters,
+    ParameterId::ParameterDescription,
+    ParameterId::DeviceInfo,
+    ParameterId::ProductDetailIdList,
+    ParameterId::DeviceModelDescription,
+    ParameterId::ManufacturerLabel,
+    ParameterId::DeviceLabel,
+    ParameterId::FactoryDefaults,
+    ParameterId::LanguageCapabilities,
+    ParameterId::Language,
+    ParameterId::SoftwareVersionLabel,
+    ParameterId::BootSoftwareVersionId,
+    ParameterId::BootSoftwareVersionLabel,
+    ParameterId::DmxPersonality,
+    // ParameterId::DmxPersonalityDescription,
+    ParameterId::DmxStartAddress,
+    ParameterId::SlotInfo,
+    // ParameterId::SlotDescription,
+    ParameterId::DefaultSlotValue,
+    // ParameterId::SensorDefinition,
+    // ParameterId::SensorValue,
+    ParameterId::DimmerInfo,
+    ParameterId::MinimumLevel,
+    ParameterId::MaximumLevel,
+    ParameterId::Curve,
+    // ParameterId::CurveDescription,
+    ParameterId::OutputResponseTime,
+    // ParameterId::OutputResponseTimeDescription,
+    ParameterId::ModulationFrequency,
+    // ParameterId::ModulationFrequencyDescription,
+    ParameterId::DeviceHours,
+    ParameterId::LampHours,
+    ParameterId::LampStrikes,
+    ParameterId::LampState,
+    ParameterId::LampOnMode,
+    ParameterId::DevicePowerCycles,
+    ParameterId::DisplayInvert,
+    ParameterId::DisplayLevel,
+    ParameterId::PanInvert,
+    ParameterId::TiltInvert,
+    ParameterId::PanTiltSwap,
+    ParameterId::RealTimeClock,
+    ParameterId::IdentifyDevice,
+    ParameterId::PowerState,
+    ParameterId::PerformSelfTest,
+    // ParameterId::SelfTestDescription,
+    ParameterId::PresetPlayback,
 ];
 
 #[derive(Clone, Debug, Default)]
@@ -374,7 +373,7 @@ impl TryFrom<u8> for CommandClass {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SupportedCommandClasses {
     Get = 0x01,
     Set = 0x02,
@@ -401,7 +400,7 @@ pub fn bsd_16_crc_bytes_mut(packet: &mut BytesMut) -> u16 {
         .fold(0_u16, |sum, byte| (sum.overflowing_add(*byte as u16).0))
 }
 
-pub fn bsd_16_crc(packet: &Vec<u8>) -> u16 {
+pub fn bsd_16_crc(packet: &[u8]) -> u16 {
     packet
         .iter()
         .fold(0_u16, |sum, byte| (sum.overflowing_add(*byte as u16).0))
@@ -445,7 +444,7 @@ pub enum ResponseNackReasonCode {
 }
 
 // Product Categories - Page 105 RDM Spec
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ProductCategory {
     NotDeclared = 0x0000,
     Fixture = 0x0100,
@@ -579,7 +578,7 @@ impl From<&[u8]> for ProductCategory {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum LampState {
     LampOff = 0x00,        // 0x00 = "Lamp Off",
     LampOn = 0x01,         // 0x01 = "Lamp On",
@@ -603,7 +602,7 @@ impl From<u8> for LampState {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum LampOnMode {
     OffMode = 0x00,  // 0x00 = "Off Mode",
     DmxMode = 0x01,  // 0x01 = "DMX Mode",
@@ -623,7 +622,7 @@ impl From<u8> for LampOnMode {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum PowerState {
     FullOff = 0x00,  // 0x00 = "Full Off",
     Shutdown = 0x01, // 0x01 = "Shutdown",
@@ -643,7 +642,7 @@ impl From<u8> for PowerState {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum OnOffStates {
     Off = 0x00, // 0x00 = "Off",
     On = 0x01,  // 0x01 = "On",
@@ -659,7 +658,7 @@ impl From<u8> for OnOffStates {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum DisplayInvertMode {
     Off = 0x00,  // 0x00 = "Off",
     On = 0x01,   // 0x01 = "On",
@@ -677,7 +676,7 @@ impl From<u8> for DisplayInvertMode {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ResetType {
     Warm = 0x01,
     Cold = 0xff,
@@ -729,11 +728,11 @@ impl TryFrom<u8> for PacketResponseType {
     }
 }
 
-pub fn is_checksum_valid(packet: &Vec<u8>) -> bool {
+pub fn is_checksum_valid(packet: &[u8]) -> bool {
     let packet_checksum =
         u16::from_be_bytes(packet[packet.len() - 2..packet.len()].try_into().unwrap());
 
-    let calculated_checksum = bsd_16_crc(&packet[..packet.len() - 2].try_into().unwrap());
+    let calculated_checksum = bsd_16_crc(&packet[..packet.len() - 2]);
 
     packet_checksum == calculated_checksum
 }
@@ -750,8 +749,8 @@ pub struct DiscoveryRequest {
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub port_id: u8,
-    pub sub_device: u16,
-    pub parameter_id: ParameterId,
+    pub sub_device_id: u16,
+    pub parameter_id: u16,
     pub parameter_data: Option<DiscoveryRequestParameterData>,
 }
 
@@ -763,6 +762,7 @@ pub enum GetRequestParameterData {
     ModulationFrequencyDescription { modulation_frequency: u8 },
     OutputResponseTimeDescription { output_response_time: u8 },
     SelfTestDescription { self_test_id: u8 },
+    SlotDescription { slot_id: u16 },
 }
 
 pub struct GetRequest {
@@ -770,15 +770,35 @@ pub struct GetRequest {
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub port_id: u8,
-    pub sub_device: u16,
-    pub parameter_id: ParameterId,
+    pub sub_device_id: u16,
+    pub parameter_id: u16,
     pub parameter_data: Option<GetRequestParameterData>,
+}
+
+pub enum SetRequestParameterData {
+    DeviceLabel { device_label: String },
+    DmxPersonality { personality_id: u8 },
+    DmxStartAddress { dmx_start_address: u16 },
+    Curve { curve_id: u8 },
+    ModulationFrequency { modulation_frequency_id: u8 },
+    OutputResponseTime { output_response_time_id: u8 },
+    IdentifyDevice { identify: bool },
+}
+
+pub struct SetRequest {
+    pub destination_uid: DeviceUID,
+    pub source_uid: DeviceUID,
+    pub transaction_number: u8,
+    pub port_id: u8,
+    pub sub_device_id: u16,
+    pub parameter_id: u16,
+    pub parameter_data: Option<SetRequestParameterData>,
 }
 
 pub enum RdmRequestMessage {
     DiscoveryRequest(DiscoveryRequest),
     GetRequest(GetRequest),
-    // SetCommand(SetCommandMessage)
+    SetRequest(SetRequest),
 }
 
 #[derive(Clone, Debug)]
@@ -866,7 +886,11 @@ pub enum GetResponseParameterData {
         dmx_start_address: u16,
     },
     SlotInfo {
-        dmx_slots: Vec<DmxSlot>,
+        dmx_slots: Option<Vec<DmxSlot>>,
+    },
+    SlotDescription {
+        slot_id: u16,
+        description: String,
     },
     DeviceHours {
         device_hours: u32,
@@ -948,16 +972,40 @@ pub enum GetResponseParameterData {
 }
 
 #[derive(Clone, Debug)]
+pub enum SetResponseParameterData {
+    DeviceLabel,
+    DmxPersonality,
+    DmxStartAddress,
+    Curve,
+    ModulationFrequency,
+    OutputResponseTime,
+    IdentifyDevice,
+}
+
+#[derive(Clone, Debug)]
 pub struct GetResponse {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub response_type: ResponseType,
     pub message_count: u8,
-    pub sub_device: u16,
+    pub sub_device_id: u16,
     pub command_class: CommandClass,
     pub parameter_id: ParameterId,
     pub parameter_data: Option<GetResponseParameterData>,
+}
+
+#[derive(Clone, Debug)]
+pub struct SetResponse {
+    pub destination_uid: DeviceUID,
+    pub source_uid: DeviceUID,
+    pub transaction_number: u8,
+    pub response_type: ResponseType,
+    pub message_count: u8,
+    pub sub_device_id: u16,
+    pub command_class: CommandClass,
+    pub parameter_id: ParameterId,
+    pub parameter_data: Option<SetResponseParameterData>,
 }
 
 #[derive(Clone, Debug)]
@@ -967,7 +1015,7 @@ pub struct DiscoveryResponse {
     pub transaction_number: u8,
     pub response_type: ResponseType,
     pub message_count: u8,
-    pub sub_device: u16,
+    pub sub_device_id: u16,
     pub command_class: CommandClass,
     pub parameter_id: ParameterId,
     pub parameter_data: Option<DiscoveryResponseParameterData>,
@@ -978,564 +1026,5 @@ pub enum RdmResponseMessage {
     DiscoveryUniqueBranchResponse(DeviceUID),
     DiscoveryResponse(DiscoveryResponse),
     GetResponse(GetResponse),
-    // SetCommand(SetCommandMessage)
-}
-
-#[derive(Copy, Clone, Default)]
-pub struct RdmCodec;
-
-impl RdmCodec {
-    const SC_RDM: u8 = 0xcc;
-    const SC_SUB_MESSAGE: u8 = 0x01;
-    const FRAME_HEADER_FOOTER_SIZE: usize = 4;
-
-    pub fn get_request_parameter_data_to_bytes(
-        parameter_data: GetRequestParameterData,
-    ) -> BytesMut {
-        let mut bytes = BytesMut::new();
-
-        match parameter_data {
-            GetRequestParameterData::ParameterDescription { parameter_id } => {
-                bytes.put_u16(parameter_id)
-            }
-            GetRequestParameterData::SensorDefinition { sensor_id } => bytes.put_u8(sensor_id),
-            GetRequestParameterData::DmxPersonalityDescription { personality } => {
-                bytes.put_u8(personality)
-            }
-            GetRequestParameterData::CurveDescription { curve } => bytes.put_u8(curve),
-            GetRequestParameterData::ModulationFrequencyDescription {
-                modulation_frequency,
-            } => bytes.put_u8(modulation_frequency),
-            GetRequestParameterData::OutputResponseTimeDescription {
-                output_response_time,
-            } => bytes.put_u8(output_response_time),
-            GetRequestParameterData::SelfTestDescription { self_test_id } => {
-                println!("self_test_id: {}", self_test_id);
-                bytes.put_u8(self_test_id)
-            }
-        }
-
-        bytes
-    }
-
-    pub fn get_response_bytes_to_parameter_data(
-        parameter_id: StandardParameterId,
-        bytes: Bytes,
-    ) -> GetResponseParameterData {
-        match parameter_id {
-            StandardParameterId::ProxiedDeviceCount => {
-                GetResponseParameterData::ProxiedDeviceCount {
-                    device_count: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
-                    list_change: bytes[2] != 0,
-                }
-            }
-            StandardParameterId::ProxiedDevices => GetResponseParameterData::ProxiedDevices {
-                device_uids: bytes.chunks(6).map(DeviceUID::from).collect(),
-            },
-            StandardParameterId::ParameterDescription => {
-                GetResponseParameterData::ParameterDescription {
-                    parameter_id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
-                    parameter_data_size: bytes[2],
-                    data_type: bytes[3],
-                    command_class: SupportedCommandClasses::try_from(bytes[4]).unwrap(),
-                    prefix: bytes[5],
-                    minimum_valid_value: u32::from_be_bytes(bytes[8..=11].try_into().unwrap()),
-                    maximum_valid_value: u32::from_be_bytes(bytes[12..=15].try_into().unwrap()),
-                    default_value: u32::from_be_bytes(bytes[16..=19].try_into().unwrap()),
-                    description: String::from_utf8_lossy(&bytes[20..])
-                        .trim_end_matches("\0")
-                        .to_string(),
-                }
-            }
-            StandardParameterId::DeviceLabel => GetResponseParameterData::DeviceLabel {
-                device_label: String::from_utf8_lossy(&bytes)
-                    .trim_end_matches("\0")
-                    .to_string(),
-            },
-            StandardParameterId::DeviceInfo => GetResponseParameterData::DeviceInfo {
-                protocol_version: format!("{}.{}", bytes[0], bytes[1]),
-                model_id: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
-                product_category: ProductCategory::from(&bytes[4..=5]),
-                software_version_id: u32::from_be_bytes(bytes[6..=9].try_into().unwrap()),
-                footprint: u16::from_be_bytes(bytes[10..=11].try_into().unwrap()),
-                current_personality: bytes[12],
-                personality_count: bytes[13],
-                start_address: u16::from_be_bytes(bytes[14..=15].try_into().unwrap()),
-                sub_device_count: u16::from_be_bytes(bytes[16..=17].try_into().unwrap()),
-                sensor_count: u8::from_be(bytes[18]),
-            },
-            StandardParameterId::SoftwareVersionLabel => {
-                GetResponseParameterData::SoftwareVersionLabel {
-                    software_version_label: String::from_utf8_lossy(&bytes)
-                        .trim_end_matches("\0")
-                        .to_string(),
-                }
-            }
-            StandardParameterId::SupportedParameters => {
-                let parameters = bytes
-                    .chunks(2)
-                    .map(|chunk| u16::from_be_bytes(chunk.try_into().unwrap()));
-                GetResponseParameterData::SupportedParameters {
-                    standard_parameters: parameters
-                        .clone()
-                        .filter(|parameter_id| {
-                            // TODO consider if we should filter parameters here or before we add to the queue
-                            let parameter_id = *parameter_id;
-                            parameter_id >= 0x0060_u16 && parameter_id < 0x8000_u16
-                        })
-                        .map(|pid| ParameterId::StandardParameter(StandardParameterId::from(pid)))
-                        .collect(),
-                    manufacturer_specific_parameters: parameters
-                        .filter(|parameter_id| *parameter_id >= 0x8000_u16)
-                        .map(|parameter_id| {
-                            (
-                                parameter_id,
-                                ManufacturerSpecificParameter {
-                                    parameter_id,
-                                    ..Default::default()
-                                },
-                            )
-                        })
-                        .collect(),
-                }
-            }
-            StandardParameterId::SensorDefinition => {
-                println!("bytes: {:02X?}", bytes);
-                GetResponseParameterData::SensorDefinition {
-                    sensor: Sensor {
-                        id: bytes[0],
-                        kind: bytes[1],
-                        unit: bytes[2],
-                        prefix: bytes[3],
-                        range_minimum_value: u16::from_be_bytes(bytes[4..=5].try_into().unwrap()),
-                        range_maximum_value: u16::from_be_bytes(bytes[6..=7].try_into().unwrap()),
-                        normal_minimum_value: u16::from_be_bytes(bytes[8..=9].try_into().unwrap()),
-                        normal_maximum_value: u16::from_be_bytes(
-                            bytes[10..=11].try_into().unwrap(),
-                        ),
-                        recorded_value_support: bytes[12],
-                        description: String::from_utf8_lossy(&bytes[13..])
-                            .trim_end_matches("\0")
-                            .to_string(),
-                    },
-                }
-            }
-            StandardParameterId::IdentifyDevice => GetResponseParameterData::IdentifyDevice {
-                is_identifying: bytes[0] != 0,
-            },
-            StandardParameterId::ManufacturerLabel => GetResponseParameterData::ManufacturerLabel {
-                manufacturer_label: String::from_utf8_lossy(&bytes)
-                    .trim_end_matches("\0")
-                    .to_string(),
-            },
-            StandardParameterId::FactoryDefaults => GetResponseParameterData::FactoryDefaults {
-                factory_default: bytes[0] != 0,
-            },
-            StandardParameterId::DeviceModelDescription => {
-                GetResponseParameterData::DeviceModelDescription {
-                    device_model_description: String::from_utf8_lossy(&bytes)
-                        .trim_end_matches("\0")
-                        .to_string(),
-                }
-            }
-            StandardParameterId::ProductDetailIdList => {
-                GetResponseParameterData::ProductDetailIdList {
-                    product_detail_id_list: bytes
-                        .chunks(2)
-                        .map(|id| u16::from_be_bytes(id.try_into().unwrap()))
-                        .collect(),
-                }
-            }
-            StandardParameterId::DmxPersonality => GetResponseParameterData::DmxPersonality {
-                current_personality: bytes[0],
-                personality_count: bytes[1],
-            },
-            StandardParameterId::DmxPersonalityDescription => {
-                GetResponseParameterData::DmxPersonalityDescription {
-                    id: bytes[0],
-                    dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into().unwrap()),
-                    description: String::from_utf8_lossy(&bytes[3..])
-                        .trim_end_matches("\0")
-                        .to_string(),
-                }
-            }
-            StandardParameterId::DmxStartAddress => GetResponseParameterData::DmxStartAddress {
-                dmx_start_address: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
-            },
-            StandardParameterId::SlotInfo => GetResponseParameterData::SlotInfo {
-                dmx_slots: bytes.chunks(5).map(DmxSlot::from).collect(),
-            },
-            StandardParameterId::DeviceHours => GetResponseParameterData::DeviceHours {
-                device_hours: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
-            },
-            StandardParameterId::LampHours => GetResponseParameterData::LampHours {
-                lamp_hours: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
-            },
-            StandardParameterId::LampStrikes => GetResponseParameterData::LampStrikes {
-                lamp_strikes: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
-            },
-            StandardParameterId::LampState => GetResponseParameterData::LampState {
-                lamp_state: LampState::from(bytes[0]),
-            },
-            StandardParameterId::LampOnMode => GetResponseParameterData::LampOnMode {
-                lamp_on_mode: LampOnMode::from(bytes[0]),
-            },
-            StandardParameterId::DevicePowerCycles => GetResponseParameterData::DevicePowerCycles {
-                power_cycle_count: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
-            },
-            StandardParameterId::DisplayInvert => GetResponseParameterData::DisplayInvert {
-                display_invert_mode: DisplayInvertMode::from(bytes[0]),
-            },
-            StandardParameterId::Curve => GetResponseParameterData::Curve {
-                current_curve: bytes[0],
-                curve_count: bytes[1],
-            },
-            StandardParameterId::CurveDescription => GetResponseParameterData::CurveDescription {
-                id: bytes[0],
-                description: String::from_utf8_lossy(&bytes[1..])
-                    .trim_end_matches("\0")
-                    .to_string(),
-            },
-            StandardParameterId::ModulationFrequency => {
-                GetResponseParameterData::ModulationFrequency {
-                    current_modulation_frequency: bytes[0],
-                    modulation_frequency_count: bytes[1],
-                }
-            }
-            StandardParameterId::ModulationFrequencyDescription => {
-                GetResponseParameterData::ModulationFrequencyDescription {
-                    id: bytes[0],
-                    frequency: u32::from_be_bytes(bytes[1..=4].try_into().unwrap()),
-                    description: String::from_utf8_lossy(&bytes[5..])
-                        .trim_end_matches("\0")
-                        .to_string(),
-                }
-            }
-            StandardParameterId::DimmerInfo => GetResponseParameterData::DimmerInfo {
-                minimum_level_lower_limit: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
-                minimum_level_upper_limit: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
-                maximum_level_lower_limit: u16::from_be_bytes(bytes[4..=5].try_into().unwrap()),
-                maximum_level_upper_limit: u16::from_be_bytes(bytes[6..=7].try_into().unwrap()),
-                num_of_supported_curves: bytes[8],
-                levels_resolution: bytes[9],
-                minimum_levels_split_levels_supports: bytes[10], // TODO could be bool
-            },
-            StandardParameterId::MinimumLevel => GetResponseParameterData::MinimumLevel {
-                minimum_level_increasing: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
-                minimum_level_decreasing: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
-                on_below_minimum: bytes[4],
-            },
-            StandardParameterId::MaximumLevel => GetResponseParameterData::MaximumLevel {
-                maximum_level: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
-            },
-            StandardParameterId::OutputResponseTime => {
-                GetResponseParameterData::OutputResponseTime {
-                    current_output_response_time: bytes[0],
-                    output_response_time_count: bytes[1],
-                }
-            }
-            StandardParameterId::OutputResponseTimeDescription => {
-                GetResponseParameterData::OutputResponseTimeDescription {
-                    id: bytes[0],
-                    description: String::from_utf8_lossy(&bytes[1..])
-                        .trim_end_matches("\0")
-                        .to_string(),
-                }
-            }
-            StandardParameterId::PowerState => GetResponseParameterData::PowerState {
-                power_state: PowerState::from(bytes[0]),
-            },
-            StandardParameterId::PerformSelfTest => GetResponseParameterData::PerformSelfTest {
-                is_active: bytes[0] != 0,
-            },
-            StandardParameterId::SelfTestDescription => {
-                GetResponseParameterData::SelfTestDescription {
-                    self_test_id: bytes[0],
-                    description: String::from_utf8_lossy(&bytes[1..])
-                        .trim_end_matches("\0")
-                        .to_string(),
-                }
-            }
-            StandardParameterId::PresetPlayback => GetResponseParameterData::PresetPlayback {
-                mode: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
-                level: bytes[2],
-            },
-            _ => panic!("unsupported parameter"),
-        }
-    }
-
-    pub fn discovery_request_parameter_data_to_bytes(
-        parameter_data: DiscoveryRequestParameterData,
-    ) -> BytesMut {
-        let mut bytes = BytesMut::new();
-
-        match parameter_data {
-            DiscoveryRequestParameterData::DiscUniqueBranch {
-                lower_bound_uid,
-                upper_bound_uid,
-            } => {
-                bytes.put_u16(lower_bound_uid.manufacturer_id);
-                bytes.put_u32(lower_bound_uid.device_id);
-                bytes.put_u16(upper_bound_uid.manufacturer_id);
-                bytes.put_u32(upper_bound_uid.device_id);
-            }
-        }
-
-        bytes
-    }
-
-    pub fn discovery_response_bytes_to_parameter_data(
-        parameter_id: StandardParameterId,
-        bytes: Bytes,
-    ) -> DiscoveryResponseParameterData {
-        match parameter_id {
-            StandardParameterId::DiscMute => {
-                // TODO could deduplicate the code here
-                let binding_uid = if bytes.len() > 2 {
-                    Some(DeviceUID::from(&bytes[2..]))
-                } else {
-                    None
-                };
-                DiscoveryResponseParameterData::DiscMute {
-                    control_field: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
-                    binding_uid,
-                }
-            }
-            StandardParameterId::DiscUnMute => {
-                let binding_uid = if bytes.len() > 2 {
-                    Some(DeviceUID::from(&bytes[2..]))
-                } else {
-                    None
-                };
-                DiscoveryResponseParameterData::DiscMute {
-                    control_field: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
-                    binding_uid,
-                }
-            }
-            _ => panic!("unsupported parameter"),
-        }
-    }
-
-    pub fn is_checksum_valid(packet: &Vec<u8>) -> bool {
-        let packet_checksum =
-            u16::from_be_bytes(packet[packet.len() - 2..packet.len()].try_into().unwrap());
-
-        let calculated_checksum = bsd_16_crc(&packet[..packet.len() - 2].try_into().unwrap());
-
-        packet_checksum == calculated_checksum
-    }
-}
-
-impl Encoder<RdmRequestMessage> for RdmCodec {
-    type Error = anyhow::Error;
-
-    fn encode(&mut self, item: RdmRequestMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
-        let (
-            command_class,
-            destination_uid,
-            source_uid,
-            transaction_number,
-            port_id,
-            sub_device,
-            parameter_id,
-            parameter_data,
-        ) = match item {
-            RdmRequestMessage::DiscoveryRequest(message) => (
-                CommandClass::DiscoveryCommand,
-                message.destination_uid,
-                message.source_uid,
-                message.transaction_number,
-                message.port_id,
-                message.sub_device,
-                message.parameter_id,
-                message
-                    .parameter_data
-                    .map(Self::discovery_request_parameter_data_to_bytes),
-            ),
-            RdmRequestMessage::GetRequest(message) => (
-                CommandClass::GetCommand,
-                message.destination_uid,
-                message.source_uid,
-                message.transaction_number,
-                message.port_id,
-                message.sub_device,
-                message.parameter_id,
-                message
-                    .parameter_data
-                    .map(Self::get_request_parameter_data_to_bytes),
-            ),
-            // _ => panic!("Unknown RdmRequestMessage type"),
-        };
-
-        let parameter_data_length = if let Some(parameter_data) = parameter_data.clone() {
-            parameter_data.len()
-        } else {
-            0
-        };
-
-        dst.reserve(parameter_data_length + 26); // TODO double check length
-
-        dst.put_u8(Self::SC_RDM); // Start Code
-        dst.put_u8(Self::SC_SUB_MESSAGE); // Sub Start Code
-        dst.put_u8(parameter_data_length as u8 + 24); // Message Length: Range 24 to 255 excluding the checksum
-        dst.put_u16(destination_uid.manufacturer_id);
-        dst.put_u32(destination_uid.device_id);
-        dst.put_u16(source_uid.manufacturer_id);
-        dst.put_u32(source_uid.device_id);
-        dst.put_u8(transaction_number);
-        dst.put_u8(port_id);
-        dst.put_u8(0x00); // Message Count, should always be set to 0x00 for all controller created requests
-        dst.put_u16(sub_device); // Sub Device;
-        dst.put_u8(command_class as u8);
-
-        match parameter_id {
-            ParameterId::StandardParameter(parameter_id) => dst.put_u16(parameter_id as u16),
-            ParameterId::ManufacturerSpecificParameter(parameter_id) => dst.put_u16(parameter_id),
-        }
-
-        dst.put_u8(parameter_data_length as u8);
-
-        if let Some(bytes) = parameter_data {
-            dst.put(bytes);
-        }
-
-        dst.put_u16(bsd_16_crc_bytes_mut(&mut dst.clone()));
-        Ok(())
-    }
-}
-
-impl Decoder for RdmCodec {
-    type Item = RdmResponseMessage;
-    type Error = anyhow::Error;
-
-    fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        let len = src.len();
-
-        let rdm_packet_type =
-            PacketType::try_from(u16::from_be_bytes(src[0..=1].try_into().unwrap())).unwrap();
-
-        let frame = match rdm_packet_type {
-            PacketType::DiscoveryUniqueBranchResponse => {
-                let euid_start_index = src.iter().position(|x| *x == 0xaa).unwrap();
-
-                let euid = Vec::from(&src[(euid_start_index + 1)..=(euid_start_index + 12)]);
-
-                let ecs = Vec::from(&src[(euid_start_index + 13)..=(euid_start_index + 16)]);
-
-                let decoded_checksum = bsd_16_crc(&euid);
-
-                let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
-
-                if checksum != decoded_checksum {
-                    return Err(anyhow!("decoded checksum incorrect",));
-                    // return Err(io::Error::new(
-                    //     io::ErrorKind::Other,
-                    //     "decoded checksum incorrect",
-                    // ));
-                }
-
-                let manufacturer_id = u16::from_be_bytes([euid[0] & euid[1], euid[2] & euid[3]]);
-
-                let device_id = u32::from_be_bytes([
-                    euid[4] & euid[5],
-                    euid[6] & euid[7],
-                    euid[8] & euid[9],
-                    euid[10] & euid[11],
-                ]);
-
-                RdmResponseMessage::DiscoveryUniqueBranchResponse(DeviceUID::new(
-                    manufacturer_id,
-                    device_id,
-                ))
-            }
-            PacketType::RdmResponse => {
-                // if let Some(start_byte) = src.iter().position(|b| *b == Self::SC_RDM) {
-                // We can safely ignore any bytes before and including the START_BYTE
-                // let _ = src.split_to(start_byte);
-
-                // TODO should be checking if checksum is valid
-
-                if len < Self::FRAME_HEADER_FOOTER_SIZE {
-                    return Ok(None);
-                }
-
-                // let packet_length = src[2] as usize;
-
-                // if len < Self::FRAME_HEADER_FOOTER_SIZE + 3 {
-                //     return Ok(None);
-                // }
-
-                let frame = src
-                    .split_to(len)
-                    // .split_to(packet_length + Self::FRAME_HEADER_FOOTER_SIZE)
-                    .freeze();
-
-                let command_class = CommandClass::try_from(frame[20]).unwrap();
-                let destination_uid = DeviceUID::from(&frame[3..=8]);
-                let source_uid = DeviceUID::from(&frame[9..=14]);
-                let transaction_number = frame[15];
-                let response_type = ResponseType::try_from(frame[16]).unwrap();
-                let message_count = frame[17];
-                let sub_device = u16::from_be_bytes(frame[18..=19].try_into().unwrap());
-                let parameter_id = StandardParameterId::from(&frame[21..=22]);
-
-                let parameter_data_length = frame[23];
-                let parameter_data: Option<Bytes> = if parameter_data_length > 0 {
-                    Some(frame.slice(24..frame.len() - 2))
-                } else {
-                    None
-                };
-
-                let frame = match command_class {
-                    CommandClass::GetCommandResponse => {
-                        RdmResponseMessage::GetResponse(GetResponse {
-                            destination_uid,
-                            source_uid,
-                            transaction_number,
-                            response_type,
-                            message_count,
-                            command_class,
-                            sub_device,
-                            parameter_id: ParameterId::StandardParameter(parameter_id),
-                            parameter_data: parameter_data.map(|parameter_data| {
-                                Self::get_response_bytes_to_parameter_data(
-                                    parameter_id,
-                                    parameter_data,
-                                )
-                            }),
-                        })
-                    }
-                    CommandClass::DiscoveryCommandResponse => {
-                        RdmResponseMessage::DiscoveryResponse(DiscoveryResponse {
-                            destination_uid,
-                            source_uid,
-                            transaction_number,
-                            response_type,
-                            message_count,
-                            command_class,
-                            sub_device,
-                            parameter_id: ParameterId::StandardParameter(parameter_id),
-                            parameter_data: parameter_data.map(|parameter_data| {
-                                Self::discovery_response_bytes_to_parameter_data(
-                                    parameter_id,
-                                    parameter_data,
-                                )
-                            }),
-                        })
-                    }
-                    _ => todo!("Unknown CommandClass"),
-                };
-
-                frame
-
-                // } else {
-                //     println!("packet length");
-                //     // TODO might need to return Err() here
-                //     return Ok(None);
-                // }
-            }
-        };
-
-        Ok(Some(frame))
-    }
+    SetResponse(SetResponse),
 }
