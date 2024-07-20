@@ -256,3 +256,253 @@ impl From<u16> for ManufacturerSpecificParameter {
         }
     }
 }
+
+// Product Categories - Page 105 RDM Spec
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ProductCategory {
+    NotDeclared = 0x0000,
+    Fixture = 0x0100,
+    FixtureFixed = 0x0101,
+    FixtureMovingYoke = 0x0102,
+    FixtureMovingMirror = 0x0103,
+    FixtureOther = 0x01ff,
+    FixtureAccessory = 0x0200,
+    FixtureAccessoryColor = 0x0201,
+    FixtureAccessoryYoke = 0x0202,
+    FixtureAccessoryMirror = 0x0203,
+    FixtureAccessoryEffect = 0x0204,
+    FixtureAccessoryBeam = 0x0205,
+    AccessoryOther = 0x02ff,
+    Projector = 0x0300,
+    ProjectorFixed = 0x0301,
+    ProjectorMovingYoke = 0x0302,
+    ProjectorMovingMirror = 0x0303,
+    ProjectorOther = 0x03ff,
+    Atmospheric = 0x0400,
+    AtmosphericEffect = 0x0401,
+    AtmosphericPyro = 0x0402,
+    AtmosphericOther = 0x04ff,
+    Dimmer = 0x0500,
+    DimmerACIncandescent = 0x0501,
+    DimmerACFlourescent = 0x0502,
+    DimmerACColdCathode = 0x0503,
+    DimmerACNonDimModule = 0x0504,
+    DimmerACLowVoltage = 0x0505,
+    DimmerControllableAC = 0x0506,
+    DimmerDCLevelOutput = 0x0507,
+    DimmerDCPWMOutput = 0x0508,
+    DimmerSpecialisedLED = 0x0509,
+    DimmerOther = 0x05ff,
+    Power = 0x0600,
+    PowerControl = 0x0601,
+    PowerSource = 0x0602,
+    PowerOther = 0x06ff,
+    Scenic = 0x0700,
+    ScenicDrive = 0x0701,
+    ScenicOther = 0x07ff,
+    Data = 0x0800,
+    DataDistribution = 0x0801,
+    DataConversion = 0x0802,
+    DataOther = 0x08ff,
+    AV = 0x0900,
+    AVAudio = 0x0901,
+    AVVideo = 0x0902,
+    AVOther = 0x09ff,
+    Monitor = 0x0a00,
+    MonitorACLinePower = 0x0a01,
+    MonitorDCPower = 0x0a02,
+    MonitorEnvironmental = 0x0a03,
+    MonitorOther = 0x0aff,
+    Control = 0x7000,
+    ControlController = 0x7001,
+    ControlBackupDevice = 0x7002,
+    ControlOther = 0x70ff,
+    Test = 0x7100,
+    TestEquipment = 0x7101,
+    TestEquipmentOther = 0x71ff,
+    Other = 0x7fff,
+}
+
+impl From<&[u8]> for ProductCategory {
+    fn from(bytes: &[u8]) -> Self {
+        match u16::from_be_bytes(bytes.try_into().unwrap()) {
+            0x0000 => ProductCategory::NotDeclared,
+            0x0100 => ProductCategory::Fixture,
+            0x0101 => ProductCategory::FixtureFixed,
+            0x0102 => ProductCategory::FixtureMovingYoke,
+            0x0103 => ProductCategory::FixtureMovingMirror,
+            0x01ff => ProductCategory::FixtureOther,
+            0x0200 => ProductCategory::FixtureAccessory,
+            0x0201 => ProductCategory::FixtureAccessoryColor,
+            0x0202 => ProductCategory::FixtureAccessoryYoke,
+            0x0203 => ProductCategory::FixtureAccessoryMirror,
+            0x0204 => ProductCategory::FixtureAccessoryEffect,
+            0x0205 => ProductCategory::FixtureAccessoryBeam,
+            0x02ff => ProductCategory::AccessoryOther,
+            0x0300 => ProductCategory::Projector,
+            0x0301 => ProductCategory::ProjectorFixed,
+            0x0302 => ProductCategory::ProjectorMovingYoke,
+            0x0303 => ProductCategory::ProjectorMovingMirror,
+            0x03ff => ProductCategory::ProjectorOther,
+            0x0400 => ProductCategory::Atmospheric,
+            0x0401 => ProductCategory::AtmosphericEffect,
+            0x0402 => ProductCategory::AtmosphericPyro,
+            0x04ff => ProductCategory::AtmosphericOther,
+            0x0500 => ProductCategory::Dimmer,
+            0x0501 => ProductCategory::DimmerACIncandescent,
+            0x0502 => ProductCategory::DimmerACFlourescent,
+            0x0503 => ProductCategory::DimmerACColdCathode,
+            0x0504 => ProductCategory::DimmerACNonDimModule,
+            0x0505 => ProductCategory::DimmerACLowVoltage,
+            0x0506 => ProductCategory::DimmerControllableAC,
+            0x0507 => ProductCategory::DimmerDCLevelOutput,
+            0x0508 => ProductCategory::DimmerDCPWMOutput,
+            0x0509 => ProductCategory::DimmerSpecialisedLED,
+            0x05ff => ProductCategory::DimmerOther,
+            0x0600 => ProductCategory::Power,
+            0x0601 => ProductCategory::PowerControl,
+            0x0602 => ProductCategory::PowerSource,
+            0x06ff => ProductCategory::PowerOther,
+            0x0700 => ProductCategory::Scenic,
+            0x0701 => ProductCategory::ScenicDrive,
+            0x07ff => ProductCategory::ScenicOther,
+            0x0800 => ProductCategory::Data,
+            0x0801 => ProductCategory::DataDistribution,
+            0x0802 => ProductCategory::DataConversion,
+            0x08ff => ProductCategory::DataOther,
+            0x0900 => ProductCategory::AV,
+            0x0901 => ProductCategory::AVAudio,
+            0x0902 => ProductCategory::AVVideo,
+            0x09ff => ProductCategory::AVOther,
+            0x0a00 => ProductCategory::Monitor,
+            0x0a01 => ProductCategory::MonitorACLinePower,
+            0x0a02 => ProductCategory::MonitorDCPower,
+            0x0a03 => ProductCategory::MonitorEnvironmental,
+            0x0aff => ProductCategory::MonitorOther,
+            0x7000 => ProductCategory::Control,
+            0x7001 => ProductCategory::ControlController,
+            0x7002 => ProductCategory::ControlBackupDevice,
+            0x70ff => ProductCategory::ControlOther,
+            0x7100 => ProductCategory::Test,
+            0x7101 => ProductCategory::TestEquipment,
+            0x71ff => ProductCategory::TestEquipmentOther,
+            0x7fff => ProductCategory::Other,
+            _ => panic!("Invalid value for ProductCategory: {:?}", bytes),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum LampState {
+    LampOff = 0x00,        // 0x00 = "Lamp Off",
+    LampOn = 0x01,         // 0x01 = "Lamp On",
+    LampStrike = 0x02,     // 0x02 = "Lamp Strike",
+    LampStandby = 0x03,    // 0x03 = "Lamp Standby",
+    LampNotPresent = 0x04, // 0x04 = "Lamp Not Present",
+    LampError = 0x05,      // 0x05 = "Lamp Error",
+}
+
+impl From<u8> for LampState {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x00 => LampState::LampOff,
+            0x01 => LampState::LampOn,
+            0x02 => LampState::LampStrike,
+            0x03 => LampState::LampStandby,
+            0x04 => LampState::LampNotPresent,
+            0x05 => LampState::LampError,
+            _ => panic!("Invalid value for LampState: {:?}", byte),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum LampOnMode {
+    OffMode = 0x00,  // 0x00 = "Off Mode",
+    DmxMode = 0x01,  // 0x01 = "DMX Mode",
+    OnMode = 0x02,   // 0x02 = "On Mode",
+    AfterCal = 0x03, // 0x03 = "After Cal",
+}
+
+impl From<u8> for LampOnMode {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x00 => LampOnMode::OffMode,
+            0x01 => LampOnMode::DmxMode,
+            0x02 => LampOnMode::OnMode,
+            0x03 => LampOnMode::AfterCal,
+            _ => panic!("Invalid value for LampOnMode: {:?}", byte),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum PowerState {
+    FullOff = 0x00,  // 0x00 = "Full Off",
+    Shutdown = 0x01, // 0x01 = "Shutdown",
+    Standby = 0x02,  // 0x02 = "Standby",
+    Normal = 0xff,   // 0xff = "Normal",
+}
+
+impl From<u8> for PowerState {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x00 => PowerState::FullOff,
+            0x01 => PowerState::Shutdown,
+            0x02 => PowerState::Standby,
+            0x03 => PowerState::Normal,
+            _ => panic!("Invalid value for PowerState: {:?}", byte),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum OnOffStates {
+    Off = 0x00, // 0x00 = "Off",
+    On = 0x01,  // 0x01 = "On",
+}
+
+impl From<u8> for OnOffStates {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x00 => OnOffStates::Off,
+            0x01 => OnOffStates::On,
+            _ => panic!("Invalid value for OnOffStates: {:?}", byte),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum DisplayInvertMode {
+    Off = 0x00,  // 0x00 = "Off",
+    On = 0x01,   // 0x01 = "On",
+    Auto = 0x02, // 0x02 = "Auto",
+}
+
+impl From<u8> for DisplayInvertMode {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x00 => DisplayInvertMode::Off,
+            0x01 => DisplayInvertMode::On,
+            0x02 => DisplayInvertMode::Auto,
+            _ => panic!("Invalid value for DisplayInvertMode: {:?}", byte),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ResetType {
+    Warm = 0x01,
+    Cold = 0xff,
+}
+
+impl From<u8> for ResetType {
+    fn from(byte: u8) -> Self {
+        match byte {
+            0x01 => ResetType::Warm,
+            0xff => ResetType::Cold,
+            _ => panic!("Invalid value for ResetType: {:?}", byte),
+        }
+    }
+}
+

@@ -1,5 +1,20 @@
 use crate::{
-    bsd_16_crc, bsd_16_crc_bytes_mut, device::{DeviceUID, DmxSlot}, parameter::{ManufacturerSpecificParameter, ParameterError, ParameterId}, sensor::Sensor, CommandClass, DiscoveryRequestParameterData, DiscoveryResponse, DiscoveryResponseParameterData, DisplayInvertMode, GetRequestParameterData, GetResponse, GetResponseParameterData, LampOnMode, LampState, PacketType, PowerState, ProductCategory, RdmRequestMessage, RdmResponseMessage, ResponseType, SetRequestParameterData, SetResponse, SetResponseParameterData
+    bsd_16_crc, bsd_16_crc_bytes_mut,
+    device::{DeviceUID, DmxSlot},
+    parameter::{
+        DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterError,
+        ParameterId, PowerState, ProductCategory,
+    },
+    request::{
+        DiscoveryRequestParameterData, GetRequestParameterData, RdmRequestMessage,
+        SetRequestParameterData,
+    },
+    response::{
+        DiscoveryResponse, DiscoveryResponseParameterData, GetResponse, GetResponseParameterData,
+        RdmResponseMessage, ResponseType, SetResponse, SetResponseParameterData,
+    },
+    sensor::Sensor,
+    CommandClass, PacketType,
 };
 use bytes::{BufMut, Bytes, BytesMut};
 use tokio_util::codec::{Decoder, Encoder};
@@ -130,7 +145,8 @@ impl RdmCodec {
                             (0x0060_u16..0x8000_u16).contains(&parameter_id)
                         })
                         .map(ParameterId::try_from)
-                        .collect::<Result<Vec<ParameterId>, ParameterError>>().unwrap(), // TODO handle this error properly
+                        .collect::<Result<Vec<ParameterId>, ParameterError>>()
+                        .unwrap(), // TODO handle this error properly
                     manufacturer_specific_parameters: parameters
                         .filter(|parameter_id| *parameter_id >= 0x8000_u16)
                         .map(|parameter_id| {
@@ -546,7 +562,9 @@ impl Decoder for RdmCodec {
                 let response_type = ResponseType::try_from(frame[16]).unwrap();
                 let message_count = frame[17];
                 let sub_device_id = u16::from_be_bytes(frame[18..=19].try_into().unwrap());
-                let parameter_id = ParameterId::try_from(u16::from_be_bytes(frame[21..=22].try_into().unwrap())).unwrap();
+                let parameter_id =
+                    ParameterId::try_from(u16::from_be_bytes(frame[21..=22].try_into().unwrap()))
+                        .unwrap();
 
                 let parameter_data_length = frame[23];
                 let parameter_data: Option<Bytes> = if parameter_data_length > 0 {
@@ -628,7 +646,7 @@ impl Decoder for RdmCodec {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::{device::DeviceUID, DiscoveryRequest};
+    use crate::{device::DeviceUID, request::DiscoveryRequest};
     use bytes::BytesMut;
 
     #[test]
