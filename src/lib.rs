@@ -21,32 +21,6 @@ pub const BROADCAST_ALL_DEVICES_ID: u64 = 0xffffffffffff;
 pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
 pub const ROOT_DEVICE: u16 = 0x0000;
 
-#[derive(Debug, Error)]
-pub enum SupportedCommandClassError {
-    #[error("Invalid command class: {0}")]
-    InvalidCommandClass(u8),
-}
-
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum SupportedCommandClass {
-    Get = 0x01,
-    Set = 0x02,
-    GetSet = 0x03,
-}
-
-impl TryFrom<u8> for SupportedCommandClass {
-    type Error = SupportedCommandClassError;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            0x01 => Ok(Self::Get),
-            0x02 => Ok(Self::Set),
-            0x03 => Ok(Self::GetSet),
-            _ => Err(SupportedCommandClassError::InvalidCommandClass(value)),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub enum PacketType {
     RdmResponse = 0xcc01,

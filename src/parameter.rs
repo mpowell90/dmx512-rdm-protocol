@@ -1,7 +1,5 @@
 use thiserror::Error;
 
-use crate::SupportedCommandClass;
-
 #[derive(Debug, Error)]
 pub enum ParameterError {
     #[error("Unsupported parameter id: {0}")]
@@ -210,6 +208,32 @@ pub const GET_PARAMETERS: [ParameterId; 46] = [
     // ParameterId::SelfTestDescription,
     ParameterId::PresetPlayback,
 ];
+
+#[derive(Debug, Error)]
+pub enum SupportedCommandClassError {
+    #[error("Invalid command class: {0}")]
+    InvalidCommandClass(u8),
+}
+
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum SupportedCommandClass {
+    Get = 0x01,
+    Set = 0x02,
+    GetSet = 0x03,
+}
+
+impl TryFrom<u8> for SupportedCommandClass {
+    type Error = SupportedCommandClassError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x01 => Ok(Self::Get),
+            0x02 => Ok(Self::Set),
+            0x03 => Ok(Self::GetSet),
+            _ => Err(SupportedCommandClassError::InvalidCommandClass(value)),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct ManufacturerSpecificParameter {
