@@ -136,8 +136,8 @@ impl RdmCodec {
                             let parameter_id = *parameter_id;
                             (0x0060_u16..0x8000_u16).contains(&parameter_id)
                         })
-                        .map(ParameterId::from)
-                        .collect(),
+                        .map(ParameterId::try_from)
+                        .collect::<Result<Vec<ParameterId>, String>>().unwrap(), // TODO handle this error properly
                     manufacturer_specific_parameters: parameters
                         .filter(|parameter_id| *parameter_id >= 0x8000_u16)
                         .map(|parameter_id| {
@@ -545,6 +545,7 @@ impl Decoder for RdmCodec {
                     // .split_to(packet_length + Self::FRAME_HEADER_FOOTER_SIZE)
                     .freeze();
 
+                // TODO handle unwraps properly
                 let command_class = CommandClass::try_from(frame[20]).unwrap();
                 let destination_uid = DeviceUID::from(&frame[3..=8]);
                 let source_uid = DeviceUID::from(&frame[9..=14]);
@@ -552,7 +553,7 @@ impl Decoder for RdmCodec {
                 let response_type = ResponseType::try_from(frame[16]).unwrap();
                 let message_count = frame[17];
                 let sub_device_id = u16::from_be_bytes(frame[18..=19].try_into().unwrap());
-                let parameter_id = ParameterId::from(&frame[21..=22]);
+                let parameter_id = ParameterId::try_from(u16::from_be_bytes(frame[21..=22].try_into().unwrap())).unwrap();
 
                 let parameter_data_length = frame[23];
                 let parameter_data: Option<Bytes> = if parameter_data_length > 0 {
