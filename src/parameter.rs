@@ -1,10 +1,6 @@
 use thiserror::Error;
 
-#[derive(Debug, Error)]
-pub enum ParameterError {
-    #[error("Unsupported parameter id: {0}")]
-    UnsupportedParameter(u16),
-}
+use crate::ProtocolError;
 
 // TODO add remaining parameter ids
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -75,7 +71,7 @@ pub enum ParameterId {
 }
 
 impl TryFrom<u16> for ParameterId {
-    type Error = ParameterError;
+    type Error = ProtocolError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
@@ -140,7 +136,7 @@ impl TryFrom<u16> for ParameterId {
             0x1021 => Ok(Self::SelfTestDescription),
             0x1030 => Ok(Self::CapturePreset),
             0x1031 => Ok(Self::PresetPlayback),
-            _ => Err(ParameterError::UnsupportedParameter(value)),
+            _ => Err(ProtocolError::UnsupportedParameterId(value)),
         }
     }
 }

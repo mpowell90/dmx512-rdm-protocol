@@ -13,9 +13,38 @@ pub const MIN_PACKET_LEN: usize = 26;
 pub const SC_RDM: u8 = 0xcc;
 pub const SC_SUB_MESSAGE: u8 = 0x01;
 
+pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE: u8 = 0xfe;
+pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE: u8 = 0xaa;
+
 pub const BROADCAST_ALL_DEVICES_ID: u64 = 0xffffffffffff;
 pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
 pub const ROOT_DEVICE: u16 = 0x0000;
+
+#[derive(Debug, Error)]
+pub enum ProtocolError {
+    #[error("Invalid Start Code: {0}")]
+    InvalidStartByte(u8),
+    #[error("Invalid Sub Start Code: {0}")]
+    InvalidSubStartByte(u8),
+    #[error("Invalid message length: {0}, must be >= 24 and <= 255")]
+    InvalidMessageLength(u8),
+    #[error("Invalid checksum: {0}, expected: {1}")]
+    InvalidChecksum(u16, u16), 
+    #[error("Invalid ResponseType: {0}")]
+    InvalidResponseType(u8),
+    #[error("Invalid CommandClass: {0}")]
+    InvalidCommandClass(u8),
+    #[error("Unsupported ParameterId: {0}")]
+    UnsupportedParameterId(u16),
+    #[error("Invalid parameter data length: {0}, must be >= 0 and <= 231")]
+    InvalidParameterDataLength(u8),
+    #[error("Invalid stop byte: {0}")]
+    InvalidStopByte(u8),
+    #[error("Invalid PacketResponseType: {0}")]
+    InvalidPacketResponseType(u8),
+    #[error("Malformed packet")]
+    MalformedPacket,
+}
 
 #[derive(Debug, Error)]
 pub enum PacketTypeError {
@@ -41,13 +70,7 @@ impl TryFrom<u16> for PacketType {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum CommandClassError {
-    #[error("Invalid CommandClass: {0}")]
-    InvalidCommandClass(u8),
-}
-
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum CommandClass {
     DiscoveryCommand = 0x10,
     DiscoveryCommandResponse = 0x11,
@@ -58,7 +81,7 @@ pub enum CommandClass {
 }
 
 impl TryFrom<u8> for CommandClass {
-    type Error = CommandClassError;
+    type Error = ProtocolError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -68,7 +91,7 @@ impl TryFrom<u8> for CommandClass {
             0x21 => Ok(Self::GetCommandResponse),
             0x30 => Ok(Self::SetCommand),
             0x31 => Ok(Self::SetCommandResponse),
-            _ => Err(CommandClassError::InvalidCommandClass(value)),
+            _ => Err(ProtocolError::InvalidCommandClass(value)),
         }
     }
 }
