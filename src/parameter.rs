@@ -1,6 +1,5 @@
-use thiserror::Error;
-
 use crate::ProtocolError;
+use thiserror::Error;
 
 // TODO add remaining parameter ids
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -400,16 +399,18 @@ pub enum LampState {
     LampError = 0x05,      // 0x05 = "Lamp Error",
 }
 
-impl From<u8> for LampState {
-    fn from(byte: u8) -> Self {
-        match byte {
-            0x00 => LampState::LampOff,
-            0x01 => LampState::LampOn,
-            0x02 => LampState::LampStrike,
-            0x03 => LampState::LampStandby,
-            0x04 => LampState::LampNotPresent,
-            0x05 => LampState::LampError,
-            _ => panic!("Invalid value for LampState: {:?}", byte),
+impl TryFrom<u8> for LampState {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::LampOff),
+            0x01 => Ok(Self::LampOn),
+            0x02 => Ok(Self::LampStrike),
+            0x03 => Ok(Self::LampStandby),
+            0x04 => Ok(Self::LampNotPresent),
+            0x05 => Ok(Self::LampError),
+            _ => Err(ProtocolError::InvalidLampState(value)),
         }
     }
 }
@@ -422,14 +423,16 @@ pub enum LampOnMode {
     AfterCal = 0x03, // 0x03 = "After Cal",
 }
 
-impl From<u8> for LampOnMode {
-    fn from(byte: u8) -> Self {
-        match byte {
-            0x00 => LampOnMode::OffMode,
-            0x01 => LampOnMode::DmxMode,
-            0x02 => LampOnMode::OnMode,
-            0x03 => LampOnMode::AfterCal,
-            _ => panic!("Invalid value for LampOnMode: {:?}", byte),
+impl TryFrom<u8> for LampOnMode {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::OffMode),
+            0x01 => Ok(Self::DmxMode),
+            0x02 => Ok(Self::OnMode),
+            0x03 => Ok(Self::AfterCal),
+            _ => Err(ProtocolError::InvalidLampOnMode(value)),
         }
     }
 }
@@ -442,14 +445,16 @@ pub enum PowerState {
     Normal = 0xff,   // 0xff = "Normal",
 }
 
-impl From<u8> for PowerState {
-    fn from(byte: u8) -> Self {
-        match byte {
-            0x00 => PowerState::FullOff,
-            0x01 => PowerState::Shutdown,
-            0x02 => PowerState::Standby,
-            0x03 => PowerState::Normal,
-            _ => panic!("Invalid value for PowerState: {:?}", byte),
+impl TryFrom<u8> for PowerState {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::FullOff),
+            0x01 => Ok(Self::Shutdown),
+            0x02 => Ok(Self::Standby),
+            0x03 => Ok(Self::Normal),
+            _ => Err(ProtocolError::InvalidPowerState(value)),
         }
     }
 }
@@ -460,12 +465,14 @@ pub enum OnOffStates {
     On = 0x01,  // 0x01 = "On",
 }
 
-impl From<u8> for OnOffStates {
-    fn from(byte: u8) -> Self {
-        match byte {
-            0x00 => OnOffStates::Off,
-            0x01 => OnOffStates::On,
-            _ => panic!("Invalid value for OnOffStates: {:?}", byte),
+impl TryFrom<u8> for OnOffStates {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::Off),
+            0x01 => Ok(Self::On),
+            _ => Err(ProtocolError::InvalidOnOffStates(value)),
         }
     }
 }
@@ -477,13 +484,15 @@ pub enum DisplayInvertMode {
     Auto = 0x02, // 0x02 = "Auto",
 }
 
-impl From<u8> for DisplayInvertMode {
-    fn from(byte: u8) -> Self {
-        match byte {
-            0x00 => DisplayInvertMode::Off,
-            0x01 => DisplayInvertMode::On,
-            0x02 => DisplayInvertMode::Auto,
-            _ => panic!("Invalid value for DisplayInvertMode: {:?}", byte),
+impl TryFrom<u8> for DisplayInvertMode {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::Off),
+            0x01 => Ok(Self::On),
+            0x02 => Ok(Self::Auto),
+            _ => Err(ProtocolError::InvalidDisplayInvertMode(value)),
         }
     }
 }
@@ -494,13 +503,14 @@ pub enum ResetType {
     Cold = 0xff,
 }
 
-impl From<u8> for ResetType {
-    fn from(byte: u8) -> Self {
-        match byte {
-            0x01 => ResetType::Warm,
-            0xff => ResetType::Cold,
-            _ => panic!("Invalid value for ResetType: {:?}", byte),
+impl TryFrom<u8> for ResetType {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x01 => Ok(Self::Warm),
+            0xff => Ok(Self::Cold),
+            _ => Err(ProtocolError::InvalidResetType(value)),
         }
     }
 }
-

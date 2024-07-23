@@ -47,6 +47,18 @@ pub enum ProtocolError {
     },
     #[error("Invalid ProductCategory: {0}")]
     InvalidProductCategory(u16),
+    #[error("Invalid LampState: {0}")]
+    InvalidLampState(u8),
+    #[error("Invalid LampOnMode: {0}")]
+    InvalidLampOnMode(u8),
+    #[error("Invalid PowerState: {0}")]
+    InvalidPowerState(u8),
+    #[error("Invalid OnOffStates: {0}")]
+    InvalidOnOffStates(u8),
+    #[error("Invalid DisplayInvertMode: {0}")]
+    InvalidDisplayInvertMode(u8),
+    #[error("Invalid ResetType: {0}")]
+    InvalidResetType(u8),
     #[error("Invalid stop byte: {0}")]
     InvalidStopByte(u8),
     #[error("Invalid PacketResponseType: {0}")]

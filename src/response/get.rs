@@ -334,16 +334,16 @@ impl GetResponseParameterData {
                 lamp_strikes: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
             }),
             ParameterId::LampState => Ok(GetResponseParameterData::LampState {
-                lamp_state: LampState::from(bytes[0]),
+                lamp_state: LampState::try_from(bytes[0])?,
             }),
             ParameterId::LampOnMode => Ok(GetResponseParameterData::LampOnMode {
-                lamp_on_mode: LampOnMode::from(bytes[0]),
+                lamp_on_mode: LampOnMode::try_from(bytes[0])?,
             }),
             ParameterId::DevicePowerCycles => Ok(GetResponseParameterData::DevicePowerCycles {
                 power_cycle_count: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
             }),
             ParameterId::DisplayInvert => Ok(GetResponseParameterData::DisplayInvert {
-                display_invert_mode: DisplayInvertMode::from(bytes[0]),
+                display_invert_mode: DisplayInvertMode::try_from(bytes[0])?,
             }),
             ParameterId::Curve => Ok(GetResponseParameterData::Curve {
                 current_curve: bytes[0],
@@ -398,7 +398,7 @@ impl GetResponseParameterData {
                 })
             }
             ParameterId::PowerState => Ok(GetResponseParameterData::PowerState {
-                power_state: PowerState::from(bytes[0]),
+                power_state: PowerState::try_from(bytes[0])?,
             }),
             ParameterId::PerformSelfTest => Ok(GetResponseParameterData::PerformSelfTest {
                 is_active: bytes[0] != 0,
