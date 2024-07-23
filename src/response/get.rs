@@ -469,4 +469,121 @@ mod tests {
             }))
         );
     }
+
+    // #[test]
+    // fn should_parse_parameter_description() {
+    //     assert_eq!(
+    //         GetResponseParameterData::parse(
+    //             ParameterId::ParameterDescription,
+    //             &[
+    //                 0x80, 0x80, // Parameter ID
+    //                 0x02, // Parameter data size
+    //                 0x02, // DeviceUID 2
+    //                 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, // DeviceUID 3
+    //                 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, // DeviceUID 4
+    //             ]
+    //         ),
+    //         // Ok(Some(GetResponseParameterData::ProxiedDevices {
+    //         //     device_uids: vec![
+    //         //         DeviceUID::new(0x0102, 0x03040506),
+    //         //         DeviceUID::new(0x0203, 0x04050607),
+    //         //         DeviceUID::new(0x0304, 0x05060708),
+    //         //         DeviceUID::new(0x0405, 0x06070809),
+    //         //     ]
+    //         // }))
+    //     );
+    // }
+
+    #[test]
+    fn should_parse_device_label() {
+        assert_eq!(
+            GetResponseParameterData::parse(
+                ParameterId::DeviceLabel,
+                &[
+                    0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x74, 0x65, 0x73,
+                    0x74, 0x20, 0x64, 0x65, 0x76, 0x69, 0x63, 0x65, 0x20, 0x6c, 0x61, 0x62, 0x65,
+                    0x6c, 0x00
+                ]
+            ),
+            Ok(Some(GetResponseParameterData::DeviceLabel {
+                device_label: "This is a test device label".to_string()
+            }))
+        );
+    }
+
+    #[test]
+    fn should_parse_software_version_label() {
+        assert_eq!(
+            GetResponseParameterData::parse(
+                ParameterId::SoftwareVersionLabel,
+                &[0x31, 0x2e, 0x32, 0x2e, 0x33, 0x00]
+            ),
+            Ok(Some(GetResponseParameterData::SoftwareVersionLabel {
+                software_version_label: "1.2.3".to_string()
+            }))
+        );
+    }
+
+    #[test]
+    fn should_parse_identify_device() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::IdentifyDevice, &[0x01]),
+            Ok(Some(GetResponseParameterData::IdentifyDevice {
+                is_identifying: true
+            }))
+        );
+    }
+
+    #[test]
+    fn should_parse_manufacturer_label() {
+        assert_eq!(
+            GetResponseParameterData::parse(
+                ParameterId::ManufacturerLabel,
+                &[
+                    0x47, 0x65, 0x6e, 0x65, 0x72, 0x69, 0x63, 0x20, 0x43, 0x6f, 0x6d, 0x70, 0x61,
+                    0x6e, 0x79, 0x20, 0x41, 0x20, 0x6c, 0x74, 0x64, 0x00
+                ]
+            ),
+            Ok(Some(GetResponseParameterData::ManufacturerLabel {
+                manufacturer_label: "Generic Company A ltd".to_string()
+            }))
+        );
+    }
+
+    #[test]
+    fn should_parse_factory_defaults() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::FactoryDefaults, &[0x01]),
+            Ok(Some(GetResponseParameterData::FactoryDefaults {
+                factory_default: true
+            }))
+        );
+    }
+
+    #[test]
+    fn should_parse_device_model_description() {
+        assert_eq!(
+            GetResponseParameterData::parse(
+                ParameterId::DeviceModelDescription,
+                &[
+                    0x47, 0x65, 0x6e, 0x65, 0x72, 0x69, 0x63, 0x20, 0x50, 0x72, 0x6f, 0x64, 0x75,
+                    0x63, 0x74, 0x20, 0x41, 0x00
+                ]
+            ),
+            Ok(Some(GetResponseParameterData::DeviceModelDescription {
+                device_model_description: "Generic Product A".to_string()
+            }))
+        );
+    }
+
+    #[test]
+    fn should_parse_dmx_personality() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::DmxPersonality, &[0x02, 0x04]),
+            Ok(Some(GetResponseParameterData::DmxPersonality {
+                current_personality: 2,
+                personality_count: 4
+            }))
+        );
+    }
 }
