@@ -9,10 +9,7 @@ use crate::{
         DiscoveryRequestParameterData, GetRequestParameterData, RdmRequestMessage,
         SetRequestParameterData,
     },
-    response::{
-        DiscoveryResponseParameterData, GetResponseParameterData, RdmFrame,
-        SetResponseParameterData,
-    },
+    response::{discovery::DiscoveryResponseParameterData, get::GetResponseParameterData, set::SetResponseParameterData, RdmFrame},
     sensor::Sensor,
     CommandClass, ProtocolError,
 };
