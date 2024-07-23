@@ -40,6 +40,11 @@ pub enum ProtocolError {
     InvalidParameterDataLength(u8),
     #[error("Invalid discovery unique branch preamble")]
     InvalidDiscoveryUniqueBranchPreamble,
+    #[error("Failed to convert from bytes with nul")]
+    FromBytesWithNulError {
+        #[from]
+        source: std::ffi::FromBytesWithNulError,
+    },
     #[error("Invalid stop byte: {0}")]
     InvalidStopByte(u8),
     #[error("Invalid PacketResponseType: {0}")]

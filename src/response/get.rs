@@ -7,7 +7,7 @@ use crate::{
     sensor::Sensor,
     CommandClass, ProtocolError,
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, ffi::CStr};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GetResponseParameterData {
@@ -189,14 +189,14 @@ impl GetResponseParameterData {
                     minimum_valid_value: u32::from_be_bytes(bytes[8..=11].try_into().unwrap()),
                     maximum_valid_value: u32::from_be_bytes(bytes[12..=15].try_into().unwrap()),
                     default_value: u32::from_be_bytes(bytes[16..=19].try_into().unwrap()),
-                    description: String::from_utf8_lossy(&bytes[20..])
-                        .trim_end_matches('\0')
+                    description: CStr::from_bytes_with_nul(&bytes[20..])?
+                        .to_string_lossy()
                         .to_string(),
                 }))
             }
             ParameterId::DeviceLabel => Ok(Some(GetResponseParameterData::DeviceLabel {
-                device_label: String::from_utf8_lossy(&bytes)
-                    .trim_end_matches('\0')
+                device_label: CStr::from_bytes_with_nul(bytes)?
+                    .to_string_lossy()
                     .to_string(),
             })),
             ParameterId::DeviceInfo => Ok(Some(GetResponseParameterData::DeviceInfo {
@@ -213,8 +213,8 @@ impl GetResponseParameterData {
             })),
             ParameterId::SoftwareVersionLabel => {
                 Ok(Some(GetResponseParameterData::SoftwareVersionLabel {
-                    software_version_label: String::from_utf8_lossy(&bytes)
-                        .trim_end_matches('\0')
+                    software_version_label: CStr::from_bytes_with_nul(bytes)?
+                        .to_string_lossy()
                         .to_string(),
                 }))
             }
@@ -269,8 +269,8 @@ impl GetResponseParameterData {
             })),
             ParameterId::ManufacturerLabel => {
                 Ok(Some(GetResponseParameterData::ManufacturerLabel {
-                    manufacturer_label: String::from_utf8_lossy(&bytes)
-                        .trim_end_matches('\0')
+                    manufacturer_label: CStr::from_bytes_with_nul(bytes)?
+                        .to_string_lossy()
                         .to_string(),
                 }))
             }
@@ -279,8 +279,8 @@ impl GetResponseParameterData {
             })),
             ParameterId::DeviceModelDescription => {
                 Ok(Some(GetResponseParameterData::DeviceModelDescription {
-                    device_model_description: String::from_utf8_lossy(&bytes)
-                        .trim_end_matches('\0')
+                    device_model_description: CStr::from_bytes_with_nul(bytes)?
+                        .to_string_lossy()
                         .to_string(),
                 }))
             }
@@ -422,5 +422,51 @@ impl GetResponseParameterData {
             })),
             _ => Ok(None),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_parse_proxied_count() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::ProxiedDeviceCount, &[0x00, 0x01, 0x00]),
+            Ok(Some(GetResponseParameterData::ProxiedDeviceCount {
+                device_count: 1,
+                list_change: false
+            }))
+        );
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::ProxiedDeviceCount, &[0x00, 0xff, 0x01]),
+            Ok(Some(GetResponseParameterData::ProxiedDeviceCount {
+                device_count: 255,
+                list_change: true
+            }))
+        );
+    }
+
+    #[test]
+    fn should_parse_proxied_devices() {
+        assert_eq!(
+            GetResponseParameterData::parse(
+                ParameterId::ProxiedDevices,
+                &[
+                    0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // DeviceUID 1
+                    0x02, 0x03, 0x04, 0x05, 0x06, 0x07, // DeviceUID 2
+                    0x03, 0x04, 0x05, 0x06, 0x07, 0x08, // DeviceUID 3
+                    0x04, 0x05, 0x06, 0x07, 0x08, 0x09, // DeviceUID 4
+                ]
+            ),
+            Ok(Some(GetResponseParameterData::ProxiedDevices {
+                device_uids: vec![
+                    DeviceUID::new(0x0102, 0x03040506),
+                    DeviceUID::new(0x0203, 0x04050607),
+                    DeviceUID::new(0x0304, 0x05060708),
+                    DeviceUID::new(0x0405, 0x06070809),
+                ]
+            }))
+        );
     }
 }
