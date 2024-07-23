@@ -207,7 +207,7 @@ impl GetResponseParameterData {
             ParameterId::DeviceInfo => Ok(GetResponseParameterData::DeviceInfo {
                 protocol_version: format!("{}.{}", bytes[0], bytes[1]),
                 model_id: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
-                product_category: ProductCategory::from(&bytes[4..=5]),
+                product_category: ProductCategory::try_from(u16::from_be_bytes(bytes[4..=5].try_into().unwrap()))?,
                 software_version_id: u32::from_be_bytes(bytes[6..=9].try_into().unwrap()),
                 footprint: u16::from_be_bytes(bytes[10..=11].try_into().unwrap()),
                 current_personality: bytes[12],

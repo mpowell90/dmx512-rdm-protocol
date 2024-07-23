@@ -45,6 +45,8 @@ pub enum ProtocolError {
         #[from]
         source: std::ffi::FromBytesWithNulError,
     },
+    #[error("Invalid ProductCategory: {0}")]
+    InvalidProductCategory(u16),
     #[error("Invalid stop byte: {0}")]
     InvalidStopByte(u8),
     #[error("Invalid PacketResponseType: {0}")]
