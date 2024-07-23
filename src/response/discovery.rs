@@ -13,7 +13,7 @@ pub enum DiscoveryResponseParameterData {
 }
 
 impl DiscoveryResponseParameterData {
-    pub fn parse(parameter_id: ParameterId, bytes: &[u8]) -> Result<Option<Self>, ProtocolError> {
+    pub fn parse(parameter_id: ParameterId, bytes: &[u8]) -> Result<Self, ProtocolError> {
         // TODO dedupe code
         match parameter_id {
             ParameterId::DiscMute => {
@@ -25,10 +25,10 @@ impl DiscoveryResponseParameterData {
                     None
                 };
 
-                Ok(Some(DiscoveryResponseParameterData::DiscMute {
+                Ok(DiscoveryResponseParameterData::DiscMute {
                     control_field: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
                     binding_uid,
-                }))
+                })
             }
             ParameterId::DiscUnMute => {
                 let binding_uid = if bytes.len() > 2 {
@@ -39,12 +39,12 @@ impl DiscoveryResponseParameterData {
                     None
                 };
 
-                Ok(Some(DiscoveryResponseParameterData::DiscMute {
+                Ok(DiscoveryResponseParameterData::DiscMute {
                     control_field: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
                     binding_uid,
-                }))
+                })
             }
-            _ => Ok(None),
+            _ => Err(ProtocolError::UnsupportedParameterId(parameter_id as u16)),
         }
     }
 }
@@ -57,17 +57,20 @@ mod tests {
     fn should_parse_discovery_mute() {
         assert_eq!(
             DiscoveryResponseParameterData::parse(ParameterId::DiscMute, &[0x00, 0x01]),
-            Ok(Some(DiscoveryResponseParameterData::DiscMute {
+            Ok(DiscoveryResponseParameterData::DiscMute {
                 control_field: 0x0001,
                 binding_uid: None
-            }))
+            })
         );
         assert_eq!(
-            DiscoveryResponseParameterData::parse(ParameterId::DiscMute, &[0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]),
-            Ok(Some(DiscoveryResponseParameterData::DiscMute {
+            DiscoveryResponseParameterData::parse(
+                ParameterId::DiscMute,
+                &[0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+            ),
+            Ok(DiscoveryResponseParameterData::DiscMute {
                 control_field: 0x0001,
                 binding_uid: Some(DeviceUID::new(0x0102, 0x03040506))
-            }))
+            })
         );
     }
 
@@ -75,17 +78,20 @@ mod tests {
     fn should_parse_discovery_unmute() {
         assert_eq!(
             DiscoveryResponseParameterData::parse(ParameterId::DiscUnMute, &[0x00, 0x01]),
-            Ok(Some(DiscoveryResponseParameterData::DiscMute {
+            Ok(DiscoveryResponseParameterData::DiscMute {
                 control_field: 0x0001,
                 binding_uid: None
-            }))
+            })
         );
         assert_eq!(
-            DiscoveryResponseParameterData::parse(ParameterId::DiscUnMute, &[0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]),
-            Ok(Some(DiscoveryResponseParameterData::DiscMute {
+            DiscoveryResponseParameterData::parse(
+                ParameterId::DiscUnMute,
+                &[0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
+            ),
+            Ok(DiscoveryResponseParameterData::DiscMute {
                 control_field: 0x0001,
                 binding_uid: Some(DeviceUID::new(0x0102, 0x03040506))
-            }))
+            })
         );
     }
 }

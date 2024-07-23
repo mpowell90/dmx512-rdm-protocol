@@ -80,17 +80,17 @@ impl RdmResponseParameterData {
         command_class: CommandClass,
         parameter_id: ParameterId,
         bytes: &[u8],
-    ) -> Result<Option<Self>, ProtocolError> {
+    ) -> Result<Self, ProtocolError> {
         match command_class {
             CommandClass::GetCommandResponse => {
-                Ok(GetResponseParameterData::parse(parameter_id, bytes)?.map(Self::GetResponse))
+                GetResponseParameterData::parse(parameter_id, bytes).map(Self::GetResponse)
             }
             CommandClass::SetCommandResponse => {
-                Ok(SetResponseParameterData::parse(parameter_id, bytes)?.map(Self::SetResponse))
+                SetResponseParameterData::parse(parameter_id, bytes).map(Self::SetResponse)
             }
             CommandClass::DiscoveryCommandResponse => {
-                Ok(DiscoveryResponseParameterData::parse(parameter_id, bytes)?
-                    .map(Self::DiscoveryResponse))
+                DiscoveryResponseParameterData::parse(parameter_id, bytes)
+                    .map(Self::DiscoveryResponse)
             }
             _ => Err(ProtocolError::InvalidCommandClass(command_class as u8)),
         }
@@ -163,11 +163,11 @@ impl RdmResponse {
         }
 
         let parameter_data = if parameter_data_length > 0 {
-            RdmResponseParameterData::parse(
+            Some(RdmResponseParameterData::parse(
                 command_class,
                 parameter_id,
                 &bytes[25..=message_length as usize + 1],
-            )?
+            )?)
         } else {
             None
         };

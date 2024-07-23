@@ -54,6 +54,13 @@ pub enum GetResponseParameterData {
     SensorDefinition {
         sensor: Sensor,
     },
+    SensorValue {
+        sensor_id: u8,
+        current_value: i16,
+        lowest_detected_value: i16,
+        highest_detected_value: i16,
+        recorded_value: i16,
+    },
     IdentifyDevice {
         is_identifying: bool,
     },
@@ -168,19 +175,17 @@ pub enum GetResponseParameterData {
 }
 
 impl GetResponseParameterData {
-    pub fn parse(parameter_id: ParameterId, bytes: &[u8]) -> Result<Option<Self>, ProtocolError> {
+    pub fn parse(parameter_id: ParameterId, bytes: &[u8]) -> Result<Self, ProtocolError> {
         match parameter_id {
-            ParameterId::ProxiedDeviceCount => {
-                Ok(Some(GetResponseParameterData::ProxiedDeviceCount {
-                    device_count: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
-                    list_change: bytes[2] != 0,
-                }))
-            }
-            ParameterId::ProxiedDevices => Ok(Some(GetResponseParameterData::ProxiedDevices {
+            ParameterId::ProxiedDeviceCount => Ok(GetResponseParameterData::ProxiedDeviceCount {
+                device_count: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
+                list_change: bytes[2] != 0,
+            }),
+            ParameterId::ProxiedDevices => Ok(GetResponseParameterData::ProxiedDevices {
                 device_uids: bytes.chunks(6).map(DeviceUID::from).collect(),
-            })),
+            }),
             ParameterId::ParameterDescription => {
-                Ok(Some(GetResponseParameterData::ParameterDescription {
+                Ok(GetResponseParameterData::ParameterDescription {
                     parameter_id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
                     parameter_data_size: bytes[2],
                     data_type: bytes[3],
@@ -192,14 +197,14 @@ impl GetResponseParameterData {
                     description: CStr::from_bytes_with_nul(&bytes[20..])?
                         .to_string_lossy()
                         .to_string(),
-                }))
+                })
             }
-            ParameterId::DeviceLabel => Ok(Some(GetResponseParameterData::DeviceLabel {
+            ParameterId::DeviceLabel => Ok(GetResponseParameterData::DeviceLabel {
                 device_label: CStr::from_bytes_with_nul(bytes)?
                     .to_string_lossy()
                     .to_string(),
-            })),
-            ParameterId::DeviceInfo => Ok(Some(GetResponseParameterData::DeviceInfo {
+            }),
+            ParameterId::DeviceInfo => Ok(GetResponseParameterData::DeviceInfo {
                 protocol_version: format!("{}.{}", bytes[0], bytes[1]),
                 model_id: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
                 product_category: ProductCategory::from(&bytes[4..=5]),
@@ -210,20 +215,20 @@ impl GetResponseParameterData {
                 start_address: u16::from_be_bytes(bytes[14..=15].try_into().unwrap()),
                 sub_device_count: u16::from_be_bytes(bytes[16..=17].try_into().unwrap()),
                 sensor_count: u8::from_be(bytes[18]),
-            })),
+            }),
             ParameterId::SoftwareVersionLabel => {
-                Ok(Some(GetResponseParameterData::SoftwareVersionLabel {
+                Ok(GetResponseParameterData::SoftwareVersionLabel {
                     software_version_label: CStr::from_bytes_with_nul(bytes)?
                         .to_string_lossy()
                         .to_string(),
-                }))
+                })
             }
             ParameterId::SupportedParameters => {
                 let parameters = bytes
                     .chunks(2)
                     .map(|chunk| u16::from_be_bytes(chunk.try_into().unwrap()));
 
-                Ok(Some(GetResponseParameterData::SupportedParameters {
+                Ok(GetResponseParameterData::SupportedParameters {
                     standard_parameters: parameters
                         .clone()
                         .filter(|parameter_id| {
@@ -246,9 +251,9 @@ impl GetResponseParameterData {
                             )
                         })
                         .collect(),
-                }))
+                })
             }
-            ParameterId::SensorDefinition => Ok(Some(GetResponseParameterData::SensorDefinition {
+            ParameterId::SensorDefinition => Ok(GetResponseParameterData::SensorDefinition {
                 sensor: Sensor {
                     id: bytes[0],
                     kind: bytes[1].into(),
@@ -263,51 +268,47 @@ impl GetResponseParameterData {
                         .trim_end_matches('\0')
                         .to_string(),
                 },
-            })),
-            ParameterId::IdentifyDevice => Ok(Some(GetResponseParameterData::IdentifyDevice {
+            }),
+            ParameterId::IdentifyDevice => Ok(GetResponseParameterData::IdentifyDevice {
                 is_identifying: bytes[0] != 0,
-            })),
-            ParameterId::ManufacturerLabel => {
-                Ok(Some(GetResponseParameterData::ManufacturerLabel {
-                    manufacturer_label: CStr::from_bytes_with_nul(bytes)?
-                        .to_string_lossy()
-                        .to_string(),
-                }))
-            }
-            ParameterId::FactoryDefaults => Ok(Some(GetResponseParameterData::FactoryDefaults {
+            }),
+            ParameterId::ManufacturerLabel => Ok(GetResponseParameterData::ManufacturerLabel {
+                manufacturer_label: CStr::from_bytes_with_nul(bytes)?
+                    .to_string_lossy()
+                    .to_string(),
+            }),
+            ParameterId::FactoryDefaults => Ok(GetResponseParameterData::FactoryDefaults {
                 factory_default: bytes[0] != 0,
-            })),
+            }),
             ParameterId::DeviceModelDescription => {
-                Ok(Some(GetResponseParameterData::DeviceModelDescription {
+                Ok(GetResponseParameterData::DeviceModelDescription {
                     device_model_description: CStr::from_bytes_with_nul(bytes)?
                         .to_string_lossy()
                         .to_string(),
-                }))
+                })
             }
-            ParameterId::ProductDetailIdList => {
-                Ok(Some(GetResponseParameterData::ProductDetailIdList {
-                    product_detail_id_list: bytes
-                        .chunks(2)
-                        .map(|id| u16::from_be_bytes(id.try_into().unwrap()))
-                        .collect(),
-                }))
-            }
-            ParameterId::DmxPersonality => Ok(Some(GetResponseParameterData::DmxPersonality {
+            ParameterId::ProductDetailIdList => Ok(GetResponseParameterData::ProductDetailIdList {
+                product_detail_id_list: bytes
+                    .chunks(2)
+                    .map(|id| u16::from_be_bytes(id.try_into().unwrap()))
+                    .collect(),
+            }),
+            ParameterId::DmxPersonality => Ok(GetResponseParameterData::DmxPersonality {
                 current_personality: bytes[0],
                 personality_count: bytes[1],
-            })),
+            }),
             ParameterId::DmxPersonalityDescription => {
-                Ok(Some(GetResponseParameterData::DmxPersonalityDescription {
+                Ok(GetResponseParameterData::DmxPersonalityDescription {
                     id: bytes[0],
                     dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into().unwrap()),
                     description: String::from_utf8_lossy(&bytes[3..])
                         .trim_end_matches('\0')
                         .to_string(),
-                }))
+                })
             }
-            ParameterId::DmxStartAddress => Ok(Some(GetResponseParameterData::DmxStartAddress {
+            ParameterId::DmxStartAddress => Ok(GetResponseParameterData::DmxStartAddress {
                 dmx_start_address: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
-            })),
+            }),
             ParameterId::SlotInfo => {
                 let dmx_slots = if bytes.len() >= 5 {
                     Some(bytes.chunks(5).map(DmxSlot::from).collect())
@@ -315,63 +316,59 @@ impl GetResponseParameterData {
                     None
                 };
 
-                Ok(Some(GetResponseParameterData::SlotInfo { dmx_slots }))
+                Ok(GetResponseParameterData::SlotInfo { dmx_slots })
             }
-            ParameterId::SlotDescription => Ok(Some(GetResponseParameterData::SlotDescription {
+            ParameterId::SlotDescription => Ok(GetResponseParameterData::SlotDescription {
                 slot_id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
                 description: String::from_utf8_lossy(&bytes[2..])
                     .trim_end_matches('\0')
                     .to_string(),
-            })),
-            ParameterId::DeviceHours => Ok(Some(GetResponseParameterData::DeviceHours {
+            }),
+            ParameterId::DeviceHours => Ok(GetResponseParameterData::DeviceHours {
                 device_hours: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
-            })),
-            ParameterId::LampHours => Ok(Some(GetResponseParameterData::LampHours {
+            }),
+            ParameterId::LampHours => Ok(GetResponseParameterData::LampHours {
                 lamp_hours: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
-            })),
-            ParameterId::LampStrikes => Ok(Some(GetResponseParameterData::LampStrikes {
+            }),
+            ParameterId::LampStrikes => Ok(GetResponseParameterData::LampStrikes {
                 lamp_strikes: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
-            })),
-            ParameterId::LampState => Ok(Some(GetResponseParameterData::LampState {
+            }),
+            ParameterId::LampState => Ok(GetResponseParameterData::LampState {
                 lamp_state: LampState::from(bytes[0]),
-            })),
-            ParameterId::LampOnMode => Ok(Some(GetResponseParameterData::LampOnMode {
+            }),
+            ParameterId::LampOnMode => Ok(GetResponseParameterData::LampOnMode {
                 lamp_on_mode: LampOnMode::from(bytes[0]),
-            })),
-            ParameterId::DevicePowerCycles => {
-                Ok(Some(GetResponseParameterData::DevicePowerCycles {
-                    power_cycle_count: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
-                }))
-            }
-            ParameterId::DisplayInvert => Ok(Some(GetResponseParameterData::DisplayInvert {
+            }),
+            ParameterId::DevicePowerCycles => Ok(GetResponseParameterData::DevicePowerCycles {
+                power_cycle_count: u32::from_be_bytes(bytes[0..=3].try_into().unwrap()),
+            }),
+            ParameterId::DisplayInvert => Ok(GetResponseParameterData::DisplayInvert {
                 display_invert_mode: DisplayInvertMode::from(bytes[0]),
-            })),
-            ParameterId::Curve => Ok(Some(GetResponseParameterData::Curve {
+            }),
+            ParameterId::Curve => Ok(GetResponseParameterData::Curve {
                 current_curve: bytes[0],
                 curve_count: bytes[1],
-            })),
-            ParameterId::CurveDescription => Ok(Some(GetResponseParameterData::CurveDescription {
+            }),
+            ParameterId::CurveDescription => Ok(GetResponseParameterData::CurveDescription {
                 id: bytes[0],
                 description: String::from_utf8_lossy(&bytes[1..])
                     .trim_end_matches('\0')
                     .to_string(),
-            })),
-            ParameterId::ModulationFrequency => {
-                Ok(Some(GetResponseParameterData::ModulationFrequency {
-                    current_modulation_frequency: bytes[0],
-                    modulation_frequency_count: bytes[1],
-                }))
-            }
-            ParameterId::ModulationFrequencyDescription => Ok(Some(
-                GetResponseParameterData::ModulationFrequencyDescription {
+            }),
+            ParameterId::ModulationFrequency => Ok(GetResponseParameterData::ModulationFrequency {
+                current_modulation_frequency: bytes[0],
+                modulation_frequency_count: bytes[1],
+            }),
+            ParameterId::ModulationFrequencyDescription => {
+                Ok(GetResponseParameterData::ModulationFrequencyDescription {
                     id: bytes[0],
                     frequency: u32::from_be_bytes(bytes[1..=4].try_into().unwrap()),
                     description: String::from_utf8_lossy(&bytes[5..])
                         .trim_end_matches('\0')
                         .to_string(),
-                },
-            )),
-            ParameterId::DimmerInfo => Ok(Some(GetResponseParameterData::DimmerInfo {
+                })
+            }
+            ParameterId::DimmerInfo => Ok(GetResponseParameterData::DimmerInfo {
                 minimum_level_lower_limit: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
                 minimum_level_upper_limit: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
                 maximum_level_lower_limit: u16::from_be_bytes(bytes[4..=5].try_into().unwrap()),
@@ -379,48 +376,44 @@ impl GetResponseParameterData {
                 num_of_supported_curves: bytes[8],
                 levels_resolution: bytes[9],
                 minimum_levels_split_levels_supports: bytes[10], // TODO could be bool
-            })),
-            ParameterId::MinimumLevel => Ok(Some(GetResponseParameterData::MinimumLevel {
+            }),
+            ParameterId::MinimumLevel => Ok(GetResponseParameterData::MinimumLevel {
                 minimum_level_increasing: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
                 minimum_level_decreasing: u16::from_be_bytes(bytes[2..=3].try_into().unwrap()),
                 on_below_minimum: bytes[4],
-            })),
-            ParameterId::MaximumLevel => Ok(Some(GetResponseParameterData::MaximumLevel {
+            }),
+            ParameterId::MaximumLevel => Ok(GetResponseParameterData::MaximumLevel {
                 maximum_level: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
-            })),
-            ParameterId::OutputResponseTime => {
-                Ok(Some(GetResponseParameterData::OutputResponseTime {
-                    current_output_response_time: bytes[0],
-                    output_response_time_count: bytes[1],
-                }))
-            }
-            ParameterId::OutputResponseTimeDescription => Ok(Some(
-                GetResponseParameterData::OutputResponseTimeDescription {
+            }),
+            ParameterId::OutputResponseTime => Ok(GetResponseParameterData::OutputResponseTime {
+                current_output_response_time: bytes[0],
+                output_response_time_count: bytes[1],
+            }),
+            ParameterId::OutputResponseTimeDescription => {
+                Ok(GetResponseParameterData::OutputResponseTimeDescription {
                     id: bytes[0],
                     description: String::from_utf8_lossy(&bytes[1..])
                         .trim_end_matches('\0')
                         .to_string(),
-                },
-            )),
-            ParameterId::PowerState => Ok(Some(GetResponseParameterData::PowerState {
-                power_state: PowerState::from(bytes[0]),
-            })),
-            ParameterId::PerformSelfTest => Ok(Some(GetResponseParameterData::PerformSelfTest {
-                is_active: bytes[0] != 0,
-            })),
-            ParameterId::SelfTestDescription => {
-                Ok(Some(GetResponseParameterData::SelfTestDescription {
-                    self_test_id: bytes[0],
-                    description: String::from_utf8_lossy(&bytes[1..])
-                        .trim_end_matches('\0')
-                        .to_string(),
-                }))
+                })
             }
-            ParameterId::PresetPlayback => Ok(Some(GetResponseParameterData::PresetPlayback {
+            ParameterId::PowerState => Ok(GetResponseParameterData::PowerState {
+                power_state: PowerState::from(bytes[0]),
+            }),
+            ParameterId::PerformSelfTest => Ok(GetResponseParameterData::PerformSelfTest {
+                is_active: bytes[0] != 0,
+            }),
+            ParameterId::SelfTestDescription => Ok(GetResponseParameterData::SelfTestDescription {
+                self_test_id: bytes[0],
+                description: String::from_utf8_lossy(&bytes[1..])
+                    .trim_end_matches('\0')
+                    .to_string(),
+            }),
+            ParameterId::PresetPlayback => Ok(GetResponseParameterData::PresetPlayback {
                 mode: u16::from_be_bytes(bytes[..=1].try_into().unwrap()),
                 level: bytes[2],
-            })),
-            _ => Ok(None),
+            }),
+            _ => Err(ProtocolError::UnsupportedParameterId(parameter_id as u16)),
         }
     }
 }
@@ -433,17 +426,17 @@ mod tests {
     fn should_parse_proxied_count() {
         assert_eq!(
             GetResponseParameterData::parse(ParameterId::ProxiedDeviceCount, &[0x00, 0x01, 0x00]),
-            Ok(Some(GetResponseParameterData::ProxiedDeviceCount {
+            Ok(GetResponseParameterData::ProxiedDeviceCount {
                 device_count: 1,
                 list_change: false
-            }))
+            })
         );
         assert_eq!(
             GetResponseParameterData::parse(ParameterId::ProxiedDeviceCount, &[0x00, 0xff, 0x01]),
-            Ok(Some(GetResponseParameterData::ProxiedDeviceCount {
+            Ok(GetResponseParameterData::ProxiedDeviceCount {
                 device_count: 255,
                 list_change: true
-            }))
+            })
         );
     }
 
@@ -459,14 +452,14 @@ mod tests {
                     0x04, 0x05, 0x06, 0x07, 0x08, 0x09, // DeviceUID 4
                 ]
             ),
-            Ok(Some(GetResponseParameterData::ProxiedDevices {
+            Ok(GetResponseParameterData::ProxiedDevices {
                 device_uids: vec![
                     DeviceUID::new(0x0102, 0x03040506),
                     DeviceUID::new(0x0203, 0x04050607),
                     DeviceUID::new(0x0304, 0x05060708),
                     DeviceUID::new(0x0405, 0x06070809),
                 ]
-            }))
+            })
         );
     }
 
@@ -483,7 +476,7 @@ mod tests {
     //                 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, // DeviceUID 4
     //             ]
     //         ),
-    //         // Ok(Some(GetResponseParameterData::ProxiedDevices {
+    //         // Ok(GetResponseParameterData::ProxiedDevices {
     //         //     device_uids: vec![
     //         //         DeviceUID::new(0x0102, 0x03040506),
     //         //         DeviceUID::new(0x0203, 0x04050607),
@@ -505,9 +498,9 @@ mod tests {
                     0x6c, 0x00
                 ]
             ),
-            Ok(Some(GetResponseParameterData::DeviceLabel {
+            Ok(GetResponseParameterData::DeviceLabel {
                 device_label: "This is a test device label".to_string()
-            }))
+            })
         );
     }
 
@@ -518,9 +511,9 @@ mod tests {
                 ParameterId::SoftwareVersionLabel,
                 &[0x31, 0x2e, 0x32, 0x2e, 0x33, 0x00]
             ),
-            Ok(Some(GetResponseParameterData::SoftwareVersionLabel {
+            Ok(GetResponseParameterData::SoftwareVersionLabel {
                 software_version_label: "1.2.3".to_string()
-            }))
+            })
         );
     }
 
@@ -528,9 +521,9 @@ mod tests {
     fn should_parse_identify_device() {
         assert_eq!(
             GetResponseParameterData::parse(ParameterId::IdentifyDevice, &[0x01]),
-            Ok(Some(GetResponseParameterData::IdentifyDevice {
+            Ok(GetResponseParameterData::IdentifyDevice {
                 is_identifying: true
-            }))
+            })
         );
     }
 
@@ -544,9 +537,9 @@ mod tests {
                     0x6e, 0x79, 0x20, 0x41, 0x20, 0x6c, 0x74, 0x64, 0x00
                 ]
             ),
-            Ok(Some(GetResponseParameterData::ManufacturerLabel {
+            Ok(GetResponseParameterData::ManufacturerLabel {
                 manufacturer_label: "Generic Company A ltd".to_string()
-            }))
+            })
         );
     }
 
@@ -554,9 +547,9 @@ mod tests {
     fn should_parse_factory_defaults() {
         assert_eq!(
             GetResponseParameterData::parse(ParameterId::FactoryDefaults, &[0x01]),
-            Ok(Some(GetResponseParameterData::FactoryDefaults {
+            Ok(GetResponseParameterData::FactoryDefaults {
                 factory_default: true
-            }))
+            })
         );
     }
 
@@ -570,9 +563,9 @@ mod tests {
                     0x63, 0x74, 0x20, 0x41, 0x00
                 ]
             ),
-            Ok(Some(GetResponseParameterData::DeviceModelDescription {
+            Ok(GetResponseParameterData::DeviceModelDescription {
                 device_model_description: "Generic Product A".to_string()
-            }))
+            })
         );
     }
 
@@ -580,10 +573,10 @@ mod tests {
     fn should_parse_dmx_personality() {
         assert_eq!(
             GetResponseParameterData::parse(ParameterId::DmxPersonality, &[0x02, 0x04]),
-            Ok(Some(GetResponseParameterData::DmxPersonality {
+            Ok(GetResponseParameterData::DmxPersonality {
                 current_personality: 2,
                 personality_count: 4
-            }))
+            })
         );
     }
 }
