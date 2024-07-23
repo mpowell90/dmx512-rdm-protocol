@@ -463,30 +463,6 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn should_parse_parameter_description() {
-    //     assert_eq!(
-    //         GetResponseParameterData::parse(
-    //             ParameterId::ParameterDescription,
-    //             &[
-    //                 0x80, 0x80, // Parameter ID
-    //                 0x02, // Parameter data size
-    //                 0x02, // DeviceUID 2
-    //                 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, // DeviceUID 3
-    //                 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, // DeviceUID 4
-    //             ]
-    //         ),
-    //         // Ok(GetResponseParameterData::ProxiedDevices {
-    //         //     device_uids: vec![
-    //         //         DeviceUID::new(0x0102, 0x03040506),
-    //         //         DeviceUID::new(0x0203, 0x04050607),
-    //         //         DeviceUID::new(0x0304, 0x05060708),
-    //         //         DeviceUID::new(0x0405, 0x06070809),
-    //         //     ]
-    //         // }))
-    //     );
-    // }
-
     #[test]
     fn should_parse_device_label() {
         assert_eq!(
@@ -576,6 +552,161 @@ mod tests {
             Ok(GetResponseParameterData::DmxPersonality {
                 current_personality: 2,
                 personality_count: 4
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_dmx_personality_description() {
+        assert_eq!(
+            GetResponseParameterData::parse(
+                ParameterId::DmxPersonalityDescription,
+                &[
+                    0x01, 0x00, 0x04, 0x34, 0x20, 0x43, 0x68, 0x61, 0x6e, 0x6e, 0x65, 0x6c, 0x20,
+                    0x52, 0x47, 0x42, 0x57, 0x00
+                ]
+            ),
+            Ok(GetResponseParameterData::DmxPersonalityDescription {
+                id: 1,
+                dmx_slots_required: 4,
+                description: "4 Channel RGBW".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_dmx_start_address() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::DmxStartAddress, &[0x00, 0x01]),
+            Ok(GetResponseParameterData::DmxStartAddress {
+                dmx_start_address: 0x01
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_device_hours() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::DeviceHours, &[0x01, 0x02, 0x03, 0x04]),
+            Ok(GetResponseParameterData::DeviceHours {
+                device_hours: 0x01020304
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_lamp_hours() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::LampHours, &[0x01, 0x02, 0x03, 0x04]),
+            Ok(GetResponseParameterData::LampHours {
+                lamp_hours: 0x01020304
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_lamp_strikes() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::LampStrikes, &[0x01, 0x02, 0x03, 0x04]),
+            Ok(GetResponseParameterData::LampStrikes {
+                lamp_strikes: 0x01020304
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_lamp_state() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::LampState, &[0x01]),
+            Ok(GetResponseParameterData::LampState {
+                lamp_state: LampState::LampOn
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_lamp_on_mode() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::LampOnMode, &[0x01]),
+            Ok(GetResponseParameterData::LampOnMode {
+                lamp_on_mode: LampOnMode::DmxMode
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_device_power_cycles() {
+        assert_eq!(
+            GetResponseParameterData::parse(
+                ParameterId::DevicePowerCycles,
+                &[0x01, 0x02, 0x03, 0x04]
+            ),
+            Ok(GetResponseParameterData::DevicePowerCycles {
+                power_cycle_count: 0x01020304
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_display_invert() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::DisplayInvert, &[0x01]),
+            Ok(GetResponseParameterData::DisplayInvert {
+                display_invert_mode: DisplayInvertMode::On
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_curve() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::Curve, &[0x01, 0x04]),
+            Ok(GetResponseParameterData::Curve {
+                current_curve: 1,
+                curve_count: 4,
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_curve_description() {
+        assert_eq!(
+            GetResponseParameterData::parse(
+                ParameterId::CurveDescription,
+                &[0x01, 0x50, 0x6f, 0x77, 0x65, 0x72, 0x20, 0x4c, 0x61, 0x77, 0x00]
+            ),
+            Ok(GetResponseParameterData::CurveDescription {
+                id: 1,
+                description: "Power Law".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_modulation_frequency() {
+        assert_eq!(
+            GetResponseParameterData::parse(ParameterId::ModulationFrequency, &[0x01, 0x04]),
+            Ok(GetResponseParameterData::ModulationFrequency {
+                current_modulation_frequency: 1,
+                modulation_frequency_count: 4,
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_modulation_frequency_description() {
+        assert_eq!(
+            GetResponseParameterData::parse(
+                ParameterId::ModulationFrequencyDescription,
+                &[
+                    0x01, 0x01, 0x02, 0x03, 0x04, 0x46, 0x61, 0x73, 0x74, 0x20, 0x52, 0x65, 0x66,
+                    0x72, 0x65, 0x73, 0x68, 0x00
+                ]
+            ),
+            Ok(GetResponseParameterData::ModulationFrequencyDescription {
+                id: 1,
+                frequency: 0x01020304,
+                description: "Fast Refresh".to_string(),
             })
         );
     }
