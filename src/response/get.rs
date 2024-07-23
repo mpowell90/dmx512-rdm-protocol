@@ -264,8 +264,8 @@ impl GetResponseParameterData {
                     normal_minimum_value: i16::from_be_bytes(bytes[8..=9].try_into().unwrap()),
                     normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into().unwrap()),
                     recorded_value_support: bytes[12],
-                    description: String::from_utf8_lossy(&bytes[13..])
-                        .trim_end_matches('\0')
+                    description: CStr::from_bytes_with_nul(&bytes[13..])?
+                        .to_string_lossy()
                         .to_string(),
                 },
             }),
@@ -301,8 +301,8 @@ impl GetResponseParameterData {
                 Ok(GetResponseParameterData::DmxPersonalityDescription {
                     id: bytes[0],
                     dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into().unwrap()),
-                    description: String::from_utf8_lossy(&bytes[3..])
-                        .trim_end_matches('\0')
+                    description: CStr::from_bytes_with_nul(&bytes[3..])?
+                        .to_string_lossy()
                         .to_string(),
                 })
             }
@@ -320,8 +320,8 @@ impl GetResponseParameterData {
             }
             ParameterId::SlotDescription => Ok(GetResponseParameterData::SlotDescription {
                 slot_id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
-                description: String::from_utf8_lossy(&bytes[2..])
-                    .trim_end_matches('\0')
+                description: CStr::from_bytes_with_nul(&bytes[2..])?
+                    .to_string_lossy()
                     .to_string(),
             }),
             ParameterId::DeviceHours => Ok(GetResponseParameterData::DeviceHours {
@@ -351,8 +351,8 @@ impl GetResponseParameterData {
             }),
             ParameterId::CurveDescription => Ok(GetResponseParameterData::CurveDescription {
                 id: bytes[0],
-                description: String::from_utf8_lossy(&bytes[1..])
-                    .trim_end_matches('\0')
+                description: CStr::from_bytes_with_nul(&bytes[1..])?
+                    .to_string_lossy()
                     .to_string(),
             }),
             ParameterId::ModulationFrequency => Ok(GetResponseParameterData::ModulationFrequency {
@@ -363,8 +363,8 @@ impl GetResponseParameterData {
                 Ok(GetResponseParameterData::ModulationFrequencyDescription {
                     id: bytes[0],
                     frequency: u32::from_be_bytes(bytes[1..=4].try_into().unwrap()),
-                    description: String::from_utf8_lossy(&bytes[5..])
-                        .trim_end_matches('\0')
+                    description: CStr::from_bytes_with_nul(&bytes[5..])?
+                        .to_string_lossy()
                         .to_string(),
                 })
             }
@@ -392,8 +392,8 @@ impl GetResponseParameterData {
             ParameterId::OutputResponseTimeDescription => {
                 Ok(GetResponseParameterData::OutputResponseTimeDescription {
                     id: bytes[0],
-                    description: String::from_utf8_lossy(&bytes[1..])
-                        .trim_end_matches('\0')
+                    description: CStr::from_bytes_with_nul(&bytes[1..])?
+                        .to_string_lossy()
                         .to_string(),
                 })
             }
@@ -405,8 +405,8 @@ impl GetResponseParameterData {
             }),
             ParameterId::SelfTestDescription => Ok(GetResponseParameterData::SelfTestDescription {
                 self_test_id: bytes[0],
-                description: String::from_utf8_lossy(&bytes[1..])
-                    .trim_end_matches('\0')
+                description: CStr::from_bytes_with_nul(&bytes[1..])?
+                    .to_string_lossy()
                     .to_string(),
             }),
             ParameterId::PresetPlayback => Ok(GetResponseParameterData::PresetPlayback {
