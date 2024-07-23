@@ -88,7 +88,7 @@ pub struct OutputResponseTime {
     pub description: String,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DmxSlot {
     pub id: u16,
     pub kind: u8, // TODO use enum

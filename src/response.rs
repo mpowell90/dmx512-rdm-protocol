@@ -1,3 +1,5 @@
+use bytes::{Buf, Bytes, BytesMut};
+
 use crate::{
     bsd_16_crc,
     device::{DeviceUID, DmxSlot},
@@ -25,7 +27,7 @@ pub enum ResponseNackReasonCode {
     ProxyBufferFull = 0x000a,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ResponseType {
     Ack = 0x00,
     AckTimer = 0x01,
@@ -66,7 +68,7 @@ impl TryFrom<u8> for PacketResponseType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GetResponseParameterData {
     ProxiedDeviceCount {
         device_count: u16,
@@ -482,7 +484,7 @@ impl GetResponseParameterData {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SetResponseParameterData {
     DeviceLabel,
     DmxPersonality,
@@ -499,7 +501,7 @@ impl SetResponseParameterData {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DiscoveryResponseParameterData {
     DiscMute {
         control_field: u16,
@@ -543,7 +545,7 @@ impl DiscoveryResponseParameterData {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RdmResponseParameterData {
     GetResponse(GetResponseParameterData),
     SetResponse(SetResponseParameterData),
@@ -572,17 +574,20 @@ impl RdmResponseParameterData {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DiscoveryUniqueBranchResponse(DeviceUID);
 
 impl DiscoveryUniqueBranchResponse {
-    pub fn parse(bytes: &[u8]) -> Result<Self, ProtocolError> {
-        let euid_start_index = bytes.iter().position(|x| *x == 0xaa).unwrap();
+    pub fn parse(bytes: &mut BytesMut) -> Result<Self, ProtocolError> {
+        let Some(frame_start_index) = bytes.iter().position(|&x| x == 0xaa) else {
+            return Err(ProtocolError::InvalidDiscoveryUniqueBranchPreamble);
+        };
 
-        let euid = Vec::from(&bytes[(euid_start_index + 1)..=(euid_start_index + 12)]);
+        let euid = &bytes[(frame_start_index + 1)..=(frame_start_index + 12)];
 
-        let ecs = Vec::from(&bytes[(euid_start_index + 13)..=(euid_start_index + 16)]);
+        let ecs = &bytes[(frame_start_index + 13)..=(frame_start_index + 16)];
 
-        let decoded_checksum = bsd_16_crc(&euid);
+        let decoded_checksum = bsd_16_crc(euid);
 
         let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
 
@@ -599,10 +604,13 @@ impl DiscoveryUniqueBranchResponse {
             euid[10] & euid[11],
         ]);
 
+        bytes.advance(frame_start_index + 17);
+
         Ok(Self(DeviceUID::new(manufacturer_id, device_id)))
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RdmResponse {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
@@ -616,7 +624,7 @@ pub struct RdmResponse {
 }
 
 impl RdmResponse {
-    pub fn parse(bytes: &[u8]) -> Result<Self, ProtocolError> {
+    pub fn parse(bytes: &mut BytesMut) -> Result<Self, ProtocolError> {
         let message_length = bytes[2];
 
         if message_length < 24 {
@@ -624,7 +632,7 @@ impl RdmResponse {
         }
 
         let packet_checksum = u16::from_be_bytes(
-            bytes[message_length as usize..=message_length as usize + 2]
+            bytes[message_length as usize..=message_length as usize + 1]
                 .try_into()
                 .unwrap(),
         );
@@ -671,11 +679,13 @@ impl RdmResponse {
             RdmResponseParameterData::parse(
                 command_class,
                 parameter_id,
-                &bytes[24..(message_length as usize - 2)],
+                &bytes[25..=message_length as usize + 1],
             )?
         } else {
             None
         };
+
+        bytes.advance(message_length as usize + 2);
 
         Ok(Self {
             destination_uid,
@@ -691,33 +701,232 @@ impl RdmResponse {
     }
 }
 
-pub enum Frame {
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RdmFrame {
     Rdm(RdmResponse),
     DiscoveryUniqueBranch(DiscoveryUniqueBranchResponse),
 }
 
-impl Frame {
-    pub fn parse(bytes: &[u8]) -> Result<Option<Self>, ProtocolError> {
+impl RdmFrame {
+    pub fn parse(bytes: &mut BytesMut) -> Result<Option<Self>, ProtocolError> {
         if bytes[0] == SC_RDM && bytes[1] == SC_SUB_MESSAGE {
             if bytes.len() < 25 {
                 return Ok(None);
             }
 
-            return Ok(Some(Frame::Rdm(RdmResponse::parse(bytes)?)));
+            match RdmResponse::parse(bytes) {
+                Ok(frame) => {
+                    return Ok(Some(RdmFrame::Rdm(frame)));
+                }
+                Err(e) => {
+                    bytes.advance(1);
+                    return Err(e);
+                }
+            }
         }
 
         if bytes[0] == DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE
-            || bytes[1] == DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE
+            || bytes[0] == DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE
         {
             if bytes.len() < 17 {
                 return Ok(None);
             }
 
-            return Ok(Some(Frame::DiscoveryUniqueBranch(
-                DiscoveryUniqueBranchResponse::parse(bytes)?,
-            )));
+            match DiscoveryUniqueBranchResponse::parse(bytes) {
+                Ok(frame) => {
+                    return Ok(Some(RdmFrame::DiscoveryUniqueBranch(frame)));
+                }
+                Err(e) => {
+                    bytes.advance(1);
+                    return Err(e);
+                }
+            }
         }
 
+        bytes.advance(1);
+
         Ok(None)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use bytes::BufMut;
+
+    #[test]
+    fn should_take_first_byte_when_first_bytes_do_not_match_frame_header() {
+        let mut bytes = BytesMut::zeroed(16);
+
+        assert_eq!(RdmFrame::parse(&mut bytes), Ok(None));
+
+        let bytes_check = [0u8; 15];
+
+        assert_eq!(bytes.len(), bytes_check.len());
+    }
+
+    #[test]
+    fn should_defer_parsing_rdm_response_when_packet_length_is_short() {
+        let mut bytes = BytesMut::zeroed(24);
+        bytes[0] = SC_RDM;
+        bytes[1] = SC_SUB_MESSAGE;
+
+        assert_eq!(RdmFrame::parse(&mut bytes), Ok(None));
+
+        let mut bytes_check = BytesMut::zeroed(24);
+        bytes_check[0] = SC_RDM;
+        bytes_check[1] = SC_SUB_MESSAGE;
+
+        assert_eq!(bytes, bytes_check);
+    }
+
+    #[test]
+    fn should_defer_parsing_discovery_unique_branch_response_when_packet_length_is_short() {
+        let mut bytes = BytesMut::zeroed(16);
+        bytes[0] = DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE;
+        bytes[1] = DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE;
+
+        assert_eq!(RdmFrame::parse(&mut bytes), Ok(None));
+
+        let mut bytes_check = BytesMut::zeroed(16);
+        bytes_check[0] = DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE;
+        bytes_check[1] = DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE;
+
+        assert_eq!(bytes, bytes_check);
+    }
+
+    #[test]
+    fn should_parse_valid_rdm_response() {
+        let mut bytes = BytesMut::with_capacity(27);
+        bytes.put(
+            &[
+                SC_RDM,
+                SC_SUB_MESSAGE,
+                25,   // message length
+                0x01, // destination uid
+                0x02,
+                0x03,
+                0x04,
+                0x05,
+                0x06,
+                0x06, // source uid
+                0x05,
+                0x04,
+                0x03,
+                0x02,
+                0x01,
+                0x00, // transaction number
+                0x00, // response type = Ack
+                0x01, // message count
+                0x00, // sub device id = root device
+                0x00,
+                0x21, // command class = get command response
+                0x10, // parameter id = identify device
+                0x00,
+                0x01, // parameter data length
+                0x01, // identifying = true
+                0x01,
+                0x43, // checksum
+            ][..],
+        );
+
+        assert_eq!(
+            RdmFrame::parse(&mut bytes),
+            Ok(Some(RdmFrame::Rdm(RdmResponse {
+                destination_uid: DeviceUID::new(0x0102, 0x03040506),
+                source_uid: DeviceUID::new(0x0605, 0x04030201),
+                transaction_number: 0x00,
+                response_type: ResponseType::Ack,
+                message_count: 0x01,
+                sub_device_id: 0x0000,
+                command_class: CommandClass::GetCommandResponse,
+                parameter_id: ParameterId::IdentifyDevice,
+                parameter_data: Some(RdmResponseParameterData::GetResponse(
+                    GetResponseParameterData::IdentifyDevice {
+                        is_identifying: true,
+                    }
+                )),
+            })))
+        );
+
+        assert_eq!(bytes.len(), 0);
+    }
+
+    #[test]
+    fn should_parse_valid_discovery_unique_branch_response() {
+        // includes preamble bytes
+        let mut bytes = BytesMut::with_capacity(27);
+
+        // TODO dedupe bytes creation test code
+        bytes.put(
+            &[
+                DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+                DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+                DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+                DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+                DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+                DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+                DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+                DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
+                0xab, // euid 11 = manufacturer id 1 (MSB)
+                0x55, // euid 10 = manufacturer id 1 (MSB)
+                0xaa, // euid 9 = manufacturer id 0 (LSB)
+                0x57, // euid 8 = manufacturer id 0 (LSB)
+                0xab, // euid 7 = device id 3 (MSB)
+                0x57, // euid 6 = device id 3 (MSB)
+                0xae, // euid 5 = device id 2
+                0x55, // euid 4 = device id 2
+                0xaf, // euid 3 = device id 1
+                0x55, // euid 2 = device id 1
+                0xae, // euid 1 = device id 0 (LSB)
+                0x57, // euid 0 = device id 0 (LSB)
+                0xae, // ecs 3 = Checksum1 (MSB)
+                0x57, // ecs 2 = Checksum1 (MSB)
+                0xaf, // ecs 1 = Checksum0 (LSB)
+                0x5f, // ecs 0 = Checksum0 (LSB)
+            ][..],
+        );
+
+        assert_eq!(
+            RdmFrame::parse(&mut bytes),
+            Ok(Some(RdmFrame::DiscoveryUniqueBranch(
+                DiscoveryUniqueBranchResponse(DeviceUID::new(0x0102, 0x03040506))
+            )))
+        );
+
+        assert_eq!(bytes.len(), 0);
+
+        // does not include preamble bytes
+        let mut bytes = BytesMut::with_capacity(27);
+        bytes.put(
+            &[
+                DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
+                0xab, // euid 11 = manufacturer id 1 (MSB)
+                0x55, // euid 10 = manufacturer id 1 (MSB)
+                0xaa, // euid 9 = manufacturer id 0 (LSB)
+                0x57, // euid 8 = manufacturer id 0 (LSB)
+                0xab, // euid 7 = device id 3 (MSB)
+                0x57, // euid 6 = device id 3 (MSB)
+                0xae, // euid 5 = device id 2
+                0x55, // euid 4 = device id 2
+                0xaf, // euid 3 = device id 1
+                0x55, // euid 2 = device id 1
+                0xae, // euid 1 = device id 0 (LSB)
+                0x57, // euid 0 = device id 0 (LSB)
+                0xae, // ecs 3 = Checksum1 (MSB)
+                0x57, // ecs 2 = Checksum1 (MSB)
+                0xaf, // ecs 1 = Checksum0 (LSB)
+                0x5f, // ecs 0 = Checksum0 (LSB)
+            ][..],
+        );
+
+        assert_eq!(
+            RdmFrame::parse(&mut bytes),
+            Ok(Some(RdmFrame::DiscoveryUniqueBranch(
+                DiscoveryUniqueBranchResponse(DeviceUID::new(0x0102, 0x03040506))
+            )))
+        );
+
+        assert_eq!(bytes.len(), 0);
     }
 }

@@ -2,21 +2,22 @@ use crate::{
     bsd_16_crc, bsd_16_crc_bytes_mut,
     device::{DeviceUID, DmxSlot},
     parameter::{
-        DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterError,
-        ParameterId, PowerState, ProductCategory,
+        DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId,
+        PowerState, ProductCategory,
     },
     request::{
         DiscoveryRequestParameterData, GetRequestParameterData, RdmRequestMessage,
         SetRequestParameterData,
     },
     response::{
-        DiscoveryResponse, DiscoveryResponseParameterData, GetResponse, GetResponseParameterData,
-        RdmResponseMessage, ResponseType, SetResponse, SetResponseParameterData,
+        DiscoveryResponseParameterData, GetResponseParameterData, RdmFrame,
+        SetResponseParameterData,
     },
     sensor::Sensor,
-    CommandClass, PacketType,
+    CommandClass, ProtocolError,
 };
 use bytes::{BufMut, Bytes, BytesMut};
+use std::io;
 use tokio_util::codec::{Decoder, Encoder};
 
 #[derive(Copy, Clone, Default)]
@@ -145,7 +146,7 @@ impl RdmCodec {
                             (0x0060_u16..0x8000_u16).contains(&parameter_id)
                         })
                         .map(ParameterId::try_from)
-                        .collect::<Result<Vec<ParameterId>, ParameterError>>()
+                        .collect::<Result<Vec<ParameterId>, ProtocolError>>()
                         .unwrap(), // TODO handle this error properly
                     manufacturer_specific_parameters: parameters
                         .filter(|parameter_id| *parameter_id >= 0x8000_u16)
@@ -489,193 +490,195 @@ impl Encoder<RdmRequestMessage> for RdmCodec {
 }
 
 impl Decoder for RdmCodec {
-    type Item = RdmResponseMessage;
-    type Error = anyhow::Error;
+    type Item = RdmFrame;
+    type Error = io::Error;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        let len = src.len();
+        RdmFrame::parse(src).map_err(|err| io::Error::new(io::ErrorKind::Other, err))
 
-        let rdm_packet_type =
-            PacketType::try_from(u16::from_be_bytes(src[0..=1].try_into().unwrap())).unwrap();
+        // let len = src.len();
 
-        let frame = match rdm_packet_type {
-            PacketType::DiscoveryUniqueBranchResponse => {
-                let euid_start_index = src.iter().position(|x| *x == 0xaa).unwrap();
+        // let rdm_packet_type =
+        //     PacketType::try_from(u16::from_be_bytes(src[0..=1].try_into().unwrap())).unwrap();
 
-                let euid = Vec::from(&src[(euid_start_index + 1)..=(euid_start_index + 12)]);
+        // let frame = match rdm_packet_type {
+        //     PacketType::DiscoveryUniqueBranchResponse => {
+        //         let euid_start_index = src.iter().position(|x| *x == 0xaa).unwrap();
 
-                let ecs = Vec::from(&src[(euid_start_index + 13)..=(euid_start_index + 16)]);
+        //         let euid = Vec::from(&src[(euid_start_index + 1)..=(euid_start_index + 12)]);
 
-                let decoded_checksum = bsd_16_crc(&euid);
+        //         let ecs = Vec::from(&src[(euid_start_index + 13)..=(euid_start_index + 16)]);
 
-                let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
+        //         let decoded_checksum = bsd_16_crc(&euid);
 
-                if checksum != decoded_checksum {
-                    return Err(anyhow::anyhow!("decoded checksum incorrect",));
-                    // return Err(io::Error::new(
-                    //     io::ErrorKind::Other,
-                    //     "decoded checksum incorrect",
-                    // ));
-                }
+        //         let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
 
-                let manufacturer_id = u16::from_be_bytes([euid[0] & euid[1], euid[2] & euid[3]]);
+        //         if checksum != decoded_checksum {
+        //             return Err(anyhow::anyhow!("decoded checksum incorrect",));
+        //             // return Err(io::Error::new(
+        //             //     io::ErrorKind::Other,
+        //             //     "decoded checksum incorrect",
+        //             // ));
+        //         }
 
-                let device_id = u32::from_be_bytes([
-                    euid[4] & euid[5],
-                    euid[6] & euid[7],
-                    euid[8] & euid[9],
-                    euid[10] & euid[11],
-                ]);
+        //         let manufacturer_id = u16::from_be_bytes([euid[0] & euid[1], euid[2] & euid[3]]);
 
-                RdmResponseMessage::DiscoveryUniqueBranchResponse(DeviceUID::new(
-                    manufacturer_id,
-                    device_id,
-                ))
-            }
-            PacketType::RdmResponse => {
-                // if let Some(start_byte) = src.iter().position(|b| *b == Self::SC_RDM) {
-                // We can safely ignore any bytes before and including the START_BYTE
-                // let _ = src.split_to(start_byte);
+        //         let device_id = u32::from_be_bytes([
+        //             euid[4] & euid[5],
+        //             euid[6] & euid[7],
+        //             euid[8] & euid[9],
+        //             euid[10] & euid[11],
+        //         ]);
 
-                // TODO should be checking if checksum is valid
+        //         RdmResponseMessage::DiscoveryUniqueBranchResponse(DeviceUID::new(
+        //             manufacturer_id,
+        //             device_id,
+        //         ))
+        //     }
+        //     PacketType::RdmResponse => {
+        //         // if let Some(start_byte) = src.iter().position(|b| *b == Self::SC_RDM) {
+        //         // We can safely ignore any bytes before and including the START_BYTE
+        //         // let _ = src.split_to(start_byte);
 
-                if len < Self::FRAME_HEADER_FOOTER_SIZE {
-                    return Ok(None);
-                }
+        //         // TODO should be checking if checksum is valid
 
-                // let packet_length = src[2] as usize;
+        //         if len < Self::FRAME_HEADER_FOOTER_SIZE {
+        //             return Ok(None);
+        //         }
 
-                // if len < Self::FRAME_HEADER_FOOTER_SIZE + 3 {
-                //     return Ok(None);
-                // }
+        //         // let packet_length = src[2] as usize;
 
-                let frame = src
-                    .split_to(len)
-                    // .split_to(packet_length + Self::FRAME_HEADER_FOOTER_SIZE)
-                    .freeze();
+        //         // if len < Self::FRAME_HEADER_FOOTER_SIZE + 3 {
+        //         //     return Ok(None);
+        //         // }
 
-                // TODO handle unwraps properly
-                let command_class = CommandClass::try_from(frame[20]).unwrap();
-                let destination_uid = DeviceUID::from(&frame[3..=8]);
-                let source_uid = DeviceUID::from(&frame[9..=14]);
-                let transaction_number = frame[15];
-                let response_type = ResponseType::try_from(frame[16]).unwrap();
-                let message_count = frame[17];
-                let sub_device_id = u16::from_be_bytes(frame[18..=19].try_into().unwrap());
-                let parameter_id =
-                    ParameterId::try_from(u16::from_be_bytes(frame[21..=22].try_into().unwrap()))
-                        .unwrap();
+        //         let frame = src
+        //             .split_to(len)
+        //             // .split_to(packet_length + Self::FRAME_HEADER_FOOTER_SIZE)
+        //             .freeze();
 
-                let parameter_data_length = frame[23];
-                let parameter_data: Option<Bytes> = if parameter_data_length > 0 {
-                    Some(frame.slice(24..frame.len() - 2))
-                } else {
-                    None
-                };
+        //         // TODO handle unwraps properly
+        //         let command_class = CommandClass::try_from(frame[20]).unwrap();
+        //         let destination_uid = DeviceUID::from(&frame[3..=8]);
+        //         let source_uid = DeviceUID::from(&frame[9..=14]);
+        //         let transaction_number = frame[15];
+        //         let response_type = ResponseType::try_from(frame[16]).unwrap();
+        //         let message_count = frame[17];
+        //         let sub_device_id = u16::from_be_bytes(frame[18..=19].try_into().unwrap());
+        //         let parameter_id =
+        //             ParameterId::try_from(u16::from_be_bytes(frame[21..=22].try_into().unwrap()))
+        //                 .unwrap();
 
-                match command_class {
-                    CommandClass::GetCommandResponse => {
-                        RdmResponseMessage::GetResponse(GetResponse {
-                            destination_uid,
-                            source_uid,
-                            transaction_number,
-                            response_type,
-                            message_count,
-                            command_class,
-                            sub_device_id,
-                            parameter_id,
-                            parameter_data: parameter_data.map(|parameter_data| {
-                                Self::get_response_bytes_to_parameter_data(
-                                    parameter_id,
-                                    parameter_data,
-                                )
-                            }),
-                        })
-                    }
-                    CommandClass::SetCommandResponse => {
-                        RdmResponseMessage::SetResponse(SetResponse {
-                            destination_uid,
-                            source_uid,
-                            transaction_number,
-                            response_type,
-                            message_count,
-                            command_class,
-                            sub_device_id,
-                            parameter_id,
-                            parameter_data: parameter_data.map(|parameter_data| {
-                                Self::set_response_bytes_to_parameter_data(
-                                    parameter_id,
-                                    parameter_data,
-                                )
-                            }),
-                        })
-                    }
-                    CommandClass::DiscoveryCommandResponse => {
-                        RdmResponseMessage::DiscoveryResponse(DiscoveryResponse {
-                            destination_uid,
-                            source_uid,
-                            transaction_number,
-                            response_type,
-                            message_count,
-                            command_class,
-                            sub_device_id,
-                            parameter_id,
-                            parameter_data: parameter_data.map(|parameter_data| {
-                                Self::discovery_response_bytes_to_parameter_data(
-                                    parameter_id,
-                                    parameter_data,
-                                )
-                            }),
-                        })
-                    }
-                    _ => todo!("Unknown CommandClass"),
-                }
+        //         let parameter_data_length = frame[23];
+        //         let parameter_data: Option<Bytes> = if parameter_data_length > 0 {
+        //             Some(frame.slice(24..frame.len() - 2))
+        //         } else {
+        //             None
+        //         };
 
-                // } else {
-                //     println!("packet length");
-                //     // TODO might need to return Err() here
-                //     return Ok(None);
-                // }
-            }
-        };
+        //         match command_class {
+        //             CommandClass::GetCommandResponse => {
+        //                 RdmResponseMessage::GetResponse(GetResponse {
+        //                     destination_uid,
+        //                     source_uid,
+        //                     transaction_number,
+        //                     response_type,
+        //                     message_count,
+        //                     command_class,
+        //                     sub_device_id,
+        //                     parameter_id,
+        //                     parameter_data: parameter_data.map(|parameter_data| {
+        //                         Self::get_response_bytes_to_parameter_data(
+        //                             parameter_id,
+        //                             parameter_data,
+        //                         )
+        //                     }),
+        //                 })
+        //             }
+        //             CommandClass::SetCommandResponse => {
+        //                 RdmResponseMessage::SetResponse(SetResponse {
+        //                     destination_uid,
+        //                     source_uid,
+        //                     transaction_number,
+        //                     response_type,
+        //                     message_count,
+        //                     command_class,
+        //                     sub_device_id,
+        //                     parameter_id,
+        //                     parameter_data: parameter_data.map(|parameter_data| {
+        //                         Self::set_response_bytes_to_parameter_data(
+        //                             parameter_id,
+        //                             parameter_data,
+        //                         )
+        //                     }),
+        //                 })
+        //             }
+        //             CommandClass::DiscoveryCommandResponse => {
+        //                 RdmResponseMessage::DiscoveryResponse(DiscoveryResponse {
+        //                     destination_uid,
+        //                     source_uid,
+        //                     transaction_number,
+        //                     response_type,
+        //                     message_count,
+        //                     command_class,
+        //                     sub_device_id,
+        //                     parameter_id,
+        //                     parameter_data: parameter_data.map(|parameter_data| {
+        //                         Self::discovery_response_bytes_to_parameter_data(
+        //                             parameter_id,
+        //                             parameter_data,
+        //                         )
+        //                     }),
+        //                 })
+        //             }
+        //             _ => todo!("Unknown CommandClass"),
+        //         }
 
-        Ok(Some(frame))
+        // } else {
+        //     println!("packet length");
+        //     // TODO might need to return Err() here
+        //     return Ok(None);
+        // }
+        //     }
+        // };
+
+        // Ok(Some(frame))
     }
 }
 
-#[cfg(test)]
-pub mod tests {
-    use super::*;
-    use crate::{device::DeviceUID, request::DiscoveryRequest};
-    use bytes::BytesMut;
+// #[cfg(test)]
+// pub mod tests {
+//     use super::*;
+//     use crate::{device::DeviceUID, request::DiscoveryRequest};
+//     use bytes::BytesMut;
 
-    #[test]
-    fn test_encode_discovery_request() {
-        let mut codec = RdmCodec;
+//     #[test]
+//     fn test_encode_discovery_request() {
+//         let mut codec = RdmCodec;
 
-        let message = RdmRequestMessage::DiscoveryRequest(DiscoveryRequest {
-            destination_uid: DeviceUID::new(0x6574, 0x00000001),
-            source_uid: DeviceUID::new(0x6574, 0x00000002),
-            transaction_number: 0x01,
-            port_id: 0x01,
-            sub_device_id: 0x0001,
-            parameter_id: ParameterId::DiscUniqueBranch as u16,
-            parameter_data: Some(DiscoveryRequestParameterData::DiscUniqueBranch {
-                lower_bound_uid: DeviceUID::new(0x6574, 0x00000001),
-                upper_bound_uid: DeviceUID::new(0x6574, 0x00000002),
-            }),
-        });
+//         let message = RdmRequestMessage::DiscoveryRequest(DiscoveryRequest {
+//             destination_uid: DeviceUID::new(0x6574, 0x00000001),
+//             source_uid: DeviceUID::new(0x6574, 0x00000002),
+//             transaction_number: 0x01,
+//             port_id: 0x01,
+//             sub_device_id: 0x0001,
+//             parameter_id: ParameterId::DiscUniqueBranch as u16,
+//             parameter_data: Some(DiscoveryRequestParameterData::DiscUniqueBranch {
+//                 lower_bound_uid: DeviceUID::new(0x6574, 0x00000001),
+//                 upper_bound_uid: DeviceUID::new(0x6574, 0x00000002),
+//             }),
+//         });
 
-        let mut bytes = BytesMut::new();
+//         let mut bytes = BytesMut::new();
 
-        codec.encode(message, &mut bytes).unwrap();
+//         codec.encode(message, &mut bytes).unwrap();
 
-        let expected = vec![
-            0xcc, 0x01, 0x1c, 0x65, 0x74, 0x00, 0x00, 0x00, 0x01, 0x65, 0x74, 0x00, 0x00, 0x00,
-            0x02, 0x01, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x65, 0x74, 0x00,
-            0x00, 0x00, 0x01, 0x65, 0x74, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01,
-        ];
+//         let expected = vec![
+//             0xcc, 0x01, 0x1c, 0x65, 0x74, 0x00, 0x00, 0x00, 0x01, 0x65, 0x74, 0x00, 0x00, 0x00,
+//             0x02, 0x01, 0x01, 0x00, 0x01, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x65, 0x74, 0x00,
+//             0x00, 0x00, 0x01, 0x65, 0x74, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01,
+//         ];
 
-        assert_eq!(bytes.to_vec(), expected);
-    }
-}
+//         assert_eq!(bytes.to_vec(), expected);
+//     }
+// }

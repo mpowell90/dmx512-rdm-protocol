@@ -20,7 +20,7 @@ pub const BROADCAST_ALL_DEVICES_ID: u64 = 0xffffffffffff;
 pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
 pub const ROOT_DEVICE: u16 = 0x0000;
 
-#[derive(Debug, Error)]
+#[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum ProtocolError {
     #[error("Invalid Start Code: {0}")]
     InvalidStartByte(u8),
@@ -38,6 +38,8 @@ pub enum ProtocolError {
     UnsupportedParameterId(u16),
     #[error("Invalid parameter data length: {0}, must be >= 0 and <= 231")]
     InvalidParameterDataLength(u8),
+    #[error("Invalid discovery unique branch preamble")]
+    InvalidDiscoveryUniqueBranchPreamble,
     #[error("Invalid stop byte: {0}")]
     InvalidStopByte(u8),
     #[error("Invalid PacketResponseType: {0}")]

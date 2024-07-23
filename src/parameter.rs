@@ -231,7 +231,7 @@ impl TryFrom<u8> for SupportedCommandClass {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ManufacturerSpecificParameter {
     pub parameter_id: u16,
     pub parameter_data_size: Option<u8>, // TODO use enum

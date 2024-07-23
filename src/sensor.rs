@@ -78,7 +78,7 @@ impl From<u8> for SensorType {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sensor {
     pub id: u8,
     pub kind: SensorType,
