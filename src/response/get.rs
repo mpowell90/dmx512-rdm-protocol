@@ -1,5 +1,5 @@
 use crate::{
-    device::{DeviceUID, SlotInfo, StatusMessage},
+    device::{DefaultSlotValue, DeviceUID, SlotInfo, StatusMessage},
     parameter::{
         DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId,
         PowerState, ProductCategory,
@@ -95,6 +95,9 @@ pub enum GetResponseParameterData {
     SlotDescription {
         slot_id: u16,
         description: String,
+    },
+    DefaultSlotValue {
+        default_slot_values: Vec<DefaultSlotValue>,
     },
     SensorDefinition {
         sensor: Sensor,
@@ -471,7 +474,21 @@ impl GetResponseParameterData {
                     .to_string_lossy()
                     .to_string(),
             }),
-            // TODO DEFAULT_SLOT_VALUE
+            ParameterId::DefaultSlotValue => Ok(GetResponseParameterData::DefaultSlotValue {
+                default_slot_values: bytes
+                    .chunks(3)
+                    .map(|chunk| {
+                        Ok(DefaultSlotValue::new(
+                            u16::from_be_bytes(
+                                chunk[0..=1]
+                                    .try_into()
+                                    .map_err(|_| ProtocolError::TryFromSliceError)?,
+                            ),
+                            chunk[2],
+                        ))
+                    })
+                    .collect::<Result<Vec<DefaultSlotValue>, ProtocolError>>()?,
+            }),
             ParameterId::SensorDefinition => Ok(GetResponseParameterData::SensorDefinition {
                 sensor: Sensor {
                     id: bytes[0],

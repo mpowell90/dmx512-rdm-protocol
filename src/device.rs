@@ -129,6 +129,18 @@ impl SlotInfo {
     }
 }
 
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct DefaultSlotValue {
+    pub id: u16,
+    pub value: u8,
+}
+
+impl DefaultSlotValue {
+    pub fn new(id: u16, value: u8) -> Self {
+        Self { id, value }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DmxSlot {
     pub id: u16,
