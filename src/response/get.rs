@@ -5,7 +5,7 @@ use crate::{
         PowerState, ProductCategory,
     },
     sensor::Sensor,
-    CommandClass, ProtocolError,
+    CommandClass, ProtocolError, StatusType,
 };
 use std::{collections::HashMap, ffi::CStr};
 
@@ -28,6 +28,9 @@ pub enum GetResponseParameterData {
     },
     StatusIdDescription {
         status_id_description: String,
+    },
+    SubDeviceStatusReportThreshold {
+        status_type: StatusType,
     },
     ParameterDescription {
         parameter_id: u16,
@@ -266,6 +269,9 @@ impl GetResponseParameterData {
                 status_id_description: CStr::from_bytes_with_nul(bytes)?
                     .to_string_lossy()
                     .to_string(),
+            }),
+            ParameterId::SubDeviceStatusReportThreshold => Ok(GetResponseParameterData::SubDeviceStatusReportThreshold {
+                status_type: bytes[0].try_into()?,
             }),
             ParameterId::ParameterDescription => {
                 Ok(GetResponseParameterData::ParameterDescription {
