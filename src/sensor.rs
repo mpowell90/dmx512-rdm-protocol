@@ -82,6 +82,33 @@ impl TryFrom<u8> for SensorType {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SensorValue {
+    pub sensor_id: u8,
+    pub current_value: i16,
+    pub lowest_detected_value: i16,
+    pub highest_detected_value: i16,
+    pub recorded_value: i16,
+}
+
+impl SensorValue {
+    pub fn new(
+        sensor_id: u8,
+        current_value: i16,
+        lowest_detected_value: i16,
+        highest_detected_value: i16,
+        recorded_value: i16
+    ) -> Self {
+        Self {
+            sensor_id,
+            current_value,
+            lowest_detected_value,
+            highest_detected_value,
+            recorded_value,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Sensor {
     pub id: u8,
     pub kind: SensorType,

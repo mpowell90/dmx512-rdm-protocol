@@ -4,7 +4,7 @@ use crate::{
         DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId,
         PowerState, ProductCategory,
     },
-    sensor::Sensor,
+    sensor::{Sensor, SensorValue},
     CommandClass, ProtocolError, StatusType,
 };
 use std::{collections::HashMap, ffi::CStr};
@@ -115,13 +115,7 @@ pub enum GetResponseParameterData {
     SensorDefinition {
         sensor: Sensor,
     },
-    SensorValue {
-        sensor_id: u8,
-        current_value: i16,
-        lowest_detected_value: i16,
-        highest_detected_value: i16,
-        recorded_value: i16,
-    },
+    SensorValue(SensorValue),
     DeviceHours {
         device_hours: u32,
     },
@@ -577,29 +571,31 @@ impl GetResponseParameterData {
                         .to_string(),
                 },
             }),
-            ParameterId::SensorValue => Ok(GetResponseParameterData::SensorValue {
-                sensor_id: bytes[0],
-                current_value: i16::from_be_bytes(
-                    bytes[1..=2]
-                        .try_into()
-                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                ),
-                lowest_detected_value: i16::from_be_bytes(
-                    bytes[3..=4]
-                        .try_into()
-                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                ),
-                highest_detected_value: i16::from_be_bytes(
-                    bytes[5..=6]
-                        .try_into()
-                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                ),
-                recorded_value: i16::from_be_bytes(
-                    bytes[7..=8]
-                        .try_into()
-                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                ),
-            }),
+            ParameterId::SensorValue => {
+                Ok(GetResponseParameterData::SensorValue(SensorValue::new(
+                    bytes[0],
+                    i16::from_be_bytes(
+                        bytes[1..=2]
+                            .try_into()
+                            .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    ),
+                    i16::from_be_bytes(
+                        bytes[3..=4]
+                            .try_into()
+                            .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    ),
+                    i16::from_be_bytes(
+                        bytes[5..=6]
+                            .try_into()
+                            .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    ),
+                    i16::from_be_bytes(
+                        bytes[7..=8]
+                            .try_into()
+                            .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    ),
+                )))
+            }
             ParameterId::DeviceHours => Ok(GetResponseParameterData::DeviceHours {
                 device_hours: u32::from_be_bytes(
                     bytes[0..=3]
@@ -664,7 +660,6 @@ impl GetResponseParameterData {
             ParameterId::IdentifyDevice => Ok(GetResponseParameterData::IdentifyDevice {
                 is_identifying: bytes[0] == 1,
             }),
-            // TODO RESET_DEVICE
             ParameterId::PowerState => Ok(GetResponseParameterData::PowerState {
                 power_state: bytes[0].try_into()?,
             }),
