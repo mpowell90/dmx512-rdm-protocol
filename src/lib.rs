@@ -61,6 +61,8 @@ pub enum ProtocolError {
     InvalidDisplayInvertMode(u8),
     #[error("Invalid ResetType: {0}")]
     InvalidResetType(u8),
+    #[error("Invalid SensorType: {0}")]
+    InvalidSensorType(u8),
     #[error("Invalid stop byte: {0}")]
     InvalidStopByte(u8),
     #[error("Invalid PacketResponseType: {0}")]

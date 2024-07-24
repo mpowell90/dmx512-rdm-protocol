@@ -1,3 +1,5 @@
+use crate::ProtocolError;
+
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SensorType {
     Temperature = 0x00,
@@ -36,44 +38,45 @@ pub enum SensorType {
     Other = 0x7f,
 }
 
-impl From<u8> for SensorType {
-    fn from(sensor_type: u8) -> Self {
-        match sensor_type {
-            0x00 => SensorType::Temperature,
-            0x01 => SensorType::Voltage,
-            0x02 => SensorType::Current,
-            0x03 => SensorType::Frequency,
-            0x04 => SensorType::Resistance,
-            0x05 => SensorType::Power,
-            0x06 => SensorType::Mass,
-            0x07 => SensorType::Length,
-            0x08 => SensorType::Area,
-            0x09 => SensorType::Volume,
-            0x0a => SensorType::Density,
-            0x0b => SensorType::Velocity,
-            0x0c => SensorType::Acceleration,
-            0x0d => SensorType::Force,
-            0x0e => SensorType::Energy,
-            0x0f => SensorType::Pressure,
-            0x10 => SensorType::Time,
-            0x11 => SensorType::Angle,
-            0x12 => SensorType::PositionX,
-            0x13 => SensorType::PositionY,
-            0x14 => SensorType::PositionZ,
-            0x15 => SensorType::AngularVelocity,
-            0x16 => SensorType::LuminousIntensity,
-            0x17 => SensorType::LuminousFlux,
-            0x18 => SensorType::Illuminance,
-            0x19 => SensorType::ChrominanceRed,
-            0x1a => SensorType::ChrominanceGreen,
-            0x1b => SensorType::ChrominanceBlue,
-            0x1c => SensorType::Contacts,
-            0x1d => SensorType::Memory,
-            0x1e => SensorType::Items,
-            0x1f => SensorType::Humidity,
-            0x20 => SensorType::Counter16Bit,
-            0x7f => SensorType::Other,
-            _ => panic!("Invalid value for Sensor Type: 0x{:02X?}", sensor_type),
+impl TryFrom<u8> for SensorType {
+    type Error = ProtocolError;
+    fn try_from(value: u8) -> Result<Self, ProtocolError> {
+        match value {
+            0x00 => Ok(Self::Temperature),
+            0x01 => Ok(Self::Voltage),
+            0x02 => Ok(Self::Current),
+            0x03 => Ok(Self::Frequency),
+            0x04 => Ok(Self::Resistance),
+            0x05 => Ok(Self::Power),
+            0x06 => Ok(Self::Mass),
+            0x07 => Ok(Self::Length),
+            0x08 => Ok(Self::Area),
+            0x09 => Ok(Self::Volume),
+            0x0a => Ok(Self::Density),
+            0x0b => Ok(Self::Velocity),
+            0x0c => Ok(Self::Acceleration),
+            0x0d => Ok(Self::Force),
+            0x0e => Ok(Self::Energy),
+            0x0f => Ok(Self::Pressure),
+            0x10 => Ok(Self::Time),
+            0x11 => Ok(Self::Angle),
+            0x12 => Ok(Self::PositionX),
+            0x13 => Ok(Self::PositionY),
+            0x14 => Ok(Self::PositionZ),
+            0x15 => Ok(Self::AngularVelocity),
+            0x16 => Ok(Self::LuminousIntensity),
+            0x17 => Ok(Self::LuminousFlux),
+            0x18 => Ok(Self::Illuminance),
+            0x19 => Ok(Self::ChrominanceRed),
+            0x1a => Ok(Self::ChrominanceGreen),
+            0x1b => Ok(Self::ChrominanceBlue),
+            0x1c => Ok(Self::Contacts),
+            0x1d => Ok(Self::Memory),
+            0x1e => Ok(Self::Items),
+            0x1f => Ok(Self::Humidity),
+            0x20 => Ok(Self::Counter16Bit),
+            0x7f => Ok(Self::Other),
+            _ => Err(ProtocolError::InvalidSensorType(value)),
         }
     }
 }

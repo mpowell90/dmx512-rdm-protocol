@@ -88,6 +88,23 @@ pub struct OutputResponseTime {
     pub description: String,
 }
 
+#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub struct SlotInfo {
+    pub id: u16,
+    pub kind: u8, // TODO use enum
+    pub label_id: u16,
+}
+
+impl SlotInfo {
+    pub fn new(id: u16, kind: u8, label_id: u16) -> Self {
+        Self {
+            id,
+            kind,
+            label_id
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DmxSlot {
     pub id: u16,
@@ -96,14 +113,13 @@ pub struct DmxSlot {
     pub description: Option<String>,
 }
 
-impl From<&[u8]> for DmxSlot {
-    fn from(bytes: &[u8]) -> Self {
-        dbg!(bytes);
-        DmxSlot {
-            id: u16::from_be_bytes(bytes[0..=1].try_into().unwrap()),
-            kind: bytes[2], // TODO use enum
-            label_id: u16::from_be_bytes(bytes[3..=4].try_into().unwrap()),
-            description: None,
+impl DmxSlot {
+    pub fn new(id: u16, kind: u8, label_id: u16, description: Option<String>) -> Self {
+        Self {
+            id,
+            kind,
+            label_id,
+            description,
         }
     }
 }

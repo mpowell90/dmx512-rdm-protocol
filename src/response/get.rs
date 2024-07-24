@@ -1,10 +1,10 @@
 use crate::{
-    device::{DeviceUID, DmxSlot},
+    device::{DeviceUID, SlotInfo},
     parameter::{
         DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId,
         PowerState, ProductCategory,
     },
-    sensor::{Sensor, SensorType},
+    sensor::Sensor,
     CommandClass, ProtocolError,
 };
 use std::{collections::HashMap, ffi::CStr};
@@ -89,7 +89,7 @@ pub enum GetResponseParameterData {
         dmx_start_address: u16,
     },
     SlotInfo {
-        dmx_slots: Option<Vec<DmxSlot>>,
+        dmx_slots: Vec<SlotInfo>,
     },
     SlotDescription {
         slot_id: u16,
@@ -248,11 +248,12 @@ impl GetResponseParameterData {
                         .try_into()
                         .map_err(|_| ProtocolError::TryFromSliceError)?,
                 ),
-                product_category: ProductCategory::try_from(u16::from_be_bytes(
+                product_category: u16::from_be_bytes(
                     bytes[4..=5]
                         .try_into()
                         .map_err(|_| ProtocolError::TryFromSliceError)?,
-                ))?,
+                )
+                .try_into()?,
                 software_version_id: u32::from_be_bytes(
                     bytes[6..=9]
                         .try_into()
@@ -317,7 +318,7 @@ impl GetResponseParameterData {
             ParameterId::SensorDefinition => Ok(GetResponseParameterData::SensorDefinition {
                 sensor: Sensor {
                     id: bytes[0],
-                    kind: SensorType::from(bytes[1]),
+                    kind: bytes[1].try_into()?,
                     unit: bytes[2],
                     prefix: bytes[3],
                     range_minimum_value: i16::from_be_bytes(
@@ -367,7 +368,13 @@ impl GetResponseParameterData {
             ParameterId::ProductDetailIdList => Ok(GetResponseParameterData::ProductDetailIdList {
                 product_detail_id_list: bytes
                     .chunks(2)
-                    .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into().map_err(|_| ProtocolError::TryFromSliceError)?)))
+                    .map(|chunk| {
+                        Ok(u16::from_be_bytes(
+                            chunk
+                                .try_into()
+                                .map_err(|_| ProtocolError::TryFromSliceError)?,
+                        ))
+                    })
                     .collect::<Result<Vec<u16>, ProtocolError>>()?,
             }),
             ParameterId::DmxPersonality => Ok(GetResponseParameterData::DmxPersonality {
@@ -394,15 +401,26 @@ impl GetResponseParameterData {
                         .map_err(|_| ProtocolError::TryFromSliceError)?,
                 ),
             }),
-            ParameterId::SlotInfo => {
-                let dmx_slots = if bytes.len() >= 5 {
-                    Some(bytes.chunks(5).map(DmxSlot::from).collect())
-                } else {
-                    None
-                };
-
-                Ok(GetResponseParameterData::SlotInfo { dmx_slots })
-            }
+            ParameterId::SlotInfo => Ok(GetResponseParameterData::SlotInfo {
+                dmx_slots: bytes
+                    .chunks(5)
+                    .map(|chunk| {
+                        Ok(SlotInfo::new(
+                            u16::from_be_bytes(
+                                chunk[0..=1]
+                                    .try_into()
+                                    .map_err(|_| ProtocolError::TryFromSliceError)?,
+                            ),
+                            chunk[2],
+                            u16::from_be_bytes(
+                                chunk[3..=4]
+                                    .try_into()
+                                    .map_err(|_| ProtocolError::TryFromSliceError)?,
+                            ),
+                        ))
+                    })
+                    .collect::<Result<Vec<SlotInfo>, ProtocolError>>()?,
+            }),
             ParameterId::SlotDescription => Ok(GetResponseParameterData::SlotDescription {
                 slot_id: u16::from_be_bytes(
                     bytes[0..=1]
@@ -435,10 +453,10 @@ impl GetResponseParameterData {
                 ),
             }),
             ParameterId::LampState => Ok(GetResponseParameterData::LampState {
-                lamp_state: LampState::try_from(bytes[0])?,
+                lamp_state: bytes[0].try_into()?,
             }),
             ParameterId::LampOnMode => Ok(GetResponseParameterData::LampOnMode {
-                lamp_on_mode: LampOnMode::try_from(bytes[0])?,
+                lamp_on_mode: bytes[0].try_into()?,
             }),
             ParameterId::DevicePowerCycles => Ok(GetResponseParameterData::DevicePowerCycles {
                 power_cycle_count: u32::from_be_bytes(
@@ -448,7 +466,7 @@ impl GetResponseParameterData {
                 ),
             }),
             ParameterId::DisplayInvert => Ok(GetResponseParameterData::DisplayInvert {
-                display_invert_mode: DisplayInvertMode::try_from(bytes[0])?,
+                display_invert_mode: bytes[0].try_into()?,
             }),
             ParameterId::Curve => Ok(GetResponseParameterData::Curve {
                 current_curve: bytes[0],
@@ -535,7 +553,7 @@ impl GetResponseParameterData {
                 })
             }
             ParameterId::PowerState => Ok(GetResponseParameterData::PowerState {
-                power_state: PowerState::try_from(bytes[0])?,
+                power_state: bytes[0].try_into()?,
             }),
             ParameterId::PerformSelfTest => Ok(GetResponseParameterData::PerformSelfTest {
                 is_active: bytes[0] != 0,
