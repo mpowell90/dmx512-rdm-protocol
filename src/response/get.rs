@@ -77,6 +77,12 @@ pub enum GetResponseParameterData {
     SoftwareVersionLabel {
         software_version_label: String,
     },
+    BootSoftwareVersionId {
+        boot_software_version_id: u32,
+    },
+    BootSoftwareVersionLabel {
+        boot_software_version_label: String,
+    },
     DmxPersonality {
         current_personality: u8,
         personality_count: u8,
@@ -418,8 +424,22 @@ impl GetResponseParameterData {
                         .to_string(),
                 })
             }
-            // TODO BOOT_SOFTWARE_VERSION_ID
-            // TODO BOOT_SOFTWARE_VERSION_LABEL
+            ParameterId::BootSoftwareVersionId => {
+                Ok(GetResponseParameterData::BootSoftwareVersionId {
+                    boot_software_version_id: u32::from_be_bytes(
+                        bytes
+                            .try_into()
+                            .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    ),
+                })
+            }
+            ParameterId::BootSoftwareVersionLabel => {
+                Ok(GetResponseParameterData::BootSoftwareVersionLabel {
+                    boot_software_version_label: CStr::from_bytes_with_nul(bytes)?
+                        .to_string_lossy()
+                        .to_string(),
+                })
+            }
             ParameterId::DmxPersonality => Ok(GetResponseParameterData::DmxPersonality {
                 current_personality: bytes[0],
                 personality_count: bytes[1],
