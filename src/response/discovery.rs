@@ -1,5 +1,6 @@
 use crate::{device::DeviceUID, parameter::ParameterId, ProtocolError};
 
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DiscoveryResponseParameterData {
     DiscMute {

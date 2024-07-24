@@ -1,5 +1,6 @@
 use crate::{parameter::ParameterId, ProtocolError};
 
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SetResponseParameterData {
     SensorValue {

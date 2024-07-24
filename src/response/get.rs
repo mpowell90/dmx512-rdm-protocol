@@ -9,6 +9,7 @@ use crate::{
 };
 use std::{collections::HashMap, ffi::CStr};
 
+#[non_exhaustive]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GetResponseParameterData {
     ProxiedDeviceCount {

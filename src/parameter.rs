@@ -2,6 +2,7 @@ use crate::ProtocolError;
 use thiserror::Error;
 
 // TODO add remaining parameter ids
+#[non_exhaustive]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ParameterId {
     DiscUniqueBranch = 0x0001,
