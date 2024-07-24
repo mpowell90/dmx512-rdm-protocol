@@ -4,6 +4,7 @@ use crate::{
         PowerState, ProductCategory,
     },
     sensor::Sensor,
+    StatusType,
 };
 use std::collections::HashMap;
 
@@ -62,6 +63,33 @@ impl From<&[u8]> for DeviceUID {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StatusMessage {
+    pub sub_device_id: u16,
+    pub status_type: StatusType,
+    pub status_message_id: u16,
+    pub data_value1: u16,
+    pub data_value2: u16,
+}
+
+impl StatusMessage {
+    pub fn new(
+        sub_device_id: u16,
+        status_type: StatusType,
+        status_message_id: u16,
+        data_value1: u16,
+        data_value2: u16,
+    ) -> Self {
+        StatusMessage {
+            sub_device_id,
+            status_type,
+            status_message_id,
+            data_value1,
+            data_value2,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct DmxPersonality {
     pub id: u8,
@@ -97,11 +125,7 @@ pub struct SlotInfo {
 
 impl SlotInfo {
     pub fn new(id: u16, kind: u8, label_id: u16) -> Self {
-        Self {
-            id,
-            kind,
-            label_id
-        }
+        Self { id, kind, label_id }
     }
 }
 

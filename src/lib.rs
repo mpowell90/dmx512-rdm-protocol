@@ -29,9 +29,11 @@ pub enum ProtocolError {
     #[error("Invalid message length: {0}, must be >= 24 and <= 255")]
     InvalidMessageLength(u8),
     #[error("Invalid checksum: {0}, expected: {1}")]
-    InvalidChecksum(u16, u16), 
+    InvalidChecksum(u16, u16),
     #[error("Invalid ResponseType: {0}")]
     InvalidResponseType(u8),
+    #[error("Invalid StatusType: {0}")]
+    InvalidStatusType(u8),
     #[error("Invalid CommandClass: {0}")]
     InvalidCommandClass(u8),
     #[error("Unsupported ParameterId: {0}")]
@@ -91,6 +93,36 @@ impl TryFrom<u16> for PacketType {
             0xcc01 => Ok(Self::RdmResponse),
             0xfefe => Ok(Self::DiscoveryUniqueBranchResponse),
             _ => Err(PacketTypeError::UnsupportedPacketType(value)),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum StatusType {
+    None = 0x00,
+    GetLastMessage = 0x01,
+    Advisory = 0x02,
+    Warning = 0x03,
+    Error = 0x04,
+    AdvisoryCleared = 0x12,
+    WarningCleared = 0x13,
+    ErrorCleared = 0x14,
+}
+
+impl TryFrom<u8> for StatusType {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, ProtocolError> {
+        match value {
+            0x00 => Ok(Self::None),
+            0x01 => Ok(Self::GetLastMessage),
+            0x02 => Ok(Self::Advisory),
+            0x03 => Ok(Self::Warning),
+            0x04 => Ok(Self::Error),
+            0x12 => Ok(Self::AdvisoryCleared),
+            0x13 => Ok(Self::WarningCleared),
+            0x14 => Ok(Self::ErrorCleared),
+            _ => Err(ProtocolError::InvalidStatusType(value)),
         }
     }
 }

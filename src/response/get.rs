@@ -1,5 +1,5 @@
 use crate::{
-    device::{DeviceUID, SlotInfo},
+    device::{DeviceUID, SlotInfo, StatusMessage},
     parameter::{
         DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId,
         PowerState, ProductCategory,
@@ -22,6 +22,9 @@ pub enum GetResponseParameterData {
         short_message: u16,
         length_mismatch: u16,
         checksum_fail: u16,
+    },
+    StatusMessages {
+        status_messages: Vec<StatusMessage>,
     },
     ParameterDescription {
         parameter_id: u16,
@@ -225,6 +228,36 @@ impl GetResponseParameterData {
                         .try_into()
                         .map_err(|_| ProtocolError::TryFromSliceError)?,
                 ),
+            }),
+            ParameterId::StatusMessages => Ok(GetResponseParameterData::StatusMessages {
+                status_messages: bytes
+                    .chunks(9)
+                    .map(|chunk| {
+                        Ok(StatusMessage::new(
+                            u16::from_be_bytes(
+                                chunk[0..=1]
+                                    .try_into()
+                                    .map_err(|_| ProtocolError::TryFromSliceError)?,
+                            ),
+                            chunk[2].try_into()?,
+                            u16::from_be_bytes(
+                                chunk[3..=4]
+                                    .try_into()
+                                    .map_err(|_| ProtocolError::TryFromSliceError)?,
+                            ),
+                            u16::from_be_bytes(
+                                chunk[5..=6]
+                                    .try_into()
+                                    .map_err(|_| ProtocolError::TryFromSliceError)?,
+                            ),
+                            u16::from_be_bytes(
+                                chunk[7..=8]
+                                    .try_into()
+                                    .map_err(|_| ProtocolError::TryFromSliceError)?,
+                            ),
+                        ))
+                    })
+                    .collect::<Result<Vec<StatusMessage>, ProtocolError>>()?,
             }),
             ParameterId::ParameterDescription => {
                 Ok(GetResponseParameterData::ParameterDescription {
