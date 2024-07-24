@@ -142,6 +142,18 @@ pub enum GetResponseParameterData {
     DisplayInvert {
         display_invert_mode: DisplayInvertMode,
     },
+    DisplayLevel {
+        display_level: u8,
+    },
+    PanInvert {
+        pan_invert: bool,
+    },
+    TiltInvert {
+        tilt_invert: bool,
+    },
+    PanTiltSwap {
+        pan_tilt_swap: bool,
+    },
     IdentifyDevice {
         is_identifying: bool,
     },
@@ -614,10 +626,18 @@ impl GetResponseParameterData {
             ParameterId::DisplayInvert => Ok(GetResponseParameterData::DisplayInvert {
                 display_invert_mode: bytes[0].try_into()?,
             }),
-            // TODO DISPLAY_LEVEL
-            // TODO PAN_INVERT
-            // TODO TILT_INVERT
-            // TODO PAN_TILT_SWAP
+            ParameterId::DisplayLevel => Ok(GetResponseParameterData::DisplayLevel {
+                display_level: bytes[0],
+            }),
+            ParameterId::PanInvert => Ok(GetResponseParameterData::PanInvert {
+                pan_invert: bytes[0] == 1,
+            }),
+            ParameterId::TiltInvert => Ok(GetResponseParameterData::TiltInvert {
+                tilt_invert: bytes[0] == 1,
+            }),
+            ParameterId::PanTiltSwap => Ok(GetResponseParameterData::PanTiltSwap {
+                pan_tilt_swap: bytes[0] == 1,
+            }),
             // TODO REAL_TIME_CLOCK
             ParameterId::IdentifyDevice => Ok(GetResponseParameterData::IdentifyDevice {
                 is_identifying: bytes[0] == 1,
