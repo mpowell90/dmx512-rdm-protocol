@@ -154,6 +154,14 @@ pub enum GetResponseParameterData {
     PanTiltSwap {
         pan_tilt_swap: bool,
     },
+    RealTimeClock {
+        year: u16,
+        month: u8,
+        day: u8,
+        hour: u8,
+        minute: u8,
+        second: u8,
+    },
     IdentifyDevice {
         is_identifying: bool,
     },
@@ -638,7 +646,18 @@ impl GetResponseParameterData {
             ParameterId::PanTiltSwap => Ok(GetResponseParameterData::PanTiltSwap {
                 pan_tilt_swap: bytes[0] == 1,
             }),
-            // TODO REAL_TIME_CLOCK
+            ParameterId::RealTimeClock => Ok(GetResponseParameterData::RealTimeClock {
+                year: u16::from_be_bytes(
+                    bytes[0..=1]
+                        .try_into()
+                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                ),
+                month: bytes[2],
+                day: bytes[3],
+                hour: bytes[4],
+                minute: bytes[5],
+                second: bytes[6],
+            }),
             ParameterId::IdentifyDevice => Ok(GetResponseParameterData::IdentifyDevice {
                 is_identifying: bytes[0] == 1,
             }),
