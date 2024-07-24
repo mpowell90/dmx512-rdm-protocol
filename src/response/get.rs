@@ -74,6 +74,12 @@ pub enum GetResponseParameterData {
     FactoryDefaults {
         factory_default: bool,
     },
+    LanguageCapabilities {
+        language_capabilities: Vec<String>,
+    },
+    Language {
+        current_language: String,
+    },
     SoftwareVersionLabel {
         software_version_label: String,
     },
@@ -415,8 +421,15 @@ impl GetResponseParameterData {
             ParameterId::FactoryDefaults => Ok(GetResponseParameterData::FactoryDefaults {
                 factory_default: bytes[0] == 1,
             }),
-            // TODO LANGUAGE_CAPABILITIES
-            // TODO LANGUAGE
+            ParameterId::LanguageCapabilities => Ok(GetResponseParameterData::LanguageCapabilities {
+                language_capabilities: bytes
+                .chunks(2)
+                .map(|chunk| Ok(std::str::from_utf8(chunk)?.to_string()))
+                .collect::<Result<Vec<String>, ProtocolError>>()?,
+            }),
+            ParameterId::Language => Ok(GetResponseParameterData::Language {
+                current_language: std::str::from_utf8(&bytes[0..=1])?.to_string(),
+            }),
             ParameterId::SoftwareVersionLabel => {
                 Ok(GetResponseParameterData::SoftwareVersionLabel {
                     software_version_label: CStr::from_bytes_with_nul(bytes)?

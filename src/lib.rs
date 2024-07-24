@@ -47,6 +47,11 @@ pub enum ProtocolError {
         #[from]
         source: std::ffi::FromBytesWithNulError,
     },
+    #[error("Invalid utf-8 sequence")]
+    Utf8Error {
+        #[from]
+        source: std::str::Utf8Error,
+    },
     #[error("Could not convert slice to array")]
     TryFromSliceError,
     #[error("Invalid ProductCategory: {0}")]
