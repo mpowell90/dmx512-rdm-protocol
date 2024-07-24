@@ -32,6 +32,10 @@ pub enum GetResponseParameterData {
     SubDeviceStatusReportThreshold {
         status_type: StatusType,
     },
+    SupportedParameters {
+        standard_parameters: Vec<ParameterId>,
+        manufacturer_specific_parameters: HashMap<u16, ManufacturerSpecificParameter>,
+    },
     ParameterDescription {
         parameter_id: u16,
         parameter_data_size: u8,
@@ -42,9 +46,6 @@ pub enum GetResponseParameterData {
         maximum_valid_value: u32,
         default_value: u32,
         description: String,
-    },
-    DeviceLabel {
-        device_label: String,
     },
     DeviceInfo {
         protocol_version: String,
@@ -58,37 +59,23 @@ pub enum GetResponseParameterData {
         sub_device_count: u16,
         sensor_count: u8,
     },
-    SoftwareVersionLabel {
-        software_version_label: String,
-    },
-    SupportedParameters {
-        standard_parameters: Vec<ParameterId>,
-        manufacturer_specific_parameters: HashMap<u16, ManufacturerSpecificParameter>,
-    },
-    SensorDefinition {
-        sensor: Sensor,
-    },
-    SensorValue {
-        sensor_id: u8,
-        current_value: i16,
-        lowest_detected_value: i16,
-        highest_detected_value: i16,
-        recorded_value: i16,
-    },
-    IdentifyDevice {
-        is_identifying: bool,
-    },
-    ManufacturerLabel {
-        manufacturer_label: String,
-    },
-    FactoryDefaults {
-        factory_default: bool,
+    ProductDetailIdList {
+        product_detail_id_list: Vec<u16>,
     },
     DeviceModelDescription {
         device_model_description: String,
     },
-    ProductDetailIdList {
-        product_detail_id_list: Vec<u16>,
+    ManufacturerLabel {
+        manufacturer_label: String,
+    },
+    DeviceLabel {
+        device_label: String,
+    },
+    FactoryDefaults {
+        factory_default: bool,
+    },
+    SoftwareVersionLabel {
+        software_version_label: String,
     },
     DmxPersonality {
         current_personality: u8,
@@ -108,6 +95,16 @@ pub enum GetResponseParameterData {
     SlotDescription {
         slot_id: u16,
         description: String,
+    },
+    SensorDefinition {
+        sensor: Sensor,
+    },
+    SensorValue {
+        sensor_id: u8,
+        current_value: i16,
+        lowest_detected_value: i16,
+        highest_detected_value: i16,
+        recorded_value: i16,
     },
     DeviceHours {
         device_hours: u32,
@@ -129,6 +126,23 @@ pub enum GetResponseParameterData {
     },
     DisplayInvert {
         display_invert_mode: DisplayInvertMode,
+    },
+    IdentifyDevice {
+        is_identifying: bool,
+    },
+    PowerState {
+        power_state: PowerState,
+    },
+    PerformSelfTest {
+        is_active: bool,
+    },
+    SelfTestDescription {
+        self_test_id: u8,
+        description: String,
+    },
+    PresetPlayback {
+        mode: u16,
+        level: u8,
     },
     Curve {
         current_curve: u8,
@@ -171,21 +185,7 @@ pub enum GetResponseParameterData {
     OutputResponseTimeDescription {
         id: u8,
         description: String,
-    },
-    PowerState {
-        power_state: PowerState,
-    },
-    PerformSelfTest {
-        is_active: bool,
-    },
-    SelfTestDescription {
-        self_test_id: u8,
-        description: String,
-    },
-    PresetPlayback {
-        mode: u16,
-        level: u8,
-    },
+    }
 }
 
 impl GetResponseParameterData {
@@ -270,9 +270,41 @@ impl GetResponseParameterData {
                     .to_string_lossy()
                     .to_string(),
             }),
-            ParameterId::SubDeviceStatusReportThreshold => Ok(GetResponseParameterData::SubDeviceStatusReportThreshold {
-                status_type: bytes[0].try_into()?,
-            }),
+            ParameterId::SubDeviceStatusReportThreshold => {
+                Ok(GetResponseParameterData::SubDeviceStatusReportThreshold {
+                    status_type: bytes[0].try_into()?,
+                })
+            }
+            ParameterId::SupportedParameters => {
+                let parameters = bytes
+                    .chunks(2)
+                    .map(|chunk| u16::from_be_bytes(chunk.try_into().unwrap()));
+
+                Ok(GetResponseParameterData::SupportedParameters {
+                    standard_parameters: parameters
+                        .clone()
+                        .filter(|parameter_id| {
+                            // TODO consider if we should filter parameters here or before we add to the queue
+                            let parameter_id = *parameter_id;
+                            (0x0060_u16..0x8000_u16).contains(&parameter_id)
+                        })
+                        .map(ParameterId::try_from)
+                        .collect::<Result<Vec<ParameterId>, ProtocolError>>()
+                        .unwrap(), // TODO handle this error properly
+                    manufacturer_specific_parameters: parameters
+                        .filter(|parameter_id| *parameter_id >= 0x8000_u16)
+                        .map(|parameter_id| {
+                            (
+                                parameter_id,
+                                ManufacturerSpecificParameter {
+                                    parameter_id,
+                                    ..Default::default()
+                                },
+                            )
+                        })
+                        .collect(),
+                })
+            }
             ParameterId::ParameterDescription => {
                 Ok(GetResponseParameterData::ParameterDescription {
                     parameter_id: u16::from_be_bytes(
@@ -305,11 +337,6 @@ impl GetResponseParameterData {
                         .to_string(),
                 })
             }
-            ParameterId::DeviceLabel => Ok(GetResponseParameterData::DeviceLabel {
-                device_label: CStr::from_bytes_with_nul(bytes)?
-                    .to_string_lossy()
-                    .to_string(),
-            }),
             ParameterId::DeviceInfo => Ok(GetResponseParameterData::DeviceInfo {
                 protocol_version: format!("{}.{}", bytes[0], bytes[1]),
                 model_id: u16::from_be_bytes(
@@ -347,93 +374,6 @@ impl GetResponseParameterData {
                 ),
                 sensor_count: u8::from_be(bytes[18]),
             }),
-            ParameterId::SoftwareVersionLabel => {
-                Ok(GetResponseParameterData::SoftwareVersionLabel {
-                    software_version_label: CStr::from_bytes_with_nul(bytes)?
-                        .to_string_lossy()
-                        .to_string(),
-                })
-            }
-            ParameterId::SupportedParameters => {
-                let parameters = bytes
-                    .chunks(2)
-                    .map(|chunk| u16::from_be_bytes(chunk.try_into().unwrap()));
-
-                Ok(GetResponseParameterData::SupportedParameters {
-                    standard_parameters: parameters
-                        .clone()
-                        .filter(|parameter_id| {
-                            // TODO consider if we should filter parameters here or before we add to the queue
-                            let parameter_id = *parameter_id;
-                            (0x0060_u16..0x8000_u16).contains(&parameter_id)
-                        })
-                        .map(ParameterId::try_from)
-                        .collect::<Result<Vec<ParameterId>, ProtocolError>>()
-                        .unwrap(), // TODO handle this error properly
-                    manufacturer_specific_parameters: parameters
-                        .filter(|parameter_id| *parameter_id >= 0x8000_u16)
-                        .map(|parameter_id| {
-                            (
-                                parameter_id,
-                                ManufacturerSpecificParameter {
-                                    parameter_id,
-                                    ..Default::default()
-                                },
-                            )
-                        })
-                        .collect(),
-                })
-            }
-            ParameterId::SensorDefinition => Ok(GetResponseParameterData::SensorDefinition {
-                sensor: Sensor {
-                    id: bytes[0],
-                    kind: bytes[1].try_into()?,
-                    unit: bytes[2],
-                    prefix: bytes[3],
-                    range_minimum_value: i16::from_be_bytes(
-                        bytes[4..=5]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    range_maximum_value: i16::from_be_bytes(
-                        bytes[6..=7]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    normal_minimum_value: i16::from_be_bytes(
-                        bytes[8..=9]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    normal_maximum_value: i16::from_be_bytes(
-                        bytes[10..=11]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    recorded_value_support: bytes[12],
-                    description: CStr::from_bytes_with_nul(&bytes[13..])?
-                        .to_string_lossy()
-                        .to_string(),
-                },
-            }),
-            ParameterId::IdentifyDevice => Ok(GetResponseParameterData::IdentifyDevice {
-                is_identifying: bytes[0] == 1,
-            }),
-            ParameterId::ManufacturerLabel => Ok(GetResponseParameterData::ManufacturerLabel {
-                manufacturer_label: CStr::from_bytes_with_nul(bytes)?
-                    .to_string_lossy()
-                    .to_string(),
-            }),
-            ParameterId::FactoryDefaults => Ok(GetResponseParameterData::FactoryDefaults {
-                factory_default: bytes[0] == 1,
-            }),
-            ParameterId::DeviceModelDescription => {
-                Ok(GetResponseParameterData::DeviceModelDescription {
-                    device_model_description: CStr::from_bytes_with_nul(bytes)?
-                        .to_string_lossy()
-                        .to_string(),
-                })
-            }
             ParameterId::ProductDetailIdList => Ok(GetResponseParameterData::ProductDetailIdList {
                 product_detail_id_list: bytes
                     .chunks(2)
@@ -446,6 +386,37 @@ impl GetResponseParameterData {
                     })
                     .collect::<Result<Vec<u16>, ProtocolError>>()?,
             }),
+            ParameterId::DeviceModelDescription => {
+                Ok(GetResponseParameterData::DeviceModelDescription {
+                    device_model_description: CStr::from_bytes_with_nul(bytes)?
+                        .to_string_lossy()
+                        .to_string(),
+                })
+            }
+            ParameterId::ManufacturerLabel => Ok(GetResponseParameterData::ManufacturerLabel {
+                manufacturer_label: CStr::from_bytes_with_nul(bytes)?
+                    .to_string_lossy()
+                    .to_string(),
+            }),
+            ParameterId::DeviceLabel => Ok(GetResponseParameterData::DeviceLabel {
+                device_label: CStr::from_bytes_with_nul(bytes)?
+                    .to_string_lossy()
+                    .to_string(),
+            }),
+            ParameterId::FactoryDefaults => Ok(GetResponseParameterData::FactoryDefaults {
+                factory_default: bytes[0] == 1,
+            }),
+            // TODO LANGUAGE_CAPABILITIES
+            // TODO LANGUAGE
+            ParameterId::SoftwareVersionLabel => {
+                Ok(GetResponseParameterData::SoftwareVersionLabel {
+                    software_version_label: CStr::from_bytes_with_nul(bytes)?
+                        .to_string_lossy()
+                        .to_string(),
+                })
+            }
+            // TODO BOOT_SOFTWARE_VERSION_ID
+            // TODO BOOT_SOFTWARE_VERSION_LABEL
             ParameterId::DmxPersonality => Ok(GetResponseParameterData::DmxPersonality {
                 current_personality: bytes[0],
                 personality_count: bytes[1],
@@ -500,11 +471,45 @@ impl GetResponseParameterData {
                     .to_string_lossy()
                     .to_string(),
             }),
+            // TODO DEFAULT_SLOT_VALUE
+            ParameterId::SensorDefinition => Ok(GetResponseParameterData::SensorDefinition {
+                sensor: Sensor {
+                    id: bytes[0],
+                    kind: bytes[1].try_into()?,
+                    unit: bytes[2],
+                    prefix: bytes[3],
+                    range_minimum_value: i16::from_be_bytes(
+                        bytes[4..=5]
+                            .try_into()
+                            .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    ),
+                    range_maximum_value: i16::from_be_bytes(
+                        bytes[6..=7]
+                            .try_into()
+                            .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    ),
+                    normal_minimum_value: i16::from_be_bytes(
+                        bytes[8..=9]
+                            .try_into()
+                            .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    ),
+                    normal_maximum_value: i16::from_be_bytes(
+                        bytes[10..=11]
+                            .try_into()
+                            .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    ),
+                    recorded_value_support: bytes[12],
+                    description: CStr::from_bytes_with_nul(&bytes[13..])?
+                        .to_string_lossy()
+                        .to_string(),
+                },
+            }),
+            // TODO SENSOR_VALUE
             ParameterId::DeviceHours => Ok(GetResponseParameterData::DeviceHours {
                 device_hours: u32::from_be_bytes(
                     bytes[0..=3]
-                        .try_into()
-                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    .try_into()
+                    .map_err(|_| ProtocolError::TryFromSliceError)?,
                 ),
             }),
             ParameterId::LampHours => Ok(GetResponseParameterData::LampHours {
@@ -536,6 +541,35 @@ impl GetResponseParameterData {
             }),
             ParameterId::DisplayInvert => Ok(GetResponseParameterData::DisplayInvert {
                 display_invert_mode: bytes[0].try_into()?,
+            }),
+            // TODO DISPLAY_LEVEL
+            // TODO PAN_INVERT
+            // TODO TILT_INVERT
+            // TODO PAN_TILT_SWAP
+            // TODO REAL_TIME_CLOCK
+            ParameterId::IdentifyDevice => Ok(GetResponseParameterData::IdentifyDevice {
+                is_identifying: bytes[0] == 1,
+            }),
+            // TODO RESET_DEVICE
+            ParameterId::PowerState => Ok(GetResponseParameterData::PowerState {
+                power_state: bytes[0].try_into()?,
+            }),
+            ParameterId::PerformSelfTest => Ok(GetResponseParameterData::PerformSelfTest {
+                is_active: bytes[0] == 1,
+            }),
+            ParameterId::SelfTestDescription => Ok(GetResponseParameterData::SelfTestDescription {
+                self_test_id: bytes[0],
+                description: CStr::from_bytes_with_nul(&bytes[1..])?
+                    .to_string_lossy()
+                    .to_string(),
+            }),
+            ParameterId::PresetPlayback => Ok(GetResponseParameterData::PresetPlayback {
+                mode: u16::from_be_bytes(
+                    bytes[0..=1]
+                        .try_into()
+                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                ),
+                level: bytes[2],
             }),
             ParameterId::Curve => Ok(GetResponseParameterData::Curve {
                 current_curve: bytes[0],
@@ -621,26 +655,6 @@ impl GetResponseParameterData {
                         .to_string(),
                 })
             }
-            ParameterId::PowerState => Ok(GetResponseParameterData::PowerState {
-                power_state: bytes[0].try_into()?,
-            }),
-            ParameterId::PerformSelfTest => Ok(GetResponseParameterData::PerformSelfTest {
-                is_active: bytes[0] == 1,
-            }),
-            ParameterId::SelfTestDescription => Ok(GetResponseParameterData::SelfTestDescription {
-                self_test_id: bytes[0],
-                description: CStr::from_bytes_with_nul(&bytes[1..])?
-                    .to_string_lossy()
-                    .to_string(),
-            }),
-            ParameterId::PresetPlayback => Ok(GetResponseParameterData::PresetPlayback {
-                mode: u16::from_be_bytes(
-                    bytes[0..=1]
-                        .try_into()
-                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                ),
-                level: bytes[2],
-            }),
             _ => Err(ProtocolError::UnsupportedParameterId(parameter_id as u16)),
         }
     }
