@@ -45,6 +45,8 @@ pub enum ProtocolError {
         #[from]
         source: std::ffi::FromBytesWithNulError,
     },
+    #[error("Could not convert slice to array")]
+    TryFromSliceError,
     #[error("Invalid ProductCategory: {0}")]
     InvalidProductCategory(u16),
     #[error("Invalid LampState: {0}")]
