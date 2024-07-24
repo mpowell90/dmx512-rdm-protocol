@@ -67,7 +67,7 @@ impl From<&[u8]> for DeviceUID {
 pub struct StatusMessage {
     pub sub_device_id: u16,
     pub status_type: StatusType,
-    pub status_message_id: u16,
+    pub status_message_id: u16, // TODO reference appendix B for status message IDs
     pub data_value1: u16,
     pub data_value2: u16,
 }

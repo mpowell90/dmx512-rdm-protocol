@@ -26,6 +26,9 @@ pub enum GetResponseParameterData {
     StatusMessages {
         status_messages: Vec<StatusMessage>,
     },
+    StatusIdDescription {
+        status_id_description: String,
+    },
     ParameterDescription {
         parameter_id: u16,
         parameter_data_size: u8,
@@ -258,6 +261,11 @@ impl GetResponseParameterData {
                         ))
                     })
                     .collect::<Result<Vec<StatusMessage>, ProtocolError>>()?,
+            }),
+            ParameterId::StatusIdDescription => Ok(GetResponseParameterData::StatusIdDescription {
+                status_id_description: CStr::from_bytes_with_nul(bytes)?
+                    .to_string_lossy()
+                    .to_string(),
             }),
             ParameterId::ParameterDescription => {
                 Ok(GetResponseParameterData::ParameterDescription {
