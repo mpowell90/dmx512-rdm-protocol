@@ -183,7 +183,7 @@ impl GetResponseParameterData {
                         .try_into()
                         .map_err(|_| ProtocolError::TryFromSliceError)?,
                 ),
-                list_change: bytes[2] != 0,
+                list_change: bytes[2] == 1,
             }),
             ParameterId::ProxiedDevices => Ok(GetResponseParameterData::ProxiedDevices {
                 device_uids: bytes
@@ -348,7 +348,7 @@ impl GetResponseParameterData {
                 },
             }),
             ParameterId::IdentifyDevice => Ok(GetResponseParameterData::IdentifyDevice {
-                is_identifying: bytes[0] != 0,
+                is_identifying: bytes[0] == 1,
             }),
             ParameterId::ManufacturerLabel => Ok(GetResponseParameterData::ManufacturerLabel {
                 manufacturer_label: CStr::from_bytes_with_nul(bytes)?
@@ -356,7 +356,7 @@ impl GetResponseParameterData {
                     .to_string(),
             }),
             ParameterId::FactoryDefaults => Ok(GetResponseParameterData::FactoryDefaults {
-                factory_default: bytes[0] != 0,
+                factory_default: bytes[0] == 1,
             }),
             ParameterId::DeviceModelDescription => {
                 Ok(GetResponseParameterData::DeviceModelDescription {
@@ -556,7 +556,7 @@ impl GetResponseParameterData {
                 power_state: bytes[0].try_into()?,
             }),
             ParameterId::PerformSelfTest => Ok(GetResponseParameterData::PerformSelfTest {
-                is_active: bytes[0] != 0,
+                is_active: bytes[0] == 1,
             }),
             ParameterId::SelfTestDescription => Ok(GetResponseParameterData::SelfTestDescription {
                 self_test_id: bytes[0],
