@@ -441,12 +441,14 @@ impl GetResponseParameterData {
             ParameterId::FactoryDefaults => Ok(GetResponseParameterData::FactoryDefaults {
                 factory_default: bytes[0] == 1,
             }),
-            ParameterId::LanguageCapabilities => Ok(GetResponseParameterData::LanguageCapabilities {
-                language_capabilities: bytes
-                .chunks(2)
-                .map(|chunk| Ok(std::str::from_utf8(chunk)?.to_string()))
-                .collect::<Result<Vec<String>, ProtocolError>>()?,
-            }),
+            ParameterId::LanguageCapabilities => {
+                Ok(GetResponseParameterData::LanguageCapabilities {
+                    language_capabilities: bytes
+                        .chunks(2)
+                        .map(|chunk| Ok(std::str::from_utf8(chunk)?.to_string()))
+                        .collect::<Result<Vec<String>, ProtocolError>>()?,
+                })
+            }
             ParameterId::Language => Ok(GetResponseParameterData::Language {
                 current_language: std::str::from_utf8(&bytes[0..=1])?.to_string(),
             }),
@@ -766,7 +768,18 @@ impl GetResponseParameterData {
                         .to_string(),
                 })
             }
-            _ => Err(ProtocolError::UnsupportedParameterId(parameter_id as u16)),
+            ParameterId::DiscUniqueBranch
+            | ParameterId::DiscMute
+            | ParameterId::DiscUnMute
+            | ParameterId::QueuedMessage
+            | ParameterId::ClearStatusId
+            | ParameterId::RecordSensors
+            | ParameterId::OutputResponseTimeDown
+            | ParameterId::OutputResponseTimeDownDescription
+            | ParameterId::ResetDevice
+            | ParameterId::CapturePreset => {
+                Err(ProtocolError::UnsupportedParameterId(parameter_id as u16))
+            }
         }
     }
 }
