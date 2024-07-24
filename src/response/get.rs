@@ -18,6 +18,11 @@ pub enum GetResponseParameterData {
     ProxiedDevices {
         device_uids: Vec<DeviceUID>,
     },
+    CommsStatus {
+        short_message: u16,
+        length_mismatch: u16,
+        checksum_fail: u16,
+    },
     ParameterDescription {
         parameter_id: u16,
         parameter_data_size: u8,
@@ -203,6 +208,23 @@ impl GetResponseParameterData {
                         ))
                     })
                     .collect::<Result<Vec<DeviceUID>, ProtocolError>>()?,
+            }),
+            ParameterId::CommsStatus => Ok(GetResponseParameterData::CommsStatus {
+                short_message: u16::from_be_bytes(
+                    bytes[0..=1]
+                        .try_into()
+                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                ),
+                length_mismatch: u16::from_be_bytes(
+                    bytes[2..=3]
+                        .try_into()
+                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                ),
+                checksum_fail: u16::from_be_bytes(
+                    bytes[4..=5]
+                        .try_into()
+                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                ),
             }),
             ParameterId::ParameterDescription => {
                 Ok(GetResponseParameterData::ParameterDescription {
@@ -618,6 +640,25 @@ mod tests {
                     DeviceUID::new(0x0304, 0x05060708),
                     DeviceUID::new(0x0405, 0x06070809),
                 ]
+            })
+        );
+    }
+
+    #[test]
+    fn should_parse_comms_status() {
+        assert_eq!(
+            GetResponseParameterData::parse(
+                ParameterId::CommsStatus,
+                &[
+                    0x01, 0x02, // Short Message
+                    0x03, 0x04, // Length Mismatch
+                    0x05, 0x06, // Checksum Fail
+                ]
+            ),
+            Ok(GetResponseParameterData::CommsStatus {
+                short_message: 0x0102,
+                length_mismatch: 0x0304,
+                checksum_fail: 0x0506
             })
         );
     }
