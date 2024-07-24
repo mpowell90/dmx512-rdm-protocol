@@ -185,7 +185,7 @@ pub enum GetResponseParameterData {
     OutputResponseTimeDescription {
         id: u8,
         description: String,
-    }
+    },
 }
 
 impl GetResponseParameterData {
@@ -504,12 +504,34 @@ impl GetResponseParameterData {
                         .to_string(),
                 },
             }),
-            // TODO SENSOR_VALUE
+            ParameterId::SensorValue => Ok(GetResponseParameterData::SensorValue {
+                sensor_id: bytes[0],
+                current_value: i16::from_be_bytes(
+                    bytes[1..=2]
+                        .try_into()
+                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                ),
+                lowest_detected_value: i16::from_be_bytes(
+                    bytes[3..=4]
+                        .try_into()
+                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                ),
+                highest_detected_value: i16::from_be_bytes(
+                    bytes[5..=6]
+                        .try_into()
+                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                ),
+                recorded_value: i16::from_be_bytes(
+                    bytes[7..=8]
+                        .try_into()
+                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                ),
+            }),
             ParameterId::DeviceHours => Ok(GetResponseParameterData::DeviceHours {
                 device_hours: u32::from_be_bytes(
                     bytes[0..=3]
-                    .try_into()
-                    .map_err(|_| ProtocolError::TryFromSliceError)?,
+                        .try_into()
+                        .map_err(|_| ProtocolError::TryFromSliceError)?,
                 ),
             }),
             ParameterId::LampHours => Ok(GetResponseParameterData::LampHours {
