@@ -1253,7 +1253,7 @@ mod tests {
                 0x01, // parameter data length
                 0x01, // identifying = true
                 0x01,
-                0x43, // checksum
+                0x42, // checksum
             ][..],
         );
 
