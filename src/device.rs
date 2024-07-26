@@ -45,24 +45,6 @@ impl From<DeviceUID> for u64 {
     }
 }
 
-impl From<Vec<u8>> for DeviceUID {
-    fn from(buffer: Vec<u8>) -> Self {
-        DeviceUID {
-            manufacturer_id: u16::from_be_bytes(buffer[..2].try_into().unwrap()),
-            device_id: u32::from_be_bytes(buffer[2..].try_into().unwrap()),
-        }
-    }
-}
-
-impl From<&[u8]> for DeviceUID {
-    fn from(buffer: &[u8]) -> Self {
-        DeviceUID {
-            manufacturer_id: u16::from_be_bytes(buffer[..2].try_into().unwrap()),
-            device_id: u32::from_be_bytes(buffer[2..].try_into().unwrap()),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StatusMessage {
     pub sub_device_id: u16,

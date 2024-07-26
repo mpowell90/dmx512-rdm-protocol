@@ -5,7 +5,6 @@ pub mod request;
 pub mod response;
 pub mod sensor;
 
-use bytes::BytesMut;
 use thiserror::Error;
 
 pub const MIN_PACKET_LEN: usize = 26;
@@ -78,31 +77,7 @@ pub enum ProtocolError {
     MalformedPacket,
 }
 
-#[derive(Debug, Error)]
-pub enum PacketTypeError {
-    #[error("Unsupported PacketType: {0}")]
-    UnsupportedPacketType(u16),
-}
-
-#[derive(Debug, PartialEq)]
-pub enum PacketType {
-    RdmResponse = 0xcc01,
-    DiscoveryUniqueBranchResponse = 0xfefe,
-}
-
-impl TryFrom<u16> for PacketType {
-    type Error = PacketTypeError;
-
-    fn try_from(value: u16) -> Result<Self, Self::Error> {
-        match value {
-            0xcc01 => Ok(Self::RdmResponse),
-            0xfefe => Ok(Self::DiscoveryUniqueBranchResponse),
-            _ => Err(PacketTypeError::UnsupportedPacketType(value)),
-        }
-    }
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum StatusType {
     None = 0x00,
     GetLastMessage = 0x01,
@@ -156,12 +131,6 @@ impl TryFrom<u8> for CommandClass {
             _ => Err(ProtocolError::InvalidCommandClass(value)),
         }
     }
-}
-
-pub fn bsd_16_crc_bytes_mut(packet: &mut BytesMut) -> u16 {
-    packet
-        .iter()
-        .fold(0_u16, |sum, byte| (sum.overflowing_add(*byte as u16).0))
 }
 
 pub fn bsd_16_crc(packet: &[u8]) -> u16 {
