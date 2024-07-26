@@ -7,8 +7,6 @@ pub mod sensor;
 
 use thiserror::Error;
 
-pub const MIN_PACKET_LEN: usize = 26;
-
 pub const SC_RDM: u8 = 0xcc;
 pub const SC_SUB_MESSAGE: u8 = 0x01;
 
@@ -35,6 +33,8 @@ pub enum ProtocolError {
     InvalidStatusType(u8),
     #[error("Invalid CommandClass: {0}")]
     InvalidCommandClass(u8),
+    #[error("Unsupported Parameter, CommandClass: {0}, ParameterId: {1}")]
+    UnsupportedParameter(u8, u16),
     #[error("Unsupported ParameterId: {0}")]
     UnsupportedParameterId(u16),
     #[error("Invalid parameter data length: {0}, must be >= 0 and <= 231")]
@@ -75,36 +75,6 @@ pub enum ProtocolError {
     InvalidPacketResponseType(u8),
     #[error("Malformed packet")]
     MalformedPacket,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum StatusType {
-    None = 0x00,
-    GetLastMessage = 0x01,
-    Advisory = 0x02,
-    Warning = 0x03,
-    Error = 0x04,
-    AdvisoryCleared = 0x12,
-    WarningCleared = 0x13,
-    ErrorCleared = 0x14,
-}
-
-impl TryFrom<u8> for StatusType {
-    type Error = ProtocolError;
-
-    fn try_from(value: u8) -> Result<Self, ProtocolError> {
-        match value {
-            0x00 => Ok(Self::None),
-            0x01 => Ok(Self::GetLastMessage),
-            0x02 => Ok(Self::Advisory),
-            0x03 => Ok(Self::Warning),
-            0x04 => Ok(Self::Error),
-            0x12 => Ok(Self::AdvisoryCleared),
-            0x13 => Ok(Self::WarningCleared),
-            0x14 => Ok(Self::ErrorCleared),
-            _ => Err(ProtocolError::InvalidStatusType(value)),
-        }
-    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]

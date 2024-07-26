@@ -253,6 +253,36 @@ impl From<u16> for ManufacturerSpecificParameter {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum StatusType {
+    None = 0x00,
+    GetLastMessage = 0x01,
+    Advisory = 0x02,
+    Warning = 0x03,
+    Error = 0x04,
+    AdvisoryCleared = 0x12,
+    WarningCleared = 0x13,
+    ErrorCleared = 0x14,
+}
+
+impl TryFrom<u8> for StatusType {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, ProtocolError> {
+        match value {
+            0x00 => Ok(Self::None),
+            0x01 => Ok(Self::GetLastMessage),
+            0x02 => Ok(Self::Advisory),
+            0x03 => Ok(Self::Warning),
+            0x04 => Ok(Self::Error),
+            0x12 => Ok(Self::AdvisoryCleared),
+            0x13 => Ok(Self::WarningCleared),
+            0x14 => Ok(Self::ErrorCleared),
+            _ => Err(ProtocolError::InvalidStatusType(value)),
+        }
+    }
+}
+
 // Product Categories - Page 105 RDM Spec
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ProductCategory {
