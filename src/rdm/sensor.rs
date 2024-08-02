@@ -1,4 +1,4 @@
-use crate::ProtocolError;
+use super::ProtocolError;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum SensorType {

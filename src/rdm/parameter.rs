@@ -1,5 +1,5 @@
-use crate::ProtocolError;
 use thiserror::Error;
+use super::ProtocolError;
 
 // TODO add remaining parameter ids
 #[non_exhaustive]

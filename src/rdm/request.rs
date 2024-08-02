@@ -1,9 +1,5 @@
-use crate::{
-    bsd_16_crc,
-    device::DeviceUID,
-    parameter::{LampOnMode, LampState, ParameterId, StatusType},
-    CommandClass, SC_RDM, SC_SUB_MESSAGE,
-};
+use super::{device::DeviceUID, parameter::{LampOnMode, LampState, ParameterId, StatusType}};
+use super::{bsd_16_crc, CommandClass, SC_RDM, SC_SUB_MESSAGE};
 use bytes::{BufMut, BytesMut};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -167,24 +163,24 @@ pub enum RequestParameter {
         mode: u16,
         level: u8,
     }, // TODO could be an enum instead of u16
-    // SetCurve {
-    //     curve_id: u8,
-    // },
-    // GetCurveDescription {
-    //     curve: u8,
-    // },
-    // GetModulationFrequencyDescription {
-    //     modulation_frequency: u8,
-    // },
-    // SetModulationFrequency {
-    //     modulation_frequency_id: u8,
-    // },
-    // GetOutputResponseTimeDescription {
-    //     output_response_time: u8,
-    // },
-    // SetOutputResponseTime {
-    //     output_response_time_id: u8,
-    // },
+       // SetCurve {
+       //     curve_id: u8,
+       // },
+       // GetCurveDescription {
+       //     curve: u8,
+       // },
+       // GetModulationFrequencyDescription {
+       //     modulation_frequency: u8,
+       // },
+       // SetModulationFrequency {
+       //     modulation_frequency_id: u8,
+       // },
+       // GetOutputResponseTimeDescription {
+       //     output_response_time: u8,
+       // },
+       // SetOutputResponseTime {
+       //     output_response_time_id: u8,
+       // },
 }
 
 impl RequestParameter {
@@ -266,10 +262,9 @@ impl RequestParameter {
             | Self::SetPowerState { .. }
             | Self::SetPerformSelfTest { .. }
             | Self::SetCapturePreset { .. }
-            | Self::SetPresetPlayback { .. } => CommandClass::SetCommand
-            // | Self::SetCurve { .. }
-            // | Self::SetModulationFrequency { .. }
-            // | Self::SetOutputResponseTime { .. } => CommandClass::SetCommand,
+            | Self::SetPresetPlayback { .. } => CommandClass::SetCommand, // | Self::SetCurve { .. }
+                                                                          // | Self::SetModulationFrequency { .. }
+                                                                          // | Self::SetOutputResponseTime { .. } => CommandClass::SetCommand,
         }
     }
 
@@ -559,39 +554,38 @@ impl RequestParameter {
                 buf.reserve(0x03);
                 buf.put_u16(*mode);
                 buf.put_u8(*level);
-            }
-            // Self::SetCurve { curve_id } => {
-            //     buf.reserve(0x01);
-            //     buf.put_u8(*curve_id);
-            // }
-            // Self::GetCurveDescription { curve } => {
-            //     buf.reserve(0x01);
-            //     buf.put_u8(*curve)
-            // }
-            // Self::GetModulationFrequencyDescription {
-            //     modulation_frequency,
-            // } => {
-            //     buf.reserve(0x01);
-            //     buf.put_u8(*modulation_frequency)
-            // }
-            // Self::SetModulationFrequency {
-            //     modulation_frequency_id,
-            // } => {
-            //     buf.reserve(0x01);
-            //     buf.put_u8(*modulation_frequency_id);
-            // }
-            // Self::GetOutputResponseTimeDescription {
-            //     output_response_time,
-            // } => {
-            //     buf.reserve(0x01);
-            //     buf.put_u8(*output_response_time)
-            // }
-            // Self::SetOutputResponseTime {
-            //     output_response_time_id,
-            // } => {
-            //     buf.reserve(0x01);
-            //     buf.put_u8(*output_response_time_id);
-            // }
+            } // Self::SetCurve { curve_id } => {
+              //     buf.reserve(0x01);
+              //     buf.put_u8(*curve_id);
+              // }
+              // Self::GetCurveDescription { curve } => {
+              //     buf.reserve(0x01);
+              //     buf.put_u8(*curve)
+              // }
+              // Self::GetModulationFrequencyDescription {
+              //     modulation_frequency,
+              // } => {
+              //     buf.reserve(0x01);
+              //     buf.put_u8(*modulation_frequency)
+              // }
+              // Self::SetModulationFrequency {
+              //     modulation_frequency_id,
+              // } => {
+              //     buf.reserve(0x01);
+              //     buf.put_u8(*modulation_frequency_id);
+              // }
+              // Self::GetOutputResponseTimeDescription {
+              //     output_response_time,
+              // } => {
+              //     buf.reserve(0x01);
+              //     buf.put_u8(*output_response_time)
+              // }
+              // Self::SetOutputResponseTime {
+              //     output_response_time_id,
+              // } => {
+              //     buf.reserve(0x01);
+              //     buf.put_u8(*output_response_time_id);
+              // }
         };
 
         buf

@@ -1,4 +1,4 @@
-use crate::{
+use super::{
     parameter::{
         DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId,
         PowerState, ProductCategory, StatusType,
