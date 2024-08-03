@@ -7,7 +7,7 @@ use super::{
 };
 use std::collections::HashMap;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Hash)]
 pub struct DeviceUID {
     pub manufacturer_id: u16,
     pub device_id: u32,

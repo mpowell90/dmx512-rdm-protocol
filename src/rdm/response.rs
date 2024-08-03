@@ -68,7 +68,7 @@ impl TryFrom<u8> for PacketResponseType {
 }
 
 #[non_exhaustive]
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ResponseParameterData {
     DiscMute {
         control_field: u16,
@@ -978,7 +978,7 @@ impl ResponseParameterData {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RdmResponse {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
@@ -1092,7 +1092,7 @@ impl RdmResponse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DiscoveryUniqueBranchResponse(DeviceUID);
 
 impl DiscoveryUniqueBranchResponse {
@@ -1128,7 +1128,7 @@ impl DiscoveryUniqueBranchResponse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RdmFrame {
     Rdm(RdmResponse),
     DiscoveryUniqueBranch(DiscoveryUniqueBranchResponse),

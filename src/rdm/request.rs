@@ -9,7 +9,7 @@ pub struct FadeTimes {
     pub wait_time: u16,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter {
     DiscMute,
     DiscUnMute,
@@ -592,7 +592,7 @@ impl RequestParameter {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct RdmRequest {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
