@@ -1,11 +1,11 @@
 use super::{
-    device::{DefaultSlotValue, DeviceUID, SlotInfo, StatusMessage}, parameter::{
+    bsd_16_crc,
+    device::{DefaultSlotValue, DeviceUID, SlotInfo, StatusMessage},
+    parameter::{
         DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId,
         PowerState, ProductCategory, StatusType,
-    }, sensor::{Sensor, SensorValue}
-};
-use super::{
-    bsd_16_crc,
+    },
+    sensor::{Sensor, SensorValue},
     CommandClass, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
 };

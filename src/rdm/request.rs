@@ -1,5 +1,9 @@
-use super::{device::DeviceUID, parameter::{LampOnMode, LampState, ParameterId, StatusType}};
-use super::{bsd_16_crc, CommandClass, SC_RDM, SC_SUB_MESSAGE};
+use super::{
+    bsd_16_crc,
+    device::DeviceUID,
+    parameter::{LampOnMode, LampState, ParameterId, StatusType},
+    CommandClass, SC_RDM, SC_SUB_MESSAGE,
+};
 use bytes::{BufMut, BytesMut};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
