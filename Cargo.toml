@@ -4,11 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
-bytes = "1.6.1"
+bytes = { version = "1.6.1", optional = true }
 thiserror = "1.0.63"
-tokio-util = { version = "0.7.11", features = ["codec"] }
+# anyhow = "1.0.86"
+# tokio-util = { version = "0.7.11", features = ["codec"] }
 
 [features]
 default = ["rdm"]
-rdm = []
+rdm = ["dep:bytes"]
