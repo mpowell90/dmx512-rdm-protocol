@@ -1,4 +1,4 @@
-use std::ops::{Index, IndexMut, RangeInclusive};
+use core::ops::{Index, IndexMut, RangeInclusive};
 use thiserror::Error;
 
 const MAXIMUM_CHANNEL_COUNT: u16 = 512;
