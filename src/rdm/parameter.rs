@@ -218,7 +218,7 @@ impl ParameterDescription {
                 value[3],
             )),
             ParameterDataType::SignedByte => Ok(ConvertedParameterValue::SignedByte(
-                value[3] as i8, // TODO test this
+                value[3] as i8,
             )),
             ParameterDataType::UnsignedWord => Ok(ConvertedParameterValue::UnsignedWord(
                 u16::from_be_bytes([value[2], value[3]]),
