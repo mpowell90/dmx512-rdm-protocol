@@ -1,9 +1,9 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState,
-        ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory,
-        SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
+        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription,
+        ParameterId, PowerState, PresetPlaybackMode, ProductCategory, SensorDefinition,
+        SensorValue, SlotInfo, StatusMessage, StatusType,
     },
     CommandClass, DeviceUID, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
@@ -90,23 +90,15 @@ pub enum ResponseParameterData {
         device_count: u16,
         list_change: bool,
     },
-    GetProxiedDevices {
-        device_uids: Vec<DeviceUID>,
-    },
+    GetProxiedDevices(Vec<DeviceUID>),
     GetCommsStatus {
         short_message: u16,
         length_mismatch: u16,
         checksum_fail: u16,
     },
-    GetStatusMessages {
-        status_messages: Vec<StatusMessage>,
-    },
-    GetStatusIdDescription {
-        status_id_description: String,
-    },
-    GetSubDeviceStatusReportThreshold {
-        status_type: StatusType,
-    },
+    GetStatusMessages(Vec<StatusMessage>),
+    GetStatusIdDescription(String),
+    GetSubDeviceStatusReportThreshold(StatusType),
     GetSupportedParameters {
         standard_parameters: Vec<u16>,
         manufacturer_specific_parameters: Vec<u16>,
@@ -124,36 +116,16 @@ pub enum ResponseParameterData {
         sub_device_count: u16,
         sensor_count: u8,
     },
-    GetProductDetailIdList {
-        product_detail_id_list: Vec<u16>,
-    },
-    GetDeviceModelDescription {
-        device_model_description: String,
-    },
-    GetManufacturerLabel {
-        manufacturer_label: String,
-    },
-    GetDeviceLabel {
-        device_label: String,
-    },
-    GetFactoryDefaults {
-        factory_default: bool,
-    },
-    GetLanguageCapabilities {
-        language_capabilities: Vec<String>,
-    },
-    GetLanguage {
-        current_language: String,
-    },
-    GetSoftwareVersionLabel {
-        software_version_label: String,
-    },
-    GetBootSoftwareVersionId {
-        boot_software_version_id: u32,
-    },
-    GetBootSoftwareVersionLabel {
-        boot_software_version_label: String,
-    },
+    GetProductDetailIdList(Vec<u16>),
+    GetDeviceModelDescription(String),
+    GetManufacturerLabel(String),
+    GetDeviceLabel(String),
+    GetFactoryDefaults(bool),
+    GetLanguageCapabilities(Vec<String>),
+    GetLanguage(String),
+    GetSoftwareVersionLabel(String),
+    GetBootSoftwareVersionId(u32),
+    GetBootSoftwareVersionLabel(String),
     GetDmxPersonality {
         current_personality: u8,
         personality_count: u8,
@@ -163,57 +135,27 @@ pub enum ResponseParameterData {
         dmx_slots_required: u16,
         description: String,
     },
-    GetDmxStartAddress {
-        dmx_start_address: u16,
-    },
-    GetSlotInfo {
-        dmx_slots: Vec<SlotInfo>,
-    },
+    GetDmxStartAddress(u16),
+    GetSlotInfo(Vec<SlotInfo>),
     GetSlotDescription {
         slot_id: u16,
         description: String,
     },
-    GetDefaultSlotValue {
-        default_slot_values: Vec<DefaultSlotValue>,
-    },
-    GetSensorDefinition {
-        sensor: SensorDefinition,
-    },
+    GetDefaultSlotValue(Vec<DefaultSlotValue>),
+    GetSensorDefinition(SensorDefinition),
     GetSensorValue(SensorValue),
     SetSensorValue(SensorValue),
-    GetDeviceHours {
-        device_hours: u32,
-    },
-    GetLampHours {
-        lamp_hours: u32,
-    },
-    GetLampStrikes {
-        lamp_strikes: u32,
-    },
-    GetLampState {
-        lamp_state: LampState,
-    },
-    GetLampOnMode {
-        lamp_on_mode: LampOnMode,
-    },
-    GetDevicePowerCycles {
-        power_cycle_count: u32,
-    },
-    GetDisplayInvert {
-        display_invert_mode: DisplayInvertMode,
-    },
-    GetDisplayLevel {
-        display_level: u8,
-    },
-    GetPanInvert {
-        pan_invert: bool,
-    },
-    GetTiltInvert {
-        tilt_invert: bool,
-    },
-    GetPanTiltSwap {
-        pan_tilt_swap: bool,
-    },
+    GetDeviceHours(u32),
+    GetLampHours(u32),
+    GetLampStrikes(u32),
+    GetLampState(LampState),
+    GetLampOnMode(LampOnMode),
+    GetDevicePowerCycles(u32),
+    GetDisplayInvert(DisplayInvertMode),
+    GetDisplayLevel(u8),
+    GetPanInvert(bool),
+    GetTiltInvert(bool),
+    GetPanTiltSwap(bool),
     GetRealTimeClock {
         year: u16,
         month: u8,
@@ -222,15 +164,9 @@ pub enum ResponseParameterData {
         minute: u8,
         second: u8,
     },
-    GetIdentifyDevice {
-        is_identifying: bool,
-    },
-    GetPowerState {
-        power_state: PowerState,
-    },
-    GetPerformSelfTest {
-        is_active: bool,
-    },
+    GetIdentifyDevice(bool),
+    GetPowerState(PowerState),
+    GetPerformSelfTest(bool),
     GetSelfTestDescription {
         self_test_id: u8,
         description: String,
@@ -283,8 +219,8 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ProxiedDevices) => {
-                Ok(Self::GetProxiedDevices {
-                    device_uids: bytes
+                Ok(Self::GetProxiedDevices(
+                    bytes
                         .chunks(6)
                         .map(|chunk| {
                             Ok(DeviceUID::new(
@@ -293,7 +229,7 @@ impl ResponseParameterData {
                             ))
                         })
                         .collect::<Result<Vec<DeviceUID>, ProtocolError>>()?,
-                })
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::CommsStatus) => {
                 Ok(Self::GetCommsStatus {
@@ -303,8 +239,8 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::StatusMessages) => {
-                Ok(Self::GetStatusMessages {
-                    status_messages: bytes
+                Ok(Self::GetStatusMessages(
+                    bytes
                         .chunks(9)
                         .map(|chunk| {
                             Ok(StatusMessage::new(
@@ -316,20 +252,18 @@ impl ResponseParameterData {
                             ))
                         })
                         .collect::<Result<Vec<StatusMessage>, ProtocolError>>()?,
-                })
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => {
-                Ok(Self::GetStatusIdDescription {
-                    status_id_description: CStr::from_bytes_with_nul(bytes)?
+                Ok(Self::GetStatusIdDescription(
+                    CStr::from_bytes_with_nul(bytes)?
                         .to_string_lossy()
                         .to_string(),
-                })
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::SubDeviceStatusReportThreshold) => {
-                Ok(Self::GetSubDeviceStatusReportThreshold {
-                    status_type: bytes[0].try_into()?,
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::SubDeviceStatusReportThreshold) => Ok(
+                Self::GetSubDeviceStatusReportThreshold(bytes[0].try_into()?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::SupportedParameters) => {
                 let parameters = bytes
                     .chunks(2)
@@ -376,68 +310,64 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ProductDetailIdList) => {
-                Ok(Self::GetProductDetailIdList {
-                    product_detail_id_list: bytes
+                Ok(Self::GetProductDetailIdList(
+                    bytes
                         .chunks(2)
                         .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?)))
                         .collect::<Result<Vec<u16>, ProtocolError>>()?,
-                })
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => {
-                Ok(Self::GetDeviceModelDescription {
-                    device_model_description: CStr::from_bytes_with_nul(bytes)?
+                Ok(Self::GetDeviceModelDescription(
+                    CStr::from_bytes_with_nul(bytes)?
                         .to_string_lossy()
                         .to_string(),
-                })
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => {
-                Ok(Self::GetManufacturerLabel {
-                    manufacturer_label: CStr::from_bytes_with_nul(bytes)?
+                Ok(Self::GetManufacturerLabel(
+                    CStr::from_bytes_with_nul(bytes)?
                         .to_string_lossy()
                         .to_string(),
-                })
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceLabel) => {
-                Ok(Self::GetDeviceLabel {
-                    device_label: CStr::from_bytes_with_nul(bytes)?
+                Ok(Self::GetDeviceLabel(
+                    CStr::from_bytes_with_nul(bytes)?
                         .to_string_lossy()
                         .to_string(),
-                })
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::FactoryDefaults) => {
-                Ok(Self::GetFactoryDefaults {
-                    factory_default: bytes[0] == 1,
-                })
+                Ok(Self::GetFactoryDefaults(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::LanguageCapabilities) => {
-                Ok(Self::GetLanguageCapabilities {
-                    language_capabilities: bytes
+                Ok(Self::GetLanguageCapabilities(
+                    bytes
                         .chunks(2)
                         .map(|chunk| Ok(std::str::from_utf8(chunk)?.to_string()))
                         .collect::<Result<Vec<String>, ProtocolError>>()?,
-                })
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage {
-                current_language: std::str::from_utf8(&bytes[0..=1])?.to_string(),
-            }),
+            (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(
+                std::str::from_utf8(&bytes[0..=1])?.to_string(),
+            )),
             (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => {
-                Ok(Self::GetSoftwareVersionLabel {
-                    software_version_label: CStr::from_bytes_with_nul(bytes)?
+                Ok(Self::GetSoftwareVersionLabel(
+                    CStr::from_bytes_with_nul(bytes)?
                         .to_string_lossy()
                         .to_string(),
-                })
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => {
-                Ok(Self::GetBootSoftwareVersionId {
-                    boot_software_version_id: u32::from_be_bytes(bytes.try_into()?),
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => Ok(
+                Self::GetBootSoftwareVersionId(u32::from_be_bytes(bytes.try_into()?)),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionLabel) => {
-                Ok(Self::GetBootSoftwareVersionLabel {
-                    boot_software_version_label: CStr::from_bytes_with_nul(bytes)?
+                Ok(Self::GetBootSoftwareVersionLabel(
+                    CStr::from_bytes_with_nul(bytes)?
                         .to_string_lossy()
                         .to_string(),
-                })
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxPersonality) => {
                 Ok(Self::GetDmxPersonality {
@@ -454,13 +384,11 @@ impl ResponseParameterData {
                         .to_string(),
                 })
             }
-            (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => {
-                Ok(Self::GetDmxStartAddress {
-                    dmx_start_address: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::SlotInfo) => Ok(Self::GetSlotInfo {
-                dmx_slots: bytes
+            (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => Ok(
+                Self::GetDmxStartAddress(u16::from_be_bytes(bytes[0..=1].try_into()?)),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::SlotInfo) => Ok(Self::GetSlotInfo(
+                bytes
                     .chunks(5)
                     .map(|chunk| {
                         Ok(SlotInfo::new(
@@ -470,7 +398,7 @@ impl ResponseParameterData {
                         ))
                     })
                     .collect::<Result<Vec<SlotInfo>, ProtocolError>>()?,
-            }),
+            )),
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
                 Ok(Self::GetSlotDescription {
                     slot_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
@@ -480,8 +408,8 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DefaultSlotValue) => {
-                Ok(Self::GetDefaultSlotValue {
-                    default_slot_values: bytes
+                Ok(Self::GetDefaultSlotValue(
+                    bytes
                         .chunks(3)
                         .map(|chunk| {
                             Ok(DefaultSlotValue::new(
@@ -490,26 +418,24 @@ impl ResponseParameterData {
                             ))
                         })
                         .collect::<Result<Vec<DefaultSlotValue>, ProtocolError>>()?,
-                })
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorDefinition) => {
-                Ok(Self::GetSensorDefinition {
-                    sensor: SensorDefinition {
-                        id: bytes[0],
-                        kind: bytes[1].try_into()?,
-                        unit: bytes[2].try_into()?,
-                        prefix: bytes[3].try_into()?,
-                        range_minimum_value: i16::from_be_bytes(bytes[4..=5].try_into()?),
-                        range_maximum_value: i16::from_be_bytes(bytes[6..=7].try_into()?),
-                        normal_minimum_value: i16::from_be_bytes(bytes[8..=9].try_into()?),
-                        normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
-                        is_lowest_highest_detected_value_supported: bytes[12] >> 1 & 1 == 1,
-                        is_recorded_value_supported: bytes[12] & 1 == 1,
-                        description: CStr::from_bytes_with_nul(&bytes[13..])?
-                            .to_string_lossy()
-                            .to_string(),
-                    },
-                })
+                Ok(Self::GetSensorDefinition(SensorDefinition {
+                    id: bytes[0],
+                    kind: bytes[1].try_into()?,
+                    unit: bytes[2].try_into()?,
+                    prefix: bytes[3].try_into()?,
+                    range_minimum_value: i16::from_be_bytes(bytes[4..=5].try_into()?),
+                    range_maximum_value: i16::from_be_bytes(bytes[6..=7].try_into()?),
+                    normal_minimum_value: i16::from_be_bytes(bytes[8..=9].try_into()?),
+                    normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
+                    is_lowest_highest_detected_value_supported: bytes[12] >> 1 & 1 == 1,
+                    is_recorded_value_supported: bytes[12] & 1 == 1,
+                    description: CStr::from_bytes_with_nul(&bytes[13..])?
+                        .to_string_lossy()
+                        .to_string(),
+                }))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorValue) => {
                 Ok(Self::GetSensorValue(SensorValue::new(
@@ -529,54 +455,38 @@ impl ResponseParameterData {
                     i16::from_be_bytes(bytes[7..=8].try_into()?),
                 )))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DeviceHours) => {
-                Ok(Self::GetDeviceHours {
-                    device_hours: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                })
+            (CommandClass::GetCommandResponse, ParameterId::DeviceHours) => Ok(
+                Self::GetDeviceHours(u32::from_be_bytes(bytes[0..=3].try_into()?)),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::LampHours) => Ok(Self::GetLampHours(
+                u32::from_be_bytes(bytes[0..=3].try_into()?),
+            )),
+            (CommandClass::GetCommandResponse, ParameterId::LampStrikes) => Ok(
+                Self::GetLampStrikes(u32::from_be_bytes(bytes[0..=3].try_into()?)),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::LampState) => {
+                Ok(Self::GetLampState(bytes[0].try_into()?))
             }
-            (CommandClass::GetCommandResponse, ParameterId::LampHours) => Ok(Self::GetLampHours {
-                lamp_hours: u32::from_be_bytes(bytes[0..=3].try_into()?),
-            }),
-            (CommandClass::GetCommandResponse, ParameterId::LampStrikes) => {
-                Ok(Self::GetLampStrikes {
-                    lamp_strikes: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::LampState) => Ok(Self::GetLampState {
-                lamp_state: bytes[0].try_into()?,
-            }),
             (CommandClass::GetCommandResponse, ParameterId::LampOnMode) => {
-                Ok(Self::GetLampOnMode {
-                    lamp_on_mode: bytes[0].try_into()?,
-                })
+                Ok(Self::GetLampOnMode(bytes[0].try_into()?))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DevicePowerCycles) => {
-                Ok(Self::GetDevicePowerCycles {
-                    power_cycle_count: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::DevicePowerCycles) => Ok(
+                Self::GetDevicePowerCycles(u32::from_be_bytes(bytes[0..=3].try_into()?)),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::DisplayInvert) => {
-                Ok(Self::GetDisplayInvert {
-                    display_invert_mode: bytes[0].try_into()?,
-                })
+                Ok(Self::GetDisplayInvert(bytes[0].try_into()?))
             }
             (CommandClass::GetCommandResponse, ParameterId::DisplayLevel) => {
-                Ok(Self::GetDisplayLevel {
-                    display_level: bytes[0],
-                })
+                Ok(Self::GetDisplayLevel(bytes[0]))
             }
-            (CommandClass::GetCommandResponse, ParameterId::PanInvert) => Ok(Self::GetPanInvert {
-                pan_invert: bytes[0] == 1,
-            }),
+            (CommandClass::GetCommandResponse, ParameterId::PanInvert) => {
+                Ok(Self::GetPanInvert(bytes[0] == 1))
+            }
             (CommandClass::GetCommandResponse, ParameterId::TiltInvert) => {
-                Ok(Self::GetTiltInvert {
-                    tilt_invert: bytes[0] == 1,
-                })
+                Ok(Self::GetTiltInvert(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::PanTiltSwap) => {
-                Ok(Self::GetPanTiltSwap {
-                    pan_tilt_swap: bytes[0] == 1,
-                })
+                Ok(Self::GetPanTiltSwap(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::RealTimeClock) => {
                 Ok(Self::GetRealTimeClock {
@@ -589,19 +499,13 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::IdentifyDevice) => {
-                Ok(Self::GetIdentifyDevice {
-                    is_identifying: bytes[0] == 1,
-                })
+                Ok(Self::GetIdentifyDevice(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::PowerState) => {
-                Ok(Self::GetPowerState {
-                    power_state: bytes[0].try_into()?,
-                })
+                Ok(Self::GetPowerState(bytes[0].try_into()?))
             }
             (CommandClass::GetCommandResponse, ParameterId::PerformSelfTest) => {
-                Ok(Self::GetPerformSelfTest {
-                    is_active: bytes[0] == 1,
-                })
+                Ok(Self::GetPerformSelfTest(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::SelfTestDescription) => {
                 Ok(Self::GetSelfTestDescription {
@@ -842,9 +746,7 @@ mod tests {
                 command_class: CommandClass::GetCommandResponse,
                 parameter_id: ParameterId::IdentifyDevice,
                 parameter_data: ResponseData::ParameterData(Some(
-                    ResponseParameterData::GetIdentifyDevice {
-                        is_identifying: true,
-                    }
+                    ResponseParameterData::GetIdentifyDevice(true)
                 )),
             })))
         );
@@ -992,9 +894,7 @@ mod tests {
                 command_class: CommandClass::GetCommandResponse,
                 parameter_id: ParameterId::IdentifyDevice,
                 parameter_data: ResponseData::ParameterData(Some(
-                    ResponseParameterData::GetIdentifyDevice {
-                        is_identifying: true,
-                    }
+                    ResponseParameterData::GetIdentifyDevice(true)
                 )),
             })))
         );
