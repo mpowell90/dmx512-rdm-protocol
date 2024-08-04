@@ -1,5 +1,5 @@
 use super::ProtocolError;
-use std::fmt::Display;
+use std::{ffi::CStr, fmt::Display};
 
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -121,13 +121,13 @@ impl TryFrom<u16> for ParameterId {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum SupportedCommandClass {
+pub enum ImplementedCommandClass {
     Get = 0x01,
     Set = 0x02,
     GetSet = 0x03,
 }
 
-impl TryFrom<u8> for SupportedCommandClass {
+impl TryFrom<u8> for ImplementedCommandClass {
     type Error = ProtocolError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
@@ -135,7 +135,7 @@ impl TryFrom<u8> for SupportedCommandClass {
             0x01 => Ok(Self::Get),
             0x02 => Ok(Self::Set),
             0x03 => Ok(Self::GetSet),
-            _ => Err(ProtocolError::UnsupportedCommandClass(value)),
+            _ => Err(ProtocolError::InvalidCommandClassImplementation(value)),
         }
     }
 }
@@ -145,7 +145,7 @@ pub struct ManufacturerSpecificParameter {
     pub parameter_id: u16,
     pub parameter_data_size: Option<u8>, // TODO use enum
     pub data_type: Option<u8>,           // TODO use enum
-    pub command_class: Option<SupportedCommandClass>,
+    pub command_class: Option<ImplementedCommandClass>,
     pub prefix: Option<u8>, // TODO use enum
     pub minimum_valid_value: Option<u32>,
     pub maximum_valid_value: Option<u32>,
@@ -159,6 +159,115 @@ impl From<u16> for ManufacturerSpecificParameter {
             parameter_id,
             ..Default::default()
         }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum ParameterDataType {
+    NotDefined,
+    BitField,
+    Ascii,
+    UnsignedByte,
+    SignedByte,
+    UnsignedWord,
+    SignedWord,
+    UnsignedDWord,
+    SignedDWord,
+    ManufacturerSpecific(u8),
+}
+
+impl TryFrom<u8> for ParameterDataType {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, ProtocolError> {
+        match value {
+            0x00 => Ok(Self::NotDefined),
+            0x01 => Ok(Self::BitField),
+            0x02 => Ok(Self::Ascii),
+            0x03 => Ok(Self::UnsignedByte),
+            0x04 => Ok(Self::SignedByte),
+            0x05 => Ok(Self::UnsignedWord),
+            0x06 => Ok(Self::SignedWord),
+            0x07 => Ok(Self::UnsignedDWord),
+            0x08 => Ok(Self::SignedDWord),
+            n if (0x80..=0xdf).contains(&n) => Ok(Self::ManufacturerSpecific(n)),
+            _ => Err(ProtocolError::InvalidParameterDataType(value)),
+        }
+    }
+}
+
+pub enum ConvertedParameterValue {
+    BitField(u8),
+    Ascii(String),
+    UnsignedByte(u8),
+    SignedByte(i8),
+    UnsignedWord(u16),
+    SignedWord(i16),
+    UnsignedDWord(u32),
+    SignedDWord(i32),
+    Raw([u8; 4]),
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParameterDescription {
+    pub parameter_id: u16,
+    pub parameter_data_length: u8,
+    pub data_type: ParameterDataType,
+    pub command_class: ImplementedCommandClass,
+    pub unit_type: SensorUnit,
+    pub prefix: SensorUnitPrefix,
+    pub raw_minimum_valid_value: [u8; 4],
+    pub raw_maximum_valid_value: [u8; 4],
+    pub raw_default_value: [u8; 4],
+    pub description: String,
+}
+
+impl ParameterDescription {
+    fn convert_parameter_value(
+        parameter_data_type: ParameterDataType,
+        value: [u8; 4],
+    ) -> Result<ConvertedParameterValue, ProtocolError> {
+        match parameter_data_type {
+            ParameterDataType::BitField => Ok(ConvertedParameterValue::BitField(
+                value[3],
+            )),
+            ParameterDataType::Ascii => Ok(ConvertedParameterValue::Ascii(
+                CStr::from_bytes_with_nul(&value)?
+                    .to_string_lossy()
+                    .to_string(),
+            )),
+            ParameterDataType::UnsignedByte => Ok(ConvertedParameterValue::UnsignedByte(
+                value[3],
+            )),
+            ParameterDataType::SignedByte => Ok(ConvertedParameterValue::SignedByte(
+                value[3] as i8, // TODO test this
+            )),
+            ParameterDataType::UnsignedWord => Ok(ConvertedParameterValue::UnsignedWord(
+                u16::from_be_bytes([value[2], value[3]]),
+            )),
+            ParameterDataType::SignedWord => Ok(ConvertedParameterValue::SignedWord(
+                i16::from_be_bytes([value[2], value[3]]),
+            )),
+            ParameterDataType::UnsignedDWord => Ok(ConvertedParameterValue::UnsignedDWord(
+                u32::from_be_bytes(value),
+            )),
+            ParameterDataType::SignedDWord => Ok(ConvertedParameterValue::SignedDWord(
+                i32::from_be_bytes(value),
+            )),
+            ParameterDataType::NotDefined | ParameterDataType::ManufacturerSpecific(..) => {
+                Ok(ConvertedParameterValue::Raw(value))
+            }
+        }
+    }
+
+    pub fn minimum_valid_value(&self) -> Result<ConvertedParameterValue, ProtocolError> {
+        Self::convert_parameter_value(self.data_type, self.raw_minimum_valid_value)
+    }
+    pub fn maximum_valid_value(&self) -> Result<ConvertedParameterValue, ProtocolError> {
+        Self::convert_parameter_value(self.data_type, self.raw_maximum_valid_value)
+    }
+    pub fn default_value(&self) -> Result<ConvertedParameterValue, ProtocolError> {
+        Self::convert_parameter_value(self.data_type, self.raw_default_value)
     }
 }
 
@@ -875,6 +984,148 @@ impl TryFrom<u8> for SensorType {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SensorUnit {
+    None = 0x00,
+    Centigrade = 0x01,
+    VoltsDc = 0x02,
+    VoltsAcPeak = 0x03,
+    VoltsAcRms = 0x04,
+    AmpsDc = 0x05,
+    AmpsAcPeak = 0x06,
+    AmpsAcRms = 0x07,
+    Hertz = 0x08,
+    Ohm = 0x09,
+    Watt = 0x0a,
+    Kilogram = 0x0b,
+    Meter = 0x0c,
+    SquareMeter = 0x0d,
+    CubicMeter = 0x0e,
+    KilogramPerCubicMeter = 0x0f,
+    MeterPerSecond = 0x10,
+    MeterPerSecondSquared = 0x11,
+    Newton = 0x12,
+    Joule = 0x13,
+    Pascal = 0x14,
+    Second = 0x15,
+    Degree = 0x16,
+    Steradian = 0x17,
+    Candela = 0x18,
+    Lumen = 0x19,
+    Lux = 0x1a,
+    Ire = 0x1b,
+    Byte = 0x1c,
+}
+
+impl TryFrom<u8> for SensorUnit {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::None),
+            0x01 => Ok(Self::Centigrade),
+            0x02 => Ok(Self::VoltsDc),
+            0x03 => Ok(Self::VoltsAcPeak),
+            0x04 => Ok(Self::VoltsAcRms),
+            0x05 => Ok(Self::AmpsDc),
+            0x06 => Ok(Self::AmpsAcPeak),
+            0x07 => Ok(Self::AmpsAcRms),
+            0x08 => Ok(Self::Hertz),
+            0x09 => Ok(Self::Ohm),
+            0x0a => Ok(Self::Watt),
+            0x0b => Ok(Self::Kilogram),
+            0x0c => Ok(Self::Meter),
+            0x0d => Ok(Self::SquareMeter),
+            0x0e => Ok(Self::CubicMeter),
+            0x0f => Ok(Self::KilogramPerCubicMeter),
+            0x10 => Ok(Self::MeterPerSecond),
+            0x11 => Ok(Self::MeterPerSecondSquared),
+            0x12 => Ok(Self::Newton),
+            0x13 => Ok(Self::Joule),
+            0x14 => Ok(Self::Pascal),
+            0x15 => Ok(Self::Second),
+            0x16 => Ok(Self::Degree),
+            0x17 => Ok(Self::Steradian),
+            0x18 => Ok(Self::Candela),
+            0x19 => Ok(Self::Lumen),
+            0x1a => Ok(Self::Lux),
+            0x1b => Ok(Self::Ire),
+            0x1c => Ok(Self::Byte),
+            _ => Err(ProtocolError::InvalidSensorUnit(value)),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SensorUnitPrefix {
+    None = 0x00,
+    Deci = 0x01,
+    Centi = 0x02,
+    Milli = 0x03,
+    Micro = 0x04,
+    Nano = 0x05,
+    Pico = 0x06,
+    Femto = 0x07,
+    Atto = 0x08,
+    Zepto = 0x09,
+    Yocto = 0x0a,
+    Deca = 0x11,
+    Hecto = 0x12,
+    Kilo = 0x13,
+    Mega = 0x14,
+    Giga = 0x15,
+    Terra = 0x16,
+    Peta = 0x17,
+    Exa = 0x18,
+    Zetta = 0x19,
+    Yotta = 0x1a,
+}
+
+impl TryFrom<u8> for SensorUnitPrefix {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::None),
+            0x01 => Ok(Self::Deci),
+            0x02 => Ok(Self::Centi),
+            0x03 => Ok(Self::Milli),
+            0x04 => Ok(Self::Micro),
+            0x05 => Ok(Self::Nano),
+            0x06 => Ok(Self::Pico),
+            0x07 => Ok(Self::Femto),
+            0x08 => Ok(Self::Atto),
+            0x09 => Ok(Self::Zepto),
+            0x0a => Ok(Self::Yocto),
+            0x11 => Ok(Self::Deca),
+            0x12 => Ok(Self::Hecto),
+            0x13 => Ok(Self::Kilo),
+            0x14 => Ok(Self::Mega),
+            0x15 => Ok(Self::Giga),
+            0x16 => Ok(Self::Terra),
+            0x17 => Ok(Self::Peta),
+            0x18 => Ok(Self::Exa),
+            0x19 => Ok(Self::Zetta),
+            0x1a => Ok(Self::Yotta),
+            _ => Err(ProtocolError::InvalidSensorUnitPrefix(value)),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct Sensor {
+    pub id: u8,
+    pub kind: SensorType,
+    pub unit: u8,
+    pub prefix: u8,
+    pub range_minimum_value: i16,
+    pub range_maximum_value: i16,
+    pub normal_minimum_value: i16,
+    pub normal_maximum_value: i16,
+    pub recorded_value_support: u8,
+    pub description: String,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SensorValue {
     pub sensor_id: u8,
     pub current_value: i16,
@@ -899,18 +1150,4 @@ impl SensorValue {
             recorded_value,
         }
     }
-}
-
-#[derive(Clone, Debug, PartialEq)]
-pub struct Sensor {
-    pub id: u8,
-    pub kind: SensorType,
-    pub unit: u8,
-    pub prefix: u8,
-    pub range_minimum_value: i16,
-    pub range_maximum_value: i16,
-    pub normal_minimum_value: i16,
-    pub normal_maximum_value: i16,
-    pub recorded_value_support: u8,
-    pub description: String,
 }

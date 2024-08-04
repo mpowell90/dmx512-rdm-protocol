@@ -1,9 +1,7 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter,
-        ParameterId, PowerState, PresetPlaybackMode, ProductCategory, Sensor, SensorValue,
-        SlotInfo, StatusMessage, StatusType,
+        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, Sensor, SensorValue, SlotInfo, StatusMessage, StatusType
     },
     CommandClass, DeviceUID, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
@@ -82,17 +80,7 @@ pub enum ResponseParameterData {
         standard_parameters: Vec<ParameterId>,
         manufacturer_specific_parameters: HashMap<u16, ManufacturerSpecificParameter>,
     },
-    GetParameterDescription {
-        parameter_id: u16,
-        parameter_data_size: u8,
-        data_type: u8,
-        command_class: CommandClass,
-        prefix: u8,
-        minimum_valid_value: u32,
-        maximum_valid_value: u32,
-        default_value: u32,
-        description: String,
-    },
+    GetParameterDescription(ParameterDescription),
     GetDeviceInfo {
         protocol_version: String,
         model_id: u16,
@@ -342,19 +330,20 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ParameterDescription) => {
-                Ok(Self::GetParameterDescription {
+                Ok(Self::GetParameterDescription(ParameterDescription {
                     parameter_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    parameter_data_size: bytes[2],
-                    data_type: bytes[3],
-                    command_class: CommandClass::try_from(bytes[4])?,
-                    prefix: bytes[5],
-                    minimum_valid_value: u32::from_be_bytes(bytes[8..=11].try_into()?),
-                    maximum_valid_value: u32::from_be_bytes(bytes[12..=15].try_into()?),
-                    default_value: u32::from_be_bytes(bytes[16..=19].try_into()?),
+                    parameter_data_length: bytes[2],
+                    data_type: bytes[3].try_into()?,
+                    command_class: bytes[4].try_into()?,
+                    unit_type: bytes[6].try_into()?,
+                    prefix: bytes[7].try_into()?,
+                    raw_minimum_valid_value: bytes[8..=11].try_into()?,
+                    raw_maximum_valid_value: bytes[12..=15].try_into()?,
+                    raw_default_value: bytes[16..=19].try_into()?,
                     description: CStr::from_bytes_with_nul(&bytes[20..])?
                         .to_string_lossy()
                         .to_string(),
-                })
+                }))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => {
                 Ok(Self::GetDeviceInfo {

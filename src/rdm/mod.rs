@@ -31,14 +31,20 @@ pub enum ProtocolError {
     InvalidStatusType(u8),
     #[error("Invalid CommandClass: {0}")]
     InvalidCommandClass(u8),
-    #[error("Unsupported CommandClass: {0}")]
-    UnsupportedCommandClass(u8),
+    #[error("Invalid CommandClass Implementation: {0}")]
+    InvalidCommandClassImplementation(u8),
     #[error("Unsupported Parameter, CommandClass: {0}, ParameterId: {1}")]
     UnsupportedParameter(u8, u16),
     #[error("Unsupported ParameterId: {0}")]
     UnsupportedParameterId(u16),
     #[error("Invalid parameter data length: {0}, must be >= 0 and <= 231")]
     InvalidParameterDataLength(u8),
+    #[error("Invalid ParameterDataType: {0}")]
+    InvalidParameterDataType(u8),
+    #[error("Invalid SensorUnit: {0}")]
+    InvalidSensorUnit(u8),
+    #[error("Invalid SensorUnitPrefix: {0}")]
+    InvalidSensorUnitPrefix(u8),
     #[error("Invalid discovery unique branch preamble")]
     InvalidDiscoveryUniqueBranchPreamble,
     #[error("Failed to convert from bytes with nul")]
