@@ -580,7 +580,7 @@ pub struct FadeTimes {
     pub wait_time: u16,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct StatusMessage {
     pub sub_device_id: u16,
     pub status_type: StatusType,
@@ -607,7 +607,7 @@ impl StatusMessage {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SlotInfo {
     pub id: u16,
     pub kind: u8, // TODO use enum
@@ -620,7 +620,7 @@ impl SlotInfo {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct DefaultSlotValue {
     pub id: u16,
     pub value: u8,
@@ -632,7 +632,7 @@ impl DefaultSlotValue {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SensorType {
     Temperature = 0x00,
     Voltage = 0x01,
@@ -713,7 +713,7 @@ impl TryFrom<u8> for SensorType {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SensorValue {
     pub sensor_id: u8,
     pub current_value: i16,
@@ -740,7 +740,7 @@ impl SensorValue {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Sensor {
     pub id: u8,
     pub kind: SensorType,
