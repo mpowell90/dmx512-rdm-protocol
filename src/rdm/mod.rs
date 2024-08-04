@@ -27,6 +27,8 @@ pub enum ProtocolError {
     InvalidChecksum(u16, u16),
     #[error("Invalid ResponseType: {0}")]
     InvalidResponseType(u8),
+    #[error("Invalid NackReasonCode: {0}")]
+    InvalidNackReasonCode(u16),
     #[error("Invalid StatusType: {0}")]
     InvalidStatusType(u8),
     #[error("Invalid CommandClass: {0}")]

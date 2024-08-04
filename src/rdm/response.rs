@@ -2,8 +2,8 @@ use super::{
     bsd_16_crc,
     parameter::{
         DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter,
-        ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, SensorDefinition,
-        SensorValue, SlotInfo, StatusMessage, StatusType,
+        ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory,
+        SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
     },
     CommandClass, DeviceUID, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
@@ -23,6 +23,27 @@ pub enum ResponseNackReasonCode {
     PacketSizeUnsupported = 0x0008,
     SubDeviceOutOfRange = 0x0009,
     ProxyBufferFull = 0x000a,
+}
+
+impl TryFrom<u16> for ResponseNackReasonCode {
+    type Error = ProtocolError;
+
+    fn try_from(value: u16) -> Result<Self, ProtocolError> {
+        match value {
+            0x0000 => Ok(Self::UnknownPid),
+            0x0001 => Ok(Self::FormatError),
+            0x0002 => Ok(Self::HardwareFault),
+            0x0003 => Ok(Self::ProxyReject),
+            0x0004 => Ok(Self::WriteProtect),
+            0x0005 => Ok(Self::UnsupportedCommandClass),
+            0x0006 => Ok(Self::DataOutOfRange),
+            0x0007 => Ok(Self::BufferFull),
+            0x0008 => Ok(Self::PacketSizeUnsupported),
+            0x0009 => Ok(Self::SubDeviceOutOfRange),
+            0x000a => Ok(Self::ProxyBufferFull),
+            value => Err(ProtocolError::InvalidNackReasonCode(value)),
+        }
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -45,6 +66,13 @@ impl TryFrom<u8> for ResponseType {
             _ => Err(ProtocolError::InvalidResponseType(value)),
         }
     }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ResponseData {
+    ParameterData(Option<ResponseParameterData>),
+    EstimateResponseTime(u16),
+    NackReason(ResponseNackReasonCode),
 }
 
 #[non_exhaustive]
@@ -622,7 +650,7 @@ pub struct RdmResponse {
     pub sub_device_id: u16,
     pub command_class: CommandClass,
     pub parameter_id: ParameterId,
-    pub parameter_data: Option<ResponseParameterData>,
+    pub parameter_data: ResponseData,
 }
 
 impl RdmResponse {
@@ -637,7 +665,9 @@ impl RdmResponse {
             bytes[message_length as usize..=message_length as usize + 1].try_into()?,
         );
 
-        let decoded_checksum = bsd_16_crc(&bytes[..message_length as usize - 1]);
+        println!("{:02X?}", &bytes[..message_length as usize]);
+
+        let decoded_checksum = bsd_16_crc(&bytes[..message_length as usize]);
 
         if decoded_checksum != packet_checksum {
             return Err(ProtocolError::InvalidChecksum(
@@ -674,14 +704,30 @@ impl RdmResponse {
             ));
         }
 
-        let parameter_data = if parameter_data_length > 0 {
-            Some(ResponseParameterData::decode(
-                command_class,
-                parameter_id,
-                &bytes[25..=message_length as usize + 1],
-            )?)
-        } else {
-            None
+        let parameter_data = match response_type {
+            ResponseType::Ack | ResponseType::AckOverflow => {
+                let parameter_data = if parameter_data_length > 0 {
+                    Some(ResponseParameterData::decode(
+                        command_class,
+                        parameter_id,
+                        &bytes[24..=message_length as usize + 1],
+                    )?)
+                } else {
+                    None
+                };
+
+                ResponseData::ParameterData(parameter_data)
+            }
+            ResponseType::AckTimer => {
+                let estimated_response_time = u16::from_be_bytes(bytes[24..=25].try_into()?);
+
+                ResponseData::EstimateResponseTime(estimated_response_time)
+            }
+            ResponseType::NackReason => {
+                let nack_reason = u16::from_be_bytes(bytes[24..=25].try_into()?).try_into()?;
+
+                ResponseData::NackReason(nack_reason)
+            }
         };
 
         Ok(Self {
@@ -768,7 +814,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn should_parse_valid_rdm_response() {
+    fn should_parse_valid_rdm_ack_response() {
         let bytes = &mut [
             SC_RDM,
             SC_SUB_MESSAGE,
@@ -795,8 +841,8 @@ mod tests {
             0x00,
             0x01, // parameter data length
             0x01, // identifying = true
-            0x01,
-            0x42, // checksum
+            0x01, // checksum
+            0x43,
         ];
 
         assert_eq!(
@@ -810,9 +856,161 @@ mod tests {
                 sub_device_id: 0x0000,
                 command_class: CommandClass::GetCommandResponse,
                 parameter_id: ParameterId::IdentifyDevice,
-                parameter_data: Some(ResponseParameterData::GetIdentifyDevice {
-                    is_identifying: true,
-                }),
+                parameter_data: ResponseData::ParameterData(Some(
+                    ResponseParameterData::GetIdentifyDevice {
+                        is_identifying: true,
+                    }
+                )),
+            })))
+        );
+    }
+
+    #[test]
+    fn should_parse_valid_rdm_ack_timer_response() {
+        let bytes = &mut [
+            SC_RDM,
+            SC_SUB_MESSAGE,
+            26,   // message length
+            0x01, // destination uid
+            0x02,
+            0x03,
+            0x04,
+            0x05,
+            0x06,
+            0x06, // source uid
+            0x05,
+            0x04,
+            0x03,
+            0x02,
+            0x01,
+            0x00, // transaction number
+            0x01, // response type = AckTimer
+            0x00, // message count
+            0x00, // sub device id = root device
+            0x00,
+            0x21, // command class = get command response
+            0x10, // parameter id = identify device
+            0x00,
+            0x02, // parameter data length
+            0x00, // Estimated Response Time = 10x 100ms = 1 second
+            0x0a,
+            0x01, // checksum
+            0x4f,
+        ];
+
+        assert_eq!(
+            RdmFrame::parse(bytes),
+            Ok(Some(RdmFrame::Rdm(RdmResponse {
+                destination_uid: DeviceUID::new(0x0102, 0x03040506),
+                source_uid: DeviceUID::new(0x0605, 0x04030201),
+                transaction_number: 0x00,
+                response_type: ResponseType::AckTimer,
+                message_count: 0x00,
+                sub_device_id: 0x0000,
+                command_class: CommandClass::GetCommandResponse,
+                parameter_id: ParameterId::IdentifyDevice,
+                parameter_data: ResponseData::EstimateResponseTime(0x0a),
+            })))
+        );
+    }
+
+    #[test]
+    fn should_parse_valid_rdm_nack_reason_response() {
+        let bytes = &mut [
+            SC_RDM,
+            SC_SUB_MESSAGE,
+            26,   // message length
+            0x01, // destination uid
+            0x02,
+            0x03,
+            0x04,
+            0x05,
+            0x06,
+            0x06, // source uid
+            0x05,
+            0x04,
+            0x03,
+            0x02,
+            0x01,
+            0x00, // transaction number
+            0x02, // response type = Nack_Reason
+            0x00, // message count
+            0x00, // sub device id = root device
+            0x00,
+            0x21, // command class = get command response
+            0x10, // parameter id = identify device
+            0x00,
+            0x02, // parameter data length
+            0x00, // Nack Reason = FormatError
+            0x01,
+            0x01, // checksum
+            0x47,
+        ];
+
+        assert_eq!(
+            RdmFrame::parse(bytes),
+            Ok(Some(RdmFrame::Rdm(RdmResponse {
+                destination_uid: DeviceUID::new(0x0102, 0x03040506),
+                source_uid: DeviceUID::new(0x0605, 0x04030201),
+                transaction_number: 0x00,
+                response_type: ResponseType::NackReason,
+                message_count: 0x00,
+                sub_device_id: 0x0000,
+                command_class: CommandClass::GetCommandResponse,
+                parameter_id: ParameterId::IdentifyDevice,
+                parameter_data: ResponseData::NackReason(ResponseNackReasonCode::FormatError),
+            })))
+        );
+    }
+
+    #[test]
+    fn should_parse_valid_rdm_ack_overflow_response() {
+        let bytes = &mut [
+            SC_RDM,
+            SC_SUB_MESSAGE,
+            25,   // message length
+            0x01, // destination uid
+            0x02,
+            0x03,
+            0x04,
+            0x05,
+            0x06,
+            0x06, // source uid
+            0x05,
+            0x04,
+            0x03,
+            0x02,
+            0x01,
+            0x00, // transaction number
+            0x03, // response type = Ack_Overflow
+            0x00, // message count
+            0x00, // sub device id = root device
+            0x00,
+            0x21, // command class = get command response
+            0x10, // parameter id = identify device
+            0x00,
+            0x01, // parameter data length
+            0x01, // identifying = true
+            0x01, // checksum
+            0x46,
+        ];
+
+        assert_eq!(
+            RdmFrame::parse(bytes),
+            Ok(Some(RdmFrame::Rdm(RdmResponse {
+                destination_uid: DeviceUID::new(0x0102, 0x03040506),
+                source_uid: DeviceUID::new(0x0605, 0x04030201),
+                transaction_number: 0x00,
+                response_type: ResponseType::AckOverflow,
+                message_count: 0x00,
+                sub_device_id: 0x0000,
+                command_class: CommandClass::GetCommandResponse,
+                parameter_id: ParameterId::IdentifyDevice,
+                parameter_data: ResponseData::ParameterData(Some(
+                    ResponseParameterData::GetIdentifyDevice {
+                        is_identifying: true,
+                    }
+                )),
             })))
         );
     }
