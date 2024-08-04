@@ -1112,16 +1112,17 @@ impl TryFrom<u8> for SensorUnitPrefix {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct Sensor {
+pub struct SensorDefinition {
     pub id: u8,
     pub kind: SensorType,
-    pub unit: u8,
-    pub prefix: u8,
+    pub unit: SensorUnit,
+    pub prefix: SensorUnitPrefix,
     pub range_minimum_value: i16,
     pub range_maximum_value: i16,
     pub normal_minimum_value: i16,
     pub normal_maximum_value: i16,
-    pub recorded_value_support: u8,
+    pub is_lowest_highest_detected_value_supported: bool,
+    pub is_recorded_value_supported: bool,
     pub description: String,
 }
 

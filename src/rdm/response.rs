@@ -1,13 +1,16 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, Sensor, SensorValue, SlotInfo, StatusMessage, StatusType
+        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter,
+        ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, SensorDefinition,
+        SensorValue, SlotInfo, StatusMessage, StatusType,
     },
     CommandClass, DeviceUID, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
 };
 use std::{collections::HashMap, ffi::CStr};
 
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResponseNackReasonCode {
     UnknownPid = 0x0000,
     FormatError = 0x0001,
@@ -22,7 +25,7 @@ pub enum ResponseNackReasonCode {
     ProxyBufferFull = 0x000a,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResponseType {
     Ack = 0x00,
     AckTimer = 0x01,
@@ -146,7 +149,7 @@ pub enum ResponseParameterData {
         default_slot_values: Vec<DefaultSlotValue>,
     },
     GetSensorDefinition {
-        sensor: Sensor,
+        sensor: SensorDefinition,
     },
     GetSensorValue(SensorValue),
     SetSensorValue(SensorValue),
@@ -478,16 +481,17 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorDefinition) => {
                 Ok(Self::GetSensorDefinition {
-                    sensor: Sensor {
+                    sensor: SensorDefinition {
                         id: bytes[0],
                         kind: bytes[1].try_into()?,
-                        unit: bytes[2],
-                        prefix: bytes[3],
+                        unit: bytes[2].try_into()?,
+                        prefix: bytes[3].try_into()?,
                         range_minimum_value: i16::from_be_bytes(bytes[4..=5].try_into()?),
                         range_maximum_value: i16::from_be_bytes(bytes[6..=7].try_into()?),
                         normal_minimum_value: i16::from_be_bytes(bytes[8..=9].try_into()?),
                         normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
-                        recorded_value_support: bytes[12],
+                        is_lowest_highest_detected_value_supported: bytes[12] >> 1 & 1 == 1,
+                        is_recorded_value_supported: bytes[12] & 1 == 1,
                         description: CStr::from_bytes_with_nul(&bytes[13..])?
                             .to_string_lossy()
                             .to_string(),
