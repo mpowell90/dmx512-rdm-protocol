@@ -1,16 +1,9 @@
 use super::{
     bsd_16_crc,
     device::DeviceUID,
-    parameter::{LampOnMode, LampState, ParameterId, StatusType},
+    parameter::{FadeTimes, LampOnMode, LampState, ParameterId, StatusType},
     CommandClass, SC_RDM, SC_SUB_MESSAGE,
 };
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct FadeTimes {
-    pub up_fade_time: u16,
-    pub down_fade_time: u16,
-    pub wait_time: u16,
-}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter {

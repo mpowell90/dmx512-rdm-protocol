@@ -44,7 +44,7 @@ impl From<DeviceUID> for u64 {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct StatusMessage {
     pub sub_device_id: u16,
     pub status_type: StatusType,

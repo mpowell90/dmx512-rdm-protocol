@@ -3,7 +3,7 @@ use super::ProtocolError;
 
 // TODO add remaining parameter ids
 #[non_exhaustive]
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterId {
     DiscUniqueBranch = 0x0001,
     DiscMute = 0x0002,
@@ -211,7 +211,7 @@ pub enum SupportedCommandClassError {
     InvalidCommandClass(u8),
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SupportedCommandClass {
     Get = 0x01,
     Set = 0x02,
@@ -231,7 +231,7 @@ impl TryFrom<u8> for SupportedCommandClass {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ManufacturerSpecificParameter {
     pub parameter_id: u16,
     pub parameter_data_size: Option<u8>, // TODO use enum
@@ -253,7 +253,7 @@ impl From<u16> for ManufacturerSpecificParameter {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StatusType {
     None = 0x00,
     GetLastMessage = 0x01,
@@ -284,7 +284,7 @@ impl TryFrom<u8> for StatusType {
 }
 
 // Product Categories - Page 105 RDM Spec
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ProductCategory {
     NotDeclared = 0x0000,
     Fixture = 0x0100,
@@ -420,7 +420,7 @@ impl TryFrom<u16> for ProductCategory {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LampState {
     LampOff = 0x00,        // 0x00 = "Lamp Off",
     LampOn = 0x01,         // 0x01 = "Lamp On",
@@ -446,7 +446,7 @@ impl TryFrom<u8> for LampState {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LampOnMode {
     OffMode = 0x00,  // 0x00 = "Off Mode",
     DmxMode = 0x01,  // 0x01 = "DMX Mode",
@@ -468,7 +468,7 @@ impl TryFrom<u8> for LampOnMode {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PowerState {
     FullOff = 0x00,  // 0x00 = "Full Off",
     Shutdown = 0x01, // 0x01 = "Shutdown",
@@ -490,7 +490,7 @@ impl TryFrom<u8> for PowerState {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum OnOffStates {
     Off = 0x00, // 0x00 = "Off",
     On = 0x01,  // 0x01 = "On",
@@ -508,7 +508,7 @@ impl TryFrom<u8> for OnOffStates {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DisplayInvertMode {
     Off = 0x00,  // 0x00 = "Off",
     On = 0x01,   // 0x01 = "On",
@@ -528,7 +528,7 @@ impl TryFrom<u8> for DisplayInvertMode {
     }
 }
 
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResetType {
     Warm = 0x01,
     Cold = 0xff,
@@ -544,4 +544,11 @@ impl TryFrom<u8> for ResetType {
             _ => Err(ProtocolError::InvalidResetType(value)),
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct FadeTimes {
+    pub up_fade_time: u16,
+    pub down_fade_time: u16,
+    pub wait_time: u16,
 }
