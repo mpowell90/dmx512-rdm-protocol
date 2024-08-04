@@ -3,12 +3,6 @@
 version = 3
 
 [[package]]
-name = "bytes"
-version = "1.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8318a53db07bb3f8dca91a600466bdb3f2eaadeedfdbcf02e1accbad9271ba50"
-
-[[package]]
 name = "proc-macro2"
 version = "1.0.86"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -30,7 +24,6 @@ dependencies = [
 name = "rdm-rs"
 version = "0.1.0"
 dependencies = [
- "bytes",
  "thiserror",
 ]
 

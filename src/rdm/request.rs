@@ -4,7 +4,6 @@ use super::{
     parameter::{LampOnMode, LampState, ParameterId, StatusType},
     CommandClass, SC_RDM, SC_SUB_MESSAGE,
 };
-use bytes::{BufMut, BytesMut};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct FadeTimes {
@@ -346,8 +345,8 @@ impl RequestParameter {
         }
     }
 
-    pub fn encode(&self) -> BytesMut {
-        let mut buf = BytesMut::new();
+    pub fn encode(&self) -> Vec<u8> {
+        let mut buf = Vec::new();
 
         match self {
             Self::DiscMute => {}
@@ -357,35 +356,35 @@ impl RequestParameter {
                 upper_bound_uid,
             } => {
                 buf.reserve(0x0c);
-                buf.put_u16(lower_bound_uid.manufacturer_id);
-                buf.put_u32(lower_bound_uid.device_id);
-                buf.put_u16(upper_bound_uid.manufacturer_id);
-                buf.put_u32(upper_bound_uid.device_id);
+                buf.extend(lower_bound_uid.manufacturer_id.to_be_bytes().iter());
+                buf.extend(lower_bound_uid.device_id.to_be_bytes().iter());
+                buf.extend(upper_bound_uid.manufacturer_id.to_be_bytes().iter());
+                buf.extend(upper_bound_uid.device_id.to_be_bytes().iter());
             }
             Self::GetCommsStatus => {}
             Self::SetCommsStatus => {}
             Self::GetQueuedMessage { status_type } => {
                 buf.reserve(0x01);
-                buf.put_u8(*status_type as u8)
+                buf.push(*status_type as u8)
             }
             Self::GetStatusMessages { status_type } => {
                 buf.reserve(0x01);
-                buf.put_u8(*status_type as u8)
+                buf.push(*status_type as u8)
             }
             Self::GetStatusIdDescription { status_id } => {
                 buf.reserve(0x02);
-                buf.put_u16(*status_id)
+                buf.extend((*status_id).to_be_bytes().iter());
             }
             Self::SetClearStatusId => {}
             Self::GetSubDeviceStatusReportThreshold => {}
             Self::SetSubDeviceStatusReportThreshold { status_type } => {
                 buf.reserve(0x01);
-                buf.put_u8(*status_type as u8)
+                buf.push(*status_type as u8)
             }
             Self::GetSupportedParameters => {}
             Self::GetParameterDescription { parameter_id } => {
                 buf.reserve(0x02);
-                buf.put_u16(*parameter_id)
+                buf.extend((*parameter_id).to_be_bytes().iter());
             }
             Self::GetDeviceInfo => {}
             Self::GetProductDetailIdList => {}
@@ -394,7 +393,7 @@ impl RequestParameter {
             Self::GetDeviceLabel => {}
             Self::SetDeviceLabel { device_label } => {
                 buf.reserve(device_label.len());
-                buf.put(device_label.as_ref())
+                buf.extend(device_label.as_bytes())
             }
             Self::GetFactoryDefaults => {}
             Self::SetFactoryDefaults => {}
@@ -402,7 +401,7 @@ impl RequestParameter {
             Self::GetLanguage => {}
             Self::SetLanguage { language } => {
                 buf.reserve(language.len());
-                buf.put(language.as_ref())
+                buf.extend(language.as_bytes())
             }
             Self::GetSoftwareVersionLabel => {}
             Self::GetBootSoftwareVersionId => {}
@@ -410,95 +409,95 @@ impl RequestParameter {
             Self::GetDmxPersonality => {}
             Self::SetDmxPersonality { personality_id } => {
                 buf.reserve(0x01);
-                buf.put_u8(*personality_id)
+                buf.push(*personality_id)
             }
             Self::GetDmxPersonalityDescription { personality } => {
                 buf.reserve(0x01);
-                buf.put_u8(*personality)
+                buf.push(*personality)
             }
             Self::GetDmxStartAddress => {}
             Self::SetDmxStartAddress { dmx_start_address } => {
                 buf.reserve(0x02);
-                buf.put_u16(*dmx_start_address)
+                buf.extend((*dmx_start_address).to_be_bytes().iter());
             }
             Self::GetSlotInfo => {}
             Self::GetSlotDescription { slot_id } => {
                 buf.reserve(0x02);
-                buf.put_u16(*slot_id)
+                buf.extend((*slot_id).to_be_bytes().iter());
             }
             Self::GetDefaultSlotValue => {}
             Self::GetSensorDefinition { sensor_id } => {
                 buf.reserve(0x01);
-                buf.put_u8(*sensor_id)
+                buf.push(*sensor_id)
             }
             Self::GetSensorValue { sensor_id } => {
                 buf.reserve(0x01);
-                buf.put_u8(*sensor_id)
+                buf.push(*sensor_id)
             }
             Self::SetSensorValue { sensor_id } => {
                 buf.reserve(0x01);
-                buf.put_u8(*sensor_id)
+                buf.push(*sensor_id)
             }
             Self::SetRecordSensors { sensor_id } => {
                 buf.reserve(0x01);
-                buf.put_u8(*sensor_id)
+                buf.push(*sensor_id)
             }
             Self::GetDeviceHours => {}
             Self::SetDeviceHours { device_hours } => {
                 buf.reserve(0x04);
-                buf.put_u32(*device_hours)
+                buf.extend((*device_hours).to_be_bytes().iter());
             }
             Self::GetLampHours => {}
             Self::SetLampHours { lamp_hours } => {
                 buf.reserve(0x04);
-                buf.put_u32(*lamp_hours)
+                buf.extend((*lamp_hours).to_be_bytes().iter());
             }
             Self::GetLampStrikes => {}
             Self::SetLampStrikes { lamp_strikes } => {
                 buf.reserve(0x04);
-                buf.put_u32(*lamp_strikes)
+                buf.extend((*lamp_strikes).to_be_bytes().iter());
             }
             Self::GetLampState => {}
             Self::SetLampState { lamp_state } => {
                 buf.reserve(0x01);
-                buf.put_u8(*lamp_state as u8)
+                buf.push(*lamp_state as u8)
             }
             Self::GetLampOnMode => {}
             Self::SetLampOnMode { lamp_on_mode } => {
                 buf.reserve(0x01);
-                buf.put_u8(*lamp_on_mode as u8)
+                buf.push(*lamp_on_mode as u8)
             }
             Self::GetDevicePowerCycles => {}
             Self::SetDevicePowerCycles {
                 device_power_cycles,
             } => {
                 buf.reserve(0x04);
-                buf.put_u32(*device_power_cycles)
+                buf.extend((*device_power_cycles).to_be_bytes().iter());
             }
             Self::GetDisplayInvert => {}
             Self::SetDisplayInvert { display_invert } => {
                 buf.reserve(0x01);
-                buf.put_u8(*display_invert)
+                buf.push(*display_invert)
             }
             Self::GetDisplayLevel => {}
             Self::SetDisplayLevel { display_level } => {
                 buf.reserve(0x01);
-                buf.put_u8(*display_level)
+                buf.push(*display_level)
             }
             Self::GetPanInvert => {}
             Self::SetPanInvert { pan_invert } => {
                 buf.reserve(0x01);
-                buf.put_u8(*pan_invert as u8)
+                buf.push(*pan_invert as u8)
             }
             Self::GetTiltInvert => {}
             Self::SetTiltInvert { tilt_invert } => {
                 buf.reserve(0x01);
-                buf.put_u8(*tilt_invert as u8)
+                buf.push(*tilt_invert as u8)
             }
             Self::GetPanTiltSwap => {}
             Self::SetPanTiltSwap { pan_tilt_swap } => {
                 buf.reserve(0x01);
-                buf.put_u8(*pan_tilt_swap as u8)
+                buf.push(*pan_tilt_swap as u8)
             }
             Self::GetRealTimeClock => {}
             Self::SetRealTimeClock {
@@ -510,54 +509,54 @@ impl RequestParameter {
                 second,
             } => {
                 buf.reserve(0x07);
-                buf.put_u16(*year);
-                buf.put_u8(*month);
-                buf.put_u8(*day);
-                buf.put_u8(*hour);
-                buf.put_u8(*minute);
-                buf.put_u8(*second);
+                buf.extend((*year).to_be_bytes().iter());
+                buf.push(*month);
+                buf.push(*day);
+                buf.push(*hour);
+                buf.push(*minute);
+                buf.push(*second);
             }
             Self::GetIdentifyDevice => {}
             Self::SetIdentifyDevice { identify } => {
                 buf.reserve(0x01);
-                buf.put_u8(*identify as u8)
+                buf.push(*identify as u8)
             }
             Self::SetResetDevice { reset_device } => {
                 buf.reserve(0x01);
-                buf.put_u8(*reset_device)
+                buf.push(*reset_device)
             }
             Self::GetPowerState => {}
             Self::SetPowerState { power_state } => {
                 buf.reserve(0x01);
-                buf.put_u8(*power_state)
+                buf.push(*power_state)
             }
             Self::GetPerformSelfTest => {}
             Self::SetPerformSelfTest { self_test_id } => {
                 buf.reserve(0x01);
-                buf.put_u8(*self_test_id)
+                buf.push(*self_test_id)
             }
             Self::SetCapturePreset {
                 scene_id,
                 fade_times,
             } => {
                 buf.reserve(if fade_times.is_some() { 0x08 } else { 0x02 });
-                buf.put_u16(*scene_id);
+                buf.extend((*scene_id).to_be_bytes().iter());
 
                 if let Some(fade_times) = fade_times {
-                    buf.put_u16(fade_times.up_fade_time);
-                    buf.put_u16(fade_times.down_fade_time);
-                    buf.put_u16(fade_times.wait_time);
+                    buf.extend((fade_times.up_fade_time).to_be_bytes().iter());
+                    buf.extend((fade_times.down_fade_time).to_be_bytes().iter());
+                    buf.extend((fade_times.wait_time).to_be_bytes().iter());
                 }
             }
             Self::GetSelfTestDescription { self_test_id } => {
                 buf.reserve(0x01);
-                buf.put_u8(*self_test_id)
+                buf.push(*self_test_id)
             }
             Self::GetPresetPlayback => {}
             Self::SetPresetPlayback { mode, level } => {
                 buf.reserve(0x03);
-                buf.put_u16(*mode);
-                buf.put_u8(*level);
+                buf.extend((*mode).to_be_bytes().iter());
+                buf.push(*level);
             } // Self::SetCurve { curve_id } => {
               //     buf.reserve(0x01);
               //     buf.put_u8(*curve_id);
@@ -633,28 +632,29 @@ impl RdmRequest {
         self.parameter.parameter_id()
     }
 
-    pub fn encode(self) -> BytesMut {
-        let mut buf = BytesMut::new();
-
+    pub fn encode(self) -> Vec<u8> {
         let parameter_data = self.parameter.encode();
-        dbg!(&parameter_data);
 
-        buf.put_u8(SC_RDM);
-        buf.put_u8(SC_SUB_MESSAGE);
-        buf.put_u8(24 + parameter_data.len() as u8);
-        buf.put_u16(self.destination_uid.manufacturer_id);
-        buf.put_u32(self.destination_uid.device_id);
-        buf.put_u16(self.source_uid.manufacturer_id);
-        buf.put_u32(self.source_uid.device_id);
-        buf.put_u8(self.transaction_number);
-        buf.put_u8(self.port_id);
-        buf.put_u8(0x00); // Message Count shall be set to 0x00 in all controller generated requests
-        buf.put_u16(self.sub_device_id);
-        buf.put_u8(self.parameter.command_class() as u8);
-        buf.put_u16(self.parameter.parameter_id() as u16);
-        buf.put_u8(parameter_data.len() as u8);
+        let message_length = 24 + parameter_data.len();
+
+        let mut buf = Vec::with_capacity(message_length + 2);
+
+        buf.push(SC_RDM);
+        buf.push(SC_SUB_MESSAGE);
+        buf.push(message_length as u8);
+        buf.extend(self.destination_uid.manufacturer_id.to_be_bytes().iter());
+        buf.extend(self.destination_uid.device_id.to_be_bytes().iter());
+        buf.extend(self.source_uid.manufacturer_id.to_be_bytes().iter());
+        buf.extend(self.source_uid.device_id.to_be_bytes().iter());
+        buf.push(self.transaction_number);
+        buf.push(self.port_id);
+        buf.push(0x00); // Message Count shall be set to 0x00 in all controller generated requests
+        buf.extend(self.sub_device_id.to_be_bytes().iter());
+        buf.push(self.parameter.command_class() as u8);
+        buf.extend((self.parameter.parameter_id() as u16).to_be_bytes().iter());
+        buf.push(parameter_data.len() as u8);
         buf.extend(parameter_data);
-        buf.put_u16(bsd_16_crc(&buf[..]));
+        buf.extend(bsd_16_crc(&buf[..]).to_be_bytes().iter());
 
         buf
     }
@@ -663,7 +663,6 @@ impl RdmRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bytes::BytesMut;
 
     #[test]
     fn should_encode_discovery_unique_branch_request() {
@@ -680,7 +679,7 @@ mod tests {
         )
         .encode();
 
-        let expected = BytesMut::from_iter(&[
+        let expected = &[
             0xcc, // Start Code
             0x01, // Sub Start Code
             0x24, // Message Length
@@ -696,7 +695,7 @@ mod tests {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Parameter Data - Lower Bound UID
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // Parameter Data - Upper Bound UID
             0x07, 0x34, // Checksum
-        ]);
+        ];
 
         assert_eq!(encoded, expected);
     }

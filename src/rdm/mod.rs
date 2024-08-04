@@ -19,10 +19,10 @@ pub const ROOT_DEVICE: u16 = 0x0000;
 
 #[derive(Clone, Debug, Error, PartialEq, Eq)]
 pub enum ProtocolError {
-    #[error("Invalid Start Code: {0}")]
-    InvalidStartByte(u8),
-    #[error("Invalid Sub Start Code: {0}")]
-    InvalidSubStartByte(u8),
+    #[error("Invalid start code")]
+    InvalidStartCode,
+    #[error("Invalid frame length: {0}")]
+    InvalidFrameLength(u8),
     #[error("Invalid message length: {0}, must be >= 24 and <= 255")]
     InvalidMessageLength(u8),
     #[error("Invalid checksum: {0}, expected: {1}")]
@@ -69,10 +69,6 @@ pub enum ProtocolError {
     InvalidResetType(u8),
     #[error("Invalid SensorType: {0}")]
     InvalidSensorType(u8),
-    #[error("Invalid stop byte: {0}")]
-    InvalidStopByte(u8),
-    #[error("Invalid PacketResponseType: {0}")]
-    InvalidPacketResponseType(u8),
     #[error("Malformed packet")]
     MalformedPacket,
 }
