@@ -31,6 +31,8 @@ pub enum ProtocolError {
     InvalidStatusType(u8),
     #[error("Invalid CommandClass: {0}")]
     InvalidCommandClass(u8),
+    #[error("Unsupported CommandClass: {0}")]
+    UnsupportedCommandClass(u8),
     #[error("Unsupported Parameter, CommandClass: {0}, ParameterId: {1}")]
     UnsupportedParameter(u8, u16),
     #[error("Unsupported ParameterId: {0}")]

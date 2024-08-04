@@ -1,6 +1,5 @@
 use super::ProtocolError;
 use std::fmt::Display;
-use thiserror::Error;
 
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -121,12 +120,6 @@ impl TryFrom<u16> for ParameterId {
     }
 }
 
-#[derive(Debug, Error)]
-pub enum SupportedCommandClassError {
-    #[error("Invalid command class: {0}")]
-    InvalidCommandClass(u8),
-}
-
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SupportedCommandClass {
     Get = 0x01,
@@ -135,14 +128,14 @@ pub enum SupportedCommandClass {
 }
 
 impl TryFrom<u8> for SupportedCommandClass {
-    type Error = SupportedCommandClassError;
+    type Error = ProtocolError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x01 => Ok(Self::Get),
             0x02 => Ok(Self::Set),
             0x03 => Ok(Self::GetSet),
-            _ => Err(SupportedCommandClassError::InvalidCommandClass(value)),
+            _ => Err(ProtocolError::UnsupportedCommandClass(value)),
         }
     }
 }
