@@ -1,12 +1,7 @@
 use super::{
-    bsd_16_crc,
-    device::{DefaultSlotValue, DeviceUID, SlotInfo, StatusMessage},
-    parameter::{
-        DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, StatusType
-    },
-    sensor::{Sensor, SensorValue},
-    CommandClass, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-    DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
+    bsd_16_crc, parameter::{
+        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, Sensor, SensorValue, SlotInfo, StatusMessage, StatusType
+    }, CommandClass, DeviceUID, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE
 };
 use std::{collections::HashMap, ffi::CStr};
 
@@ -220,48 +215,6 @@ pub enum ResponseParameterData {
         mode: PresetPlaybackMode,
         level: u8,
     },
-    // GetCurve {
-    //     current_curve: u8,
-    //     curve_count: u8,
-    // },
-    // GetCurveDescription {
-    //     id: u8,
-    //     description: String,
-    // },
-    // GetModulationFrequency {
-    //     current_modulation_frequency: u8,
-    //     modulation_frequency_count: u8,
-    // },
-    // GetModulationFrequencyDescription {
-    //     id: u8,
-    //     frequency: u32,
-    //     description: String,
-    // },
-    // GetDimmerInfo {
-    //     minimum_level_lower_limit: u16,
-    //     minimum_level_upper_limit: u16,
-    //     maximum_level_lower_limit: u16,
-    //     maximum_level_upper_limit: u16,
-    //     num_of_supported_curves: u8,
-    //     levels_resolution: u8,
-    //     minimum_levels_split_levels_supports: u8,
-    // },
-    // GetMinimumLevel {
-    //     minimum_level_increasing: u16,
-    //     minimum_level_decreasing: u16,
-    //     on_below_minimum: u8, // TODO could be bool
-    // },
-    // GetMaximumLevel {
-    //     maximum_level: u16,
-    // },
-    // GetOutputResponseTime {
-    //     current_output_response_time: u8,
-    //     output_response_time_count: u8,
-    // },
-    // GetOutputResponseTimeDescription {
-    //     id: u8,
-    //     description: String,
-    // },
 }
 
 impl ResponseParameterData {
@@ -653,90 +606,6 @@ impl ResponseParameterData {
                     level: bytes[2],
                 })
             }
-            // (CommandClass::GetCommandResponse, ParameterId::Curve) => Ok(Self::GetCurve {
-            //     current_curve: bytes[0],
-            //     curve_count: bytes[1],
-            // }),
-            // (CommandClass::GetCommandResponse, ParameterId::CurveDescription) => Ok(Self::GetCurveDescription {
-            //     id: bytes[0],
-            //     description: CStr::from_bytes_with_nul(&bytes[1..])?
-            //         .to_string_lossy()
-            //         .to_string(),
-            // }),
-            // (CommandClass::GetCommandResponse, ParameterId::ModulationFrequency) => Ok(Self::GetModulationFrequency {
-            //     current_modulation_frequency: bytes[0],
-            //     modulation_frequency_count: bytes[1],
-            // }),
-            // (CommandClass::GetCommandResponse, ParameterId::ModulationFrequencyDescription) => {
-            //     Ok(Self::GetModulationFrequencyDescription {
-            //         id: bytes[0],
-            //         frequency: u32::from_be_bytes(
-            //             bytes[1..=4]
-            //                 .try_into()
-            //                 ?,
-            //         ),
-            //         description: CStr::from_bytes_with_nul(&bytes[5..])?
-            //             .to_string_lossy()
-            //             .to_string(),
-            //     })
-            // }
-            // (CommandClass::GetCommandResponse, ParameterId::DimmerInfo) => Ok(Self::GetDimmerInfo {
-            //     minimum_level_lower_limit: u16::from_be_bytes(
-            //         bytes[0..=1]
-            //             .try_into()
-            //             ?,
-            //     ),
-            //     minimum_level_upper_limit: u16::from_be_bytes(
-            //         bytes[2..=3]
-            //             .try_into()
-            //             ?,
-            //     ),
-            //     maximum_level_lower_limit: u16::from_be_bytes(
-            //         bytes[4..=5]
-            //             .try_into()
-            //             ?,
-            //     ),
-            //     maximum_level_upper_limit: u16::from_be_bytes(
-            //         bytes[6..=7]
-            //             .try_into()
-            //             ?,
-            //     ),
-            //     num_of_supported_curves: bytes[8],
-            //     levels_resolution: bytes[9],
-            //     minimum_levels_split_levels_supports: bytes[10], // TODO could be bool
-            // }),
-            // (CommandClass::GetCommandResponse, ParameterId::MinimumLevel) => Ok(Self::GetMinimumLevel {
-            //     minimum_level_increasing: u16::from_be_bytes(
-            //         bytes[0..=1]
-            //             .try_into()
-            //             ?,
-            //     ),
-            //     minimum_level_decreasing: u16::from_be_bytes(
-            //         bytes[2..=3]
-            //             .try_into()
-            //             ?,
-            //     ),
-            //     on_below_minimum: bytes[4],
-            // }),
-            // (CommandClass::GetCommandResponse, ParameterId::MaximumLevel) => Ok(Self::GetMaximumLevel {
-            //     maximum_level: u16::from_be_bytes(
-            //         bytes[0..=1]
-            //             .try_into()
-            //             ?,
-            //     ),
-            // }),
-            // (CommandClass::GetCommandResponse, ParameterId::OutputResponseTime) => Ok(Self::GetOutputResponseTime {
-            //     current_output_response_time: bytes[0],
-            //     output_response_time_count: bytes[1],
-            // }),
-            // (CommandClass::GetCommandResponse, ParameterId::OutputResponseTimeDescription) => {
-            //     Ok(Self::GetOutputResponseTimeDescription {
-            //         id: bytes[0],
-            //         description: CStr::from_bytes_with_nul(&bytes[1..])?
-            //             .to_string_lossy()
-            //             .to_string(),
-            //     })
-            // }
             (_, _) => Err(ProtocolError::UnsupportedParameter(
                 command_class as u8,
                 parameter_id as u16,
@@ -1015,87 +884,4 @@ mod tests {
             )))
         );
     }
-
-    // #[test]
-    // fn should_take_first_byte_when_first_bytes_do_not_match_frame_header() {
-    //     let mut bytes = vec![0; 16];
-
-    //     assert_eq!(RdmFrame::parse(&mut bytes), Ok(None));
-
-    //     let bytes_check = [0u8; 15];
-
-    //     assert_eq!(bytes.len(), bytes_check.len());
-    // }
-
-    // #[test]
-    // fn should_defer_parsing_rdm_response_when_packet_length_is_short() {
-    //     let mut bytes = vec![0; 24];
-    //     bytes[0] = SC_RDM;
-    //     bytes[1] = SC_SUB_MESSAGE;
-
-    //     assert_eq!(RdmFrame::parse(&mut bytes), Ok(None));
-
-    //     let mut bytes_check = vec![0; 24];
-    //     bytes_check[0] = SC_RDM;
-    //     bytes_check[1] = SC_SUB_MESSAGE;
-
-    //     assert_eq!(bytes, bytes_check);
-    // }
-
-    // #[test]
-    // fn should_defer_parsing_discovery_unique_branch_response_when_packet_length_is_short() {
-    //     let mut bytes = vec![0; 16];
-    //     bytes[0] = DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE;
-    //     bytes[1] = DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE;
-
-    //     assert_eq!(RdmFrame::parse(&mut bytes), Ok(None));
-
-    //     let mut bytes_check = vec![0; 16];
-    //     bytes_check[0] = DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE;
-    //     bytes_check[1] = DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE;
-
-    //     assert_eq!(bytes, bytes_check);
-    // }
-
-    // #[test]
-    // fn should_parse_discovery_mute() {
-    //     assert_eq!(
-    //         DiscoveryResponseParameterData::parse(ParameterId::DiscMute, &[0x00, 0x01]),
-    //         Ok(DiscoveryResponseParameterData::DiscMute {
-    //             control_field: 0x0001,
-    //             binding_uid: None
-    //         })
-    //     );
-    //     assert_eq!(
-    //         DiscoveryResponseParameterData::parse(
-    //             ParameterId::DiscMute,
-    //             &[0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
-    //         ),
-    //         Ok(DiscoveryResponseParameterData::DiscMute {
-    //             control_field: 0x0001,
-    //             binding_uid: Some(DeviceUID::new(0x0102, 0x03040506))
-    //         })
-    //     );
-    // }
-
-    // #[test]
-    // fn should_parse_discovery_unmute() {
-    //     assert_eq!(
-    //         DiscoveryResponseParameterData::parse(ParameterId::DiscUnMute, &[0x00, 0x01]),
-    //         Ok(DiscoveryResponseParameterData::DiscMute {
-    //             control_field: 0x0001,
-    //             binding_uid: None
-    //         })
-    //     );
-    //     assert_eq!(
-    //         DiscoveryResponseParameterData::parse(
-    //             ParameterId::DiscUnMute,
-    //             &[0x00, 0x01, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]
-    //         ),
-    //         Ok(DiscoveryResponseParameterData::DiscMute {
-    //             control_field: 0x0001,
-    //             binding_uid: Some(DeviceUID::new(0x0102, 0x03040506))
-    //         })
-    //     );
-    // }
 }

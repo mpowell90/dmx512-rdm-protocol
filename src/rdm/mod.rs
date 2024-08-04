@@ -1,9 +1,6 @@
 pub mod parameter;
-pub mod sensor;
 pub mod response;
 pub mod request;
-pub mod codec;
-pub mod device;
 
 use std::array::TryFromSliceError;
 use thiserror::Error;
@@ -80,7 +77,7 @@ impl From<TryFromSliceError> for ProtocolError {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CommandClass {
     DiscoveryCommand = 0x10,
     DiscoveryCommandResponse = 0x11,
@@ -103,6 +100,43 @@ impl TryFrom<u8> for CommandClass {
             0x31 => Ok(Self::SetCommandResponse),
             _ => Err(ProtocolError::InvalidCommandClass(value)),
         }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub struct DeviceUID {
+    pub manufacturer_id: u16,
+    pub device_id: u32,
+}
+
+impl DeviceUID {
+    pub fn new(manufacturer_id: u16, device_id: u32) -> Self {
+        DeviceUID {
+            manufacturer_id,
+            device_id,
+        }
+    }
+
+    pub fn broadcast_all_devices() -> Self {
+        DeviceUID {
+            manufacturer_id: 0xffff,
+            device_id: 0xffffffff,
+        }
+    }
+}
+
+impl From<u64> for DeviceUID {
+    fn from(value: u64) -> Self {
+        DeviceUID {
+            manufacturer_id: ((value >> 32_u64) & 0xffff) as u16,
+            device_id: (value & 0xffffffff) as u32,
+        }
+    }
+}
+
+impl From<DeviceUID> for u64 {
+    fn from(device_uid: DeviceUID) -> u64 {
+        ((device_uid.manufacturer_id as u64) << 32u64) + device_uid.device_id as u64
     }
 }
 
