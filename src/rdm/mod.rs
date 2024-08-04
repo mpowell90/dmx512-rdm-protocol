@@ -66,8 +66,8 @@ pub enum ProtocolError {
     InvalidOnOffStates(u8),
     #[error("Invalid DisplayInvertMode: {0}")]
     InvalidDisplayInvertMode(u8),
-    #[error("Invalid ResetType: {0}")]
-    InvalidResetType(u8),
+    #[error("Invalid ResetDeviceMode: {0}")]
+    InvalidResetDeviceMode(u8),
     #[error("Invalid SensorType: {0}")]
     InvalidSensorType(u8),
     #[error("Malformed packet")]

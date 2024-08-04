@@ -529,19 +529,19 @@ impl TryFrom<u8> for DisplayInvertMode {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ResetType {
+pub enum ResetDeviceMode {
     Warm = 0x01,
     Cold = 0xff,
 }
 
-impl TryFrom<u8> for ResetType {
+impl TryFrom<u8> for ResetDeviceMode {
     type Error = ProtocolError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x01 => Ok(Self::Warm),
             0xff => Ok(Self::Cold),
-            _ => Err(ProtocolError::InvalidResetType(value)),
+            _ => Err(ProtocolError::InvalidResetDeviceMode(value)),
         }
     }
 }

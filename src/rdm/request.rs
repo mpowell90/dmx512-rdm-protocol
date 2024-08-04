@@ -1,7 +1,10 @@
 use super::{
     bsd_16_crc,
     device::DeviceUID,
-    parameter::{DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, StatusType},
+    parameter::{
+        DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, ResetDeviceMode,
+        StatusType,
+    },
     CommandClass, SC_RDM, SC_SUB_MESSAGE,
 };
 
@@ -137,8 +140,8 @@ pub enum RequestParameter {
         identify: bool,
     },
     SetResetDevice {
-        reset_device: u8,
-    }, // TODO could be an enum instead of u8, 0x01 = Warn Reset, 0xff = Cold Reset
+        reset_device: ResetDeviceMode,
+    },
     GetPowerState,
     SetPowerState {
         power_state: u8,
@@ -516,7 +519,7 @@ impl RequestParameter {
             }
             Self::SetResetDevice { reset_device } => {
                 buf.reserve(0x01);
-                buf.push(*reset_device)
+                buf.push(*reset_device as u8)
             }
             Self::GetPowerState => {}
             Self::SetPowerState { power_state } => {
@@ -701,7 +704,7 @@ mod tests {
             0x00,
             0x01,
             0x0001,
-            RequestParameter::GetIdentifyDevice
+            RequestParameter::GetIdentifyDevice,
         )
         .encode();
 
