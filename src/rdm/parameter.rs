@@ -140,28 +140,6 @@ impl TryFrom<u8> for ImplementedCommandClass {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct ManufacturerSpecificParameter {
-    pub parameter_id: u16,
-    pub parameter_data_size: Option<u8>, // TODO use enum
-    pub data_type: Option<u8>,           // TODO use enum
-    pub command_class: Option<ImplementedCommandClass>,
-    pub prefix: Option<u8>, // TODO use enum
-    pub minimum_valid_value: Option<u32>,
-    pub maximum_valid_value: Option<u32>,
-    pub default_value: Option<u32>,
-    pub description: Option<String>,
-}
-
-impl From<u16> for ManufacturerSpecificParameter {
-    fn from(parameter_id: u16) -> Self {
-        ManufacturerSpecificParameter {
-            parameter_id,
-            ..Default::default()
-        }
-    }
-}
-
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterDataType {
     NotDefined,

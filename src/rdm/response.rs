@@ -1,14 +1,14 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter,
+        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState,
         ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory,
         SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
     },
     CommandClass, DeviceUID, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
 };
-use std::{collections::HashMap, ffi::CStr};
+use std::ffi::CStr;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResponseNackReasonCode {
@@ -108,8 +108,8 @@ pub enum ResponseParameterData {
         status_type: StatusType,
     },
     GetSupportedParameters {
-        standard_parameters: Vec<ParameterId>,
-        manufacturer_specific_parameters: HashMap<u16, ManufacturerSpecificParameter>,
+        standard_parameters: Vec<u16>,
+        manufacturer_specific_parameters: Vec<u16>,
     },
     GetParameterDescription(ParameterDescription),
     GetDeviceInfo {
@@ -338,25 +338,10 @@ impl ResponseParameterData {
                 Ok(Self::GetSupportedParameters {
                     standard_parameters: parameters
                         .clone()
-                        .filter(|parameter_id| {
-                            // TODO consider if we should filter parameters here or before we add to the queue
-                            let parameter_id = *parameter_id;
-                            (0x0060_u16..0x8000_u16).contains(&parameter_id)
-                        })
-                        .map(ParameterId::try_from)
-                        .collect::<Result<Vec<ParameterId>, ProtocolError>>()
-                        .unwrap(), // TODO handle this error properly
+                        .filter(|&parameter_id| (0x0060_u16..0x8000_u16).contains(&parameter_id))
+                        .collect(),
                     manufacturer_specific_parameters: parameters
                         .filter(|parameter_id| *parameter_id >= 0x8000_u16)
-                        .map(|parameter_id| {
-                            (
-                                parameter_id,
-                                ManufacturerSpecificParameter {
-                                    parameter_id,
-                                    ..Default::default()
-                                },
-                            )
-                        })
                         .collect(),
                 })
             }
