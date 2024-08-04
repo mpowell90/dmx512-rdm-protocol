@@ -1,6 +1,6 @@
 pub mod parameter;
-pub mod response;
 pub mod request;
+pub mod response;
 
 use std::array::TryFromSliceError;
 use thiserror::Error;
@@ -53,6 +53,10 @@ pub enum ProtocolError {
     TryFromSliceError,
     #[error("Invalid ProductCategory: {0}")]
     InvalidProductCategory(u16),
+    #[error("Invalid SlotType: {0}")]
+    InvalidSlotType(u8),
+    #[error("Unsupported SlotIdDefinition: {0}")]
+    UnsupportedSlotIdDefinition(u16),
     #[error("Invalid LampState: {0}")]
     InvalidLampState(u8),
     #[error("Invalid LampOnMode: {0}")]

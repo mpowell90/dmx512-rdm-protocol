@@ -1,7 +1,12 @@
 use super::{
-    bsd_16_crc, parameter::{
-        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, Sensor, SensorValue, SlotInfo, StatusMessage, StatusType
-    }, CommandClass, DeviceUID, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE
+    bsd_16_crc,
+    parameter::{
+        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter,
+        ParameterId, PowerState, PresetPlaybackMode, ProductCategory, Sensor, SensorValue,
+        SlotInfo, StatusMessage, StatusType,
+    },
+    CommandClass, DeviceUID, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+    DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
 };
 use std::{collections::HashMap, ffi::CStr};
 
@@ -455,7 +460,7 @@ impl ResponseParameterData {
                     .map(|chunk| {
                         Ok(SlotInfo::new(
                             u16::from_be_bytes(chunk[0..=1].try_into()?),
-                            chunk[2],
+                            chunk[2].try_into()?,
                             u16::from_be_bytes(chunk[3..=4].try_into()?),
                         ))
                     })

@@ -1,7 +1,7 @@
 use super::ProtocolError;
+use std::fmt::Display;
 use thiserror::Error;
 
-// TODO add remaining parameter ids
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterId {
@@ -422,12 +422,12 @@ impl TryFrom<u16> for ProductCategory {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LampState {
-    LampOff = 0x00,        // 0x00 = "Lamp Off",
-    LampOn = 0x01,         // 0x01 = "Lamp On",
-    LampStrike = 0x02,     // 0x02 = "Lamp Strike",
-    LampStandby = 0x03,    // 0x03 = "Lamp Standby",
-    LampNotPresent = 0x04, // 0x04 = "Lamp Not Present",
-    LampError = 0x05,      // 0x05 = "Lamp Error",
+    LampOff = 0x00,
+    LampOn = 0x01,
+    LampStrike = 0x02,
+    LampStandby = 0x03,
+    LampNotPresent = 0x04,
+    LampError = 0x05,
 }
 
 impl TryFrom<u8> for LampState {
@@ -448,10 +448,10 @@ impl TryFrom<u8> for LampState {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LampOnMode {
-    OffMode = 0x00,  // 0x00 = "Off Mode",
-    DmxMode = 0x01,  // 0x01 = "DMX Mode",
-    OnMode = 0x02,   // 0x02 = "On Mode",
-    AfterCal = 0x03, // 0x03 = "After Cal",
+    OffMode = 0x00,
+    DmxMode = 0x01,
+    OnMode = 0x02,
+    AfterCal = 0x03,
 }
 
 impl TryFrom<u8> for LampOnMode {
@@ -470,10 +470,10 @@ impl TryFrom<u8> for LampOnMode {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PowerState {
-    FullOff = 0x00,  // 0x00 = "Full Off",
-    Shutdown = 0x01, // 0x01 = "Shutdown",
-    Standby = 0x02,  // 0x02 = "Standby",
-    Normal = 0xff,   // 0xff = "Normal",
+    FullOff = 0x00,
+    Shutdown = 0x01,
+    Standby = 0x02,
+    Normal = 0xff,
 }
 
 impl TryFrom<u8> for PowerState {
@@ -492,8 +492,8 @@ impl TryFrom<u8> for PowerState {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum OnOffStates {
-    Off = 0x00, // 0x00 = "Off",
-    On = 0x01,  // 0x01 = "On",
+    Off = 0x00,
+    On = 0x01,
 }
 
 impl TryFrom<u8> for OnOffStates {
@@ -510,9 +510,9 @@ impl TryFrom<u8> for OnOffStates {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DisplayInvertMode {
-    Off = 0x00,  // 0x00 = "Off",
-    On = 0x01,   // 0x01 = "On",
-    Auto = 0x02, // 0x02 = "Auto",
+    Off = 0x00,
+    On = 0x01,
+    Auto = 0x02,
 }
 
 impl TryFrom<u8> for DisplayInvertMode {
@@ -580,13 +580,43 @@ pub struct FadeTimes {
     pub wait_time: u16,
 }
 
+#[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
+pub enum StatusMessageIdDefinition {
+    CalibrationFailed = 0x0001,
+    SensorNotFound = 0x0002,
+    SensorAlwaysOn = 0x0003,
+    LampDoused = 0x0011,
+    LampStrike = 0x0012,
+    OverTemperature = 0x0021,
+    UnderTemperature = 0x0022,
+    SensorOutOfRange = 0x0023,
+    OverVoltagePhase = 0x0031,
+    UnderVoltagePhase = 0x0032,
+    OverCurrent = 0x0033,
+    UnderCurrent = 0x0034,
+    Phase = 0x0035,
+    PhaseError = 0x0036,
+    Amps = 0x0037,
+    Volts = 0x0038,
+    DimSlotOccupied = 0x0041,
+    BreakerTrip = 0x0042,
+    Watts = 0x0043,
+    DimmerFailure = 0x0044,
+    DimmerPanic = 0x0045,
+    Ready = 0x0050,
+    NotReady = 0x0051,
+    LowFluid = 0x0052,
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct StatusMessage {
     pub sub_device_id: u16,
     pub status_type: StatusType,
-    pub status_message_id: u16, // TODO reference appendix B for status message IDs
+    pub status_message_id: u16,
     pub data_value1: u16,
     pub data_value2: u16,
+    pub description: Option<String>,
 }
 
 impl StatusMessage {
@@ -597,12 +627,110 @@ impl StatusMessage {
         data_value1: u16,
         data_value2: u16,
     ) -> Self {
+        let description = if status_message_id < 0x8000 {
+            match status_message_id {
+                0x0001 => SlotIdDefinition::try_from(data_value1)
+                    .ok()
+                    .map(|slot_id| format!("{} failed calibration", slot_id)),
+                0x0002 => SlotIdDefinition::try_from(data_value1)
+                    .ok()
+                    .map(|slot_id| format!("{} sensor not found", slot_id)),
+                0x0003 => SlotIdDefinition::try_from(data_value1)
+                    .ok()
+                    .map(|slot_id| format!("{} sensor always on", slot_id)),
+                0x0011 => Some("Lamp Doused".to_string()),
+                0x0012 => Some("Lamp Strike".to_string()),
+                0x0021 => Some(format!(
+                    "Sensor {} over temp at {} degrees C",
+                    data_value1, data_value2
+                )),
+                0x0022 => Some(format!(
+                    "Sensor {} under temp at {} degrees C",
+                    data_value1, data_value2
+                )),
+                0x0023 => Some(format!("Sensor {} out of range", data_value1)),
+                0x0031 => Some(format!(
+                    "Phase {} over voltage at {} V",
+                    data_value1, data_value2
+                )),
+                0x0032 => Some(format!(
+                    "Phase {} under voltage at {} V",
+                    data_value1, data_value2
+                )),
+                0x0033 => Some(format!(
+                    "Phase {} over current at {} A",
+                    data_value1, data_value2
+                )),
+                0x0034 => Some(format!(
+                    "Phase {} under current at {} A",
+                    data_value1, data_value2
+                )),
+                0x0035 => Some(format!(
+                    "Phase {} is at {} degrees",
+                    data_value1, data_value2
+                )),
+                0x0036 => Some(format!("Phase {} Error", data_value1)),
+                0x0037 => Some(format!("{} Amps", data_value1)),
+                0x0038 => Some(format!("{} Volts", data_value1)),
+                0x0041 => Some("No Dimmer".to_string()),
+                0x0042 => Some("Tripped Breaker".to_string()),
+                0x0043 => Some(format!("{} Watts", data_value1)),
+                0x0044 => Some("Dimmer Failure".to_string()),
+                0x0045 => Some("Panic Mode".to_string()),
+                0x0050 => SlotIdDefinition::try_from(data_value1)
+                    .ok()
+                    .map(|slot_id| format!("{} ready", slot_id)),
+                0x0051 => SlotIdDefinition::try_from(data_value1)
+                    .ok()
+                    .map(|slot_id| format!("{} not ready", slot_id)),
+                0x0052 => SlotIdDefinition::try_from(data_value1)
+                    .ok()
+                    .map(|slot_id| format!("{} low fluid", slot_id)),
+                _ => None,
+            }
+        } else {
+            None
+        };
+
         StatusMessage {
             sub_device_id,
             status_type,
             status_message_id,
             data_value1,
             data_value2,
+            description,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SlotType {
+    Primary = 0x00,
+    SecondaryFine = 0x01,
+    SecondaryTiming = 0x02,
+    SecondarySpeed = 0x03,
+    SecondaryControl = 0x04,
+    SecondaryIndex = 0x05,
+    SecondaryRotation = 0x06,
+    SecondaryIndexRotate = 0x07,
+    SecondaryUndefined = 0xff,
+}
+
+impl TryFrom<u8> for SlotType {
+    type Error = ProtocolError;
+
+    fn try_from(value: u8) -> Result<Self, ProtocolError> {
+        match value {
+            0x00 => Ok(Self::Primary),
+            0x01 => Ok(Self::SecondaryFine),
+            0x02 => Ok(Self::SecondaryTiming),
+            0x03 => Ok(Self::SecondarySpeed),
+            0x04 => Ok(Self::SecondaryControl),
+            0x05 => Ok(Self::SecondaryIndex),
+            0x06 => Ok(Self::SecondaryRotation),
+            0x07 => Ok(Self::SecondaryIndexRotate),
+            0xff => Ok(Self::SecondaryUndefined),
+            _ => Err(ProtocolError::InvalidSlotType(value)),
         }
     }
 }
@@ -610,13 +738,137 @@ impl StatusMessage {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SlotInfo {
     pub id: u16,
-    pub kind: u8, // TODO use enum
+    pub r#type: SlotType,
     pub label_id: u16,
 }
 
 impl SlotInfo {
-    pub fn new(id: u16, kind: u8, label_id: u16) -> Self {
-        Self { id, kind, label_id }
+    pub fn new(id: u16, r#type: SlotType, label_id: u16) -> Self {
+        Self {
+            id,
+            r#type,
+            label_id,
+        }
+    }
+}
+
+#[non_exhaustive]
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SlotIdDefinition {
+    Intensity = 0x0001,
+    IntensityMaster = 0x0002,
+    Pan = 0x0101,
+    Tilt = 0x0102,
+    ColorWheel = 0x0201,
+    ColorSubCyan = 0x0202,
+    ColorSubYellow = 0x0203,
+    ColorSubMagenta = 0x0204,
+    ColorAddRed = 0x0205,
+    ColorAddGreen = 0x0206,
+    ColorAddBlue = 0x0207,
+    ColorCorrection = 0x0208,
+    ColorScroll = 0x0209,
+    ColorSemaphore = 0x0210,
+    StaticGoboWheel = 0x0301,
+    RotoGoboWheel = 0x0302,
+    PrismWheel = 0x0303,
+    EffectsWheel = 0x0304,
+    BeamSizeIris = 0x0401,
+    Edge = 0x0402,
+    Frost = 0x0403,
+    Strobe = 0x0404,
+    Zoom = 0x0405,
+    FramingShutter = 0x0406,
+    ShutterRotate = 0x0407,
+    Douser = 0x0408,
+    BarnDoor = 0x0409,
+    LampControl = 0x0501,
+    FixtureControl = 0x0502,
+    FixtureSpeed = 0x0503,
+    Macro = 0x0504,
+    Undefined = 0xffff,
+}
+
+impl TryFrom<u16> for SlotIdDefinition {
+    type Error = ProtocolError;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        match value {
+            0x0001 => Ok(Self::Intensity),
+            0x0002 => Ok(Self::IntensityMaster),
+            0x0101 => Ok(Self::Pan),
+            0x0102 => Ok(Self::Tilt),
+            0x0201 => Ok(Self::ColorWheel),
+            0x0202 => Ok(Self::ColorSubCyan),
+            0x0203 => Ok(Self::ColorSubYellow),
+            0x0204 => Ok(Self::ColorSubMagenta),
+            0x0205 => Ok(Self::ColorAddRed),
+            0x0206 => Ok(Self::ColorAddGreen),
+            0x0207 => Ok(Self::ColorAddBlue),
+            0x0208 => Ok(Self::ColorCorrection),
+            0x0209 => Ok(Self::ColorScroll),
+            0x0210 => Ok(Self::ColorSemaphore),
+            0x0301 => Ok(Self::StaticGoboWheel),
+            0x0302 => Ok(Self::RotoGoboWheel),
+            0x0303 => Ok(Self::PrismWheel),
+            0x0304 => Ok(Self::EffectsWheel),
+            0x0401 => Ok(Self::BeamSizeIris),
+            0x0402 => Ok(Self::Edge),
+            0x0403 => Ok(Self::Frost),
+            0x0404 => Ok(Self::Strobe),
+            0x0405 => Ok(Self::Zoom),
+            0x0406 => Ok(Self::FramingShutter),
+            0x0407 => Ok(Self::ShutterRotate),
+            0x0408 => Ok(Self::Douser),
+            0x0409 => Ok(Self::BarnDoor),
+            0x0501 => Ok(Self::LampControl),
+            0x0502 => Ok(Self::FixtureControl),
+            0x0503 => Ok(Self::FixtureSpeed),
+            0x0504 => Ok(Self::Macro),
+            0xffff => Ok(Self::Undefined),
+            _ => Err(ProtocolError::UnsupportedSlotIdDefinition(value)),
+        }
+    }
+}
+
+impl Display for SlotIdDefinition {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let definition = match self {
+            SlotIdDefinition::Intensity => "Intensity",
+            SlotIdDefinition::IntensityMaster => "Intensity Master",
+            SlotIdDefinition::Pan => "Pan",
+            SlotIdDefinition::Tilt => "Tilt",
+            SlotIdDefinition::ColorWheel => "Color Wheel",
+            SlotIdDefinition::ColorSubCyan => "Color Sub Cyan",
+            SlotIdDefinition::ColorSubYellow => "Color Sub Yellow",
+            SlotIdDefinition::ColorSubMagenta => "Color Sub Magenta",
+            SlotIdDefinition::ColorAddRed => "Color Add Red",
+            SlotIdDefinition::ColorAddGreen => "Color Add Green",
+            SlotIdDefinition::ColorAddBlue => "Color Add Blue",
+            SlotIdDefinition::ColorCorrection => "Color Correction",
+            SlotIdDefinition::ColorScroll => "Color Scroll",
+            SlotIdDefinition::ColorSemaphore => "Color Semaphore",
+            SlotIdDefinition::StaticGoboWheel => "Static Gobo Wheel",
+            SlotIdDefinition::RotoGoboWheel => "Roto Gobo Wheel",
+            SlotIdDefinition::PrismWheel => "Prism Wheel",
+            SlotIdDefinition::EffectsWheel => "Effects Wheel",
+            SlotIdDefinition::BeamSizeIris => "Beam Size Iris",
+            SlotIdDefinition::Edge => "Edge",
+            SlotIdDefinition::Frost => "Frost",
+            SlotIdDefinition::Strobe => "Strobe",
+            SlotIdDefinition::Zoom => "Zoom",
+            SlotIdDefinition::FramingShutter => "Framing Shutter",
+            SlotIdDefinition::ShutterRotate => "Shutter Rotate",
+            SlotIdDefinition::Douser => "Douser",
+            SlotIdDefinition::BarnDoor => "Barn Door",
+            SlotIdDefinition::LampControl => "Lamp Control",
+            SlotIdDefinition::FixtureControl => "Fixture Control",
+            SlotIdDefinition::FixtureSpeed => "Fixture Speed",
+            SlotIdDefinition::Macro => "Macro",
+            SlotIdDefinition::Undefined => "Undefined",
+        };
+
+        f.write_str(definition)
     }
 }
 
@@ -728,7 +980,7 @@ impl SensorValue {
         current_value: i16,
         lowest_detected_value: i16,
         highest_detected_value: i16,
-        recorded_value: i16
+        recorded_value: i16,
     ) -> Self {
         Self {
             sensor_id,
