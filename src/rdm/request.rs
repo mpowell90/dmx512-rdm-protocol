@@ -699,4 +699,35 @@ mod tests {
 
         assert_eq!(encoded, expected);
     }
+
+    #[test]
+    fn should_encode_rdm_request() {
+        let encoded = RdmRequest::new(
+            DeviceUID::new(0x0102, 0x03040506),
+            DeviceUID::new(0x0605, 0x04030201),
+            0x00,
+            0x01,
+            0x0001,
+            RequestParameter::GetIdentifyDevice
+        )
+        .encode();
+
+        let expected = &[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            0x18, // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Port ID
+            0x00, // Message Count
+            0x00, 0x01, // Sub-Device ID
+            0x20, // Command Class
+            0x10, 0x00, // Parameter ID
+            0x00, // PDL
+            0x01, 0x41, // Checksum
+        ];
+
+        assert_eq!(encoded, expected);
+    }
 }
