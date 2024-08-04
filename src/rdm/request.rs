@@ -2,8 +2,7 @@ use super::{
     bsd_16_crc,
     device::DeviceUID,
     parameter::{
-        DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, ResetDeviceMode,
-        StatusType,
+        DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, PowerState, ResetDeviceMode, StatusType
     },
     CommandClass, SC_RDM, SC_SUB_MESSAGE,
 };
@@ -144,8 +143,8 @@ pub enum RequestParameter {
     },
     GetPowerState,
     SetPowerState {
-        power_state: u8,
-    }, // TODO could be an enum instead of u8
+        power_state: PowerState,
+    },
     GetPerformSelfTest,
     SetPerformSelfTest {
         self_test_id: u8,
@@ -524,7 +523,7 @@ impl RequestParameter {
             Self::GetPowerState => {}
             Self::SetPowerState { power_state } => {
                 buf.reserve(0x01);
-                buf.push(*power_state)
+                buf.push(*power_state as u8)
             }
             Self::GetPerformSelfTest => {}
             Self::SetPerformSelfTest { self_test_id } => {
