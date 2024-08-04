@@ -2,7 +2,8 @@ use super::{
     bsd_16_crc,
     device::DeviceUID,
     parameter::{
-        DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, PowerState, ResetDeviceMode, StatusType
+        DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, PowerState,
+        PresetPlaybackMode, ResetDeviceMode, StatusType,
     },
     CommandClass, SC_RDM, SC_SUB_MESSAGE,
 };
@@ -158,27 +159,27 @@ pub enum RequestParameter {
     },
     GetPresetPlayback,
     SetPresetPlayback {
-        mode: u16,
+        mode: PresetPlaybackMode,
         level: u8,
-    }, // TODO could be an enum instead of u16
-       // SetCurve {
-       //     curve_id: u8,
-       // },
-       // GetCurveDescription {
-       //     curve: u8,
-       // },
-       // GetModulationFrequencyDescription {
-       //     modulation_frequency: u8,
-       // },
-       // SetModulationFrequency {
-       //     modulation_frequency_id: u8,
-       // },
-       // GetOutputResponseTimeDescription {
-       //     output_response_time: u8,
-       // },
-       // SetOutputResponseTime {
-       //     output_response_time_id: u8,
-       // },
+    },
+    // SetCurve {
+    //     curve_id: u8,
+    // },
+    // GetCurveDescription {
+    //     curve: u8,
+    // },
+    // GetModulationFrequencyDescription {
+    //     modulation_frequency: u8,
+    // },
+    // SetModulationFrequency {
+    //     modulation_frequency_id: u8,
+    // },
+    // GetOutputResponseTimeDescription {
+    //     output_response_time: u8,
+    // },
+    // SetOutputResponseTime {
+    //     output_response_time_id: u8,
+    // },
 }
 
 impl RequestParameter {
@@ -550,7 +551,7 @@ impl RequestParameter {
             Self::GetPresetPlayback => {}
             Self::SetPresetPlayback { mode, level } => {
                 buf.reserve(0x03);
-                buf.extend((*mode).to_be_bytes().iter());
+                buf.extend(u16::from(*mode).to_be_bytes().iter());
                 buf.push(*level);
             } // Self::SetCurve { curve_id } => {
               //     buf.reserve(0x01);

@@ -1,5 +1,5 @@
-use thiserror::Error;
 use super::ProtocolError;
+use thiserror::Error;
 
 // TODO add remaining parameter ids
 #[non_exhaustive]
@@ -542,6 +542,33 @@ impl TryFrom<u8> for ResetDeviceMode {
             0x01 => Ok(Self::Warm),
             0xff => Ok(Self::Cold),
             _ => Err(ProtocolError::InvalidResetDeviceMode(value)),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum PresetPlaybackMode {
+    Off,
+    All,
+    Scene(u16),
+}
+
+impl From<u16> for PresetPlaybackMode {
+    fn from(value: u16) -> Self {
+        match value {
+            0x0000 => Self::Off,
+            0xffff => Self::All,
+            value => Self::Scene(value),
+        }
+    }
+}
+
+impl From<PresetPlaybackMode> for u16 {
+    fn from(value: PresetPlaybackMode) -> u16 {
+        match value {
+            PresetPlaybackMode::Off => 0x0000,
+            PresetPlaybackMode::All => 0xffff,
+            PresetPlaybackMode::Scene(value) => value,
         }
     }
 }

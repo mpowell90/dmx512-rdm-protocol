@@ -2,8 +2,7 @@ use super::{
     bsd_16_crc,
     device::{DefaultSlotValue, DeviceUID, SlotInfo, StatusMessage},
     parameter::{
-        DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId,
-        PowerState, ProductCategory, StatusType,
+        DisplayInvertMode, LampOnMode, LampState, ManufacturerSpecificParameter, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, StatusType
     },
     sensor::{Sensor, SensorValue},
     CommandClass, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
@@ -218,7 +217,7 @@ pub enum ResponseParameterData {
         description: String,
     },
     GetPresetPlayback {
-        mode: u16,
+        mode: PresetPlaybackMode,
         level: u8,
     },
     // GetCurve {
@@ -650,7 +649,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetPlayback) => {
                 Ok(Self::GetPresetPlayback {
-                    mode: u16::from_be_bytes(bytes[0..=1].try_into()?),
+                    mode: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     level: bytes[2],
                 })
             }
