@@ -1,7 +1,7 @@
 use super::{
     bsd_16_crc,
     device::DeviceUID,
-    parameter::{FadeTimes, LampOnMode, LampState, ParameterId, StatusType},
+    parameter::{DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, StatusType},
     CommandClass, SC_RDM, SC_SUB_MESSAGE,
 };
 
@@ -105,8 +105,8 @@ pub enum RequestParameter {
     },
     GetDisplayInvert,
     SetDisplayInvert {
-        display_invert: u8,
-    }, // TODO could be an enum instead of u8 On/Off/Auto
+        display_invert: DisplayInvertMode,
+    },
     GetDisplayLevel,
     SetDisplayLevel {
         display_level: u8,
@@ -470,7 +470,7 @@ impl RequestParameter {
             Self::GetDisplayInvert => {}
             Self::SetDisplayInvert { display_invert } => {
                 buf.reserve(0x01);
-                buf.push(*display_invert)
+                buf.push(*display_invert as u8)
             }
             Self::GetDisplayLevel => {}
             Self::SetDisplayLevel { display_level } => {
