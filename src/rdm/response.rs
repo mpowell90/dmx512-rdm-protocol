@@ -274,63 +274,35 @@ impl ResponseParameterData {
         match (command_class, parameter_id) {
             (CommandClass::DiscoveryCommandResponse, ParameterId::DiscMute) => {
                 let binding_uid = if bytes.len() > 2 {
-                    let manufacturer_id = u16::from_be_bytes(
-                        bytes[2..=3]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    );
-                    let device_id = u32::from_be_bytes(
-                        bytes[4..=7]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    );
+                    let manufacturer_id = u16::from_be_bytes(bytes[2..=3].try_into()?);
+                    let device_id = u32::from_be_bytes(bytes[4..=7].try_into()?);
                     Some(DeviceUID::new(manufacturer_id, device_id))
                 } else {
                     None
                 };
 
                 Ok(Self::DiscMute {
-                    control_field: u16::from_be_bytes(
-                        bytes[..=1]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    control_field: u16::from_be_bytes(bytes[..=1].try_into()?),
                     binding_uid,
                 })
             }
             (CommandClass::DiscoveryCommandResponse, ParameterId::DiscUnMute) => {
                 let binding_uid = if bytes.len() > 2 {
-                    let manufacturer_id = u16::from_be_bytes(
-                        bytes[2..=3]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    );
-                    let device_id = u32::from_be_bytes(
-                        bytes[4..=7]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    );
+                    let manufacturer_id = u16::from_be_bytes(bytes[2..=3].try_into()?);
+                    let device_id = u32::from_be_bytes(bytes[4..=7].try_into()?);
                     Some(DeviceUID::new(manufacturer_id, device_id))
                 } else {
                     None
                 };
 
                 Ok(Self::DiscUnMute {
-                    control_field: u16::from_be_bytes(
-                        bytes[..=1]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    control_field: u16::from_be_bytes(bytes[..=1].try_into()?),
                     binding_uid,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ProxiedDeviceCount) => {
                 Ok(Self::GetProxiedDeviceCount {
-                    device_count: u16::from_be_bytes(
-                        bytes[0..=1]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    device_count: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     list_change: bytes[2] == 1,
                 })
             }
@@ -340,16 +312,8 @@ impl ResponseParameterData {
                         .chunks(6)
                         .map(|chunk| {
                             Ok(DeviceUID::new(
-                                u16::from_be_bytes(
-                                    chunk[0..=1]
-                                        .try_into()
-                                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                                ),
-                                u32::from_be_bytes(
-                                    chunk[2..=5]
-                                        .try_into()
-                                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                                ),
+                                u16::from_be_bytes(chunk[0..=1].try_into()?),
+                                u32::from_be_bytes(chunk[2..=5].try_into()?),
                             ))
                         })
                         .collect::<Result<Vec<DeviceUID>, ProtocolError>>()?,
@@ -357,21 +321,9 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::CommsStatus) => {
                 Ok(Self::GetCommsStatus {
-                    short_message: u16::from_be_bytes(
-                        bytes[0..=1]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    length_mismatch: u16::from_be_bytes(
-                        bytes[2..=3]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    checksum_fail: u16::from_be_bytes(
-                        bytes[4..=5]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    short_message: u16::from_be_bytes(bytes[0..=1].try_into()?),
+                    length_mismatch: u16::from_be_bytes(bytes[2..=3].try_into()?),
+                    checksum_fail: u16::from_be_bytes(bytes[4..=5].try_into()?),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::StatusMessages) => {
@@ -380,27 +332,11 @@ impl ResponseParameterData {
                         .chunks(9)
                         .map(|chunk| {
                             Ok(StatusMessage::new(
-                                u16::from_be_bytes(
-                                    chunk[0..=1]
-                                        .try_into()
-                                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                                ),
+                                u16::from_be_bytes(chunk[0..=1].try_into()?),
                                 chunk[2].try_into()?,
-                                u16::from_be_bytes(
-                                    chunk[3..=4]
-                                        .try_into()
-                                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                                ),
-                                u16::from_be_bytes(
-                                    chunk[5..=6]
-                                        .try_into()
-                                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                                ),
-                                u16::from_be_bytes(
-                                    chunk[7..=8]
-                                        .try_into()
-                                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                                ),
+                                u16::from_be_bytes(chunk[3..=4].try_into()?),
+                                u16::from_be_bytes(chunk[5..=6].try_into()?),
+                                u16::from_be_bytes(chunk[7..=8].try_into()?),
                             ))
                         })
                         .collect::<Result<Vec<StatusMessage>, ProtocolError>>()?,
@@ -450,31 +386,14 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::ParameterDescription) => {
                 Ok(Self::GetParameterDescription {
-                    parameter_id: u16::from_be_bytes(
-                        bytes[0..=1]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    parameter_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     parameter_data_size: bytes[2],
                     data_type: bytes[3],
-                    command_class: CommandClass::try_from(bytes[4])
-                        .map_err(|_| ProtocolError::TryFromSliceError)?,
+                    command_class: CommandClass::try_from(bytes[4])?,
                     prefix: bytes[5],
-                    minimum_valid_value: u32::from_be_bytes(
-                        bytes[8..=11]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    maximum_valid_value: u32::from_be_bytes(
-                        bytes[12..=15]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    default_value: u32::from_be_bytes(
-                        bytes[16..=19]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    minimum_valid_value: u32::from_be_bytes(bytes[8..=11].try_into()?),
+                    maximum_valid_value: u32::from_be_bytes(bytes[12..=15].try_into()?),
+                    default_value: u32::from_be_bytes(bytes[16..=19].try_into()?),
                     description: CStr::from_bytes_with_nul(&bytes[20..])?
                         .to_string_lossy()
                         .to_string(),
@@ -483,39 +402,14 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => {
                 Ok(Self::GetDeviceInfo {
                     protocol_version: format!("{}.{}", bytes[0], bytes[1]),
-                    model_id: u16::from_be_bytes(
-                        bytes[2..=3]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    product_category: u16::from_be_bytes(
-                        bytes[4..=5]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    )
-                    .try_into()?,
-                    software_version_id: u32::from_be_bytes(
-                        bytes[6..=9]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    footprint: u16::from_be_bytes(
-                        bytes[10..=11]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    model_id: u16::from_be_bytes(bytes[2..=3].try_into()?),
+                    product_category: u16::from_be_bytes(bytes[4..=5].try_into()?).try_into()?,
+                    software_version_id: u32::from_be_bytes(bytes[6..=9].try_into()?),
+                    footprint: u16::from_be_bytes(bytes[10..=11].try_into()?),
                     current_personality: bytes[12],
                     personality_count: bytes[13],
-                    start_address: u16::from_be_bytes(
-                        bytes[14..=15]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    sub_device_count: u16::from_be_bytes(
-                        bytes[16..=17]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    start_address: u16::from_be_bytes(bytes[14..=15].try_into()?),
+                    sub_device_count: u16::from_be_bytes(bytes[16..=17].try_into()?),
                     sensor_count: u8::from_be(bytes[18]),
                 })
             }
@@ -523,13 +417,7 @@ impl ResponseParameterData {
                 Ok(Self::GetProductDetailIdList {
                     product_detail_id_list: bytes
                         .chunks(2)
-                        .map(|chunk| {
-                            Ok(u16::from_be_bytes(
-                                chunk
-                                    .try_into()
-                                    .map_err(|_| ProtocolError::TryFromSliceError)?,
-                            ))
-                        })
+                        .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?)))
                         .collect::<Result<Vec<u16>, ProtocolError>>()?,
                 })
             }
@@ -579,11 +467,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => {
                 Ok(Self::GetBootSoftwareVersionId {
-                    boot_software_version_id: u32::from_be_bytes(
-                        bytes
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    boot_software_version_id: u32::from_be_bytes(bytes.try_into()?),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionLabel) => {
@@ -602,11 +486,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::DmxPersonalityDescription) => {
                 Ok(Self::GetDmxPersonalityDescription {
                     id: bytes[0],
-                    dmx_slots_required: u16::from_be_bytes(
-                        bytes[1..=2]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into()?),
                     description: CStr::from_bytes_with_nul(&bytes[3..])?
                         .to_string_lossy()
                         .to_string(),
@@ -614,11 +494,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => {
                 Ok(Self::GetDmxStartAddress {
-                    dmx_start_address: u16::from_be_bytes(
-                        bytes[0..=1]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    dmx_start_address: u16::from_be_bytes(bytes[0..=1].try_into()?),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::SlotInfo) => Ok(Self::GetSlotInfo {
@@ -626,28 +502,16 @@ impl ResponseParameterData {
                     .chunks(5)
                     .map(|chunk| {
                         Ok(SlotInfo::new(
-                            u16::from_be_bytes(
-                                chunk[0..=1]
-                                    .try_into()
-                                    .map_err(|_| ProtocolError::TryFromSliceError)?,
-                            ),
+                            u16::from_be_bytes(chunk[0..=1].try_into()?),
                             chunk[2],
-                            u16::from_be_bytes(
-                                chunk[3..=4]
-                                    .try_into()
-                                    .map_err(|_| ProtocolError::TryFromSliceError)?,
-                            ),
+                            u16::from_be_bytes(chunk[3..=4].try_into()?),
                         ))
                     })
                     .collect::<Result<Vec<SlotInfo>, ProtocolError>>()?,
             }),
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
                 Ok(Self::GetSlotDescription {
-                    slot_id: u16::from_be_bytes(
-                        bytes[0..=1]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    slot_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     description: CStr::from_bytes_with_nul(&bytes[2..])?
                         .to_string_lossy()
                         .to_string(),
@@ -659,11 +523,7 @@ impl ResponseParameterData {
                         .chunks(3)
                         .map(|chunk| {
                             Ok(DefaultSlotValue::new(
-                                u16::from_be_bytes(
-                                    chunk[0..=1]
-                                        .try_into()
-                                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                                ),
+                                u16::from_be_bytes(chunk[0..=1].try_into()?),
                                 chunk[2],
                             ))
                         })
@@ -677,26 +537,10 @@ impl ResponseParameterData {
                         kind: bytes[1].try_into()?,
                         unit: bytes[2],
                         prefix: bytes[3],
-                        range_minimum_value: i16::from_be_bytes(
-                            bytes[4..=5]
-                                .try_into()
-                                .map_err(|_| ProtocolError::TryFromSliceError)?,
-                        ),
-                        range_maximum_value: i16::from_be_bytes(
-                            bytes[6..=7]
-                                .try_into()
-                                .map_err(|_| ProtocolError::TryFromSliceError)?,
-                        ),
-                        normal_minimum_value: i16::from_be_bytes(
-                            bytes[8..=9]
-                                .try_into()
-                                .map_err(|_| ProtocolError::TryFromSliceError)?,
-                        ),
-                        normal_maximum_value: i16::from_be_bytes(
-                            bytes[10..=11]
-                                .try_into()
-                                .map_err(|_| ProtocolError::TryFromSliceError)?,
-                        ),
+                        range_minimum_value: i16::from_be_bytes(bytes[4..=5].try_into()?),
+                        range_maximum_value: i16::from_be_bytes(bytes[6..=7].try_into()?),
+                        normal_minimum_value: i16::from_be_bytes(bytes[8..=9].try_into()?),
+                        normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
                         recorded_value_support: bytes[12],
                         description: CStr::from_bytes_with_nul(&bytes[13..])?
                             .to_string_lossy()
@@ -707,76 +551,32 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::SensorValue) => {
                 Ok(Self::GetSensorValue(SensorValue::new(
                     bytes[0],
-                    i16::from_be_bytes(
-                        bytes[1..=2]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    i16::from_be_bytes(
-                        bytes[3..=4]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    i16::from_be_bytes(
-                        bytes[5..=6]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    i16::from_be_bytes(
-                        bytes[7..=8]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    i16::from_be_bytes(bytes[1..=2].try_into()?),
+                    i16::from_be_bytes(bytes[3..=4].try_into()?),
+                    i16::from_be_bytes(bytes[5..=6].try_into()?),
+                    i16::from_be_bytes(bytes[7..=8].try_into()?),
                 )))
             }
             (CommandClass::SetCommandResponse, ParameterId::SensorValue) => {
                 Ok(Self::SetSensorValue(SensorValue::new(
                     bytes[0],
-                    i16::from_be_bytes(
-                        bytes[1..=2]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    i16::from_be_bytes(
-                        bytes[3..=4]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    i16::from_be_bytes(
-                        bytes[5..=6]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
-                    i16::from_be_bytes(
-                        bytes[7..=8]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    i16::from_be_bytes(bytes[1..=2].try_into()?),
+                    i16::from_be_bytes(bytes[3..=4].try_into()?),
+                    i16::from_be_bytes(bytes[5..=6].try_into()?),
+                    i16::from_be_bytes(bytes[7..=8].try_into()?),
                 )))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceHours) => {
                 Ok(Self::GetDeviceHours {
-                    device_hours: u32::from_be_bytes(
-                        bytes[0..=3]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    device_hours: u32::from_be_bytes(bytes[0..=3].try_into()?),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::LampHours) => Ok(Self::GetLampHours {
-                lamp_hours: u32::from_be_bytes(
-                    bytes[0..=3]
-                        .try_into()
-                        .map_err(|_| ProtocolError::TryFromSliceError)?,
-                ),
+                lamp_hours: u32::from_be_bytes(bytes[0..=3].try_into()?),
             }),
             (CommandClass::GetCommandResponse, ParameterId::LampStrikes) => {
                 Ok(Self::GetLampStrikes {
-                    lamp_strikes: u32::from_be_bytes(
-                        bytes[0..=3]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    lamp_strikes: u32::from_be_bytes(bytes[0..=3].try_into()?),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::LampState) => Ok(Self::GetLampState {
@@ -789,11 +589,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::DevicePowerCycles) => {
                 Ok(Self::GetDevicePowerCycles {
-                    power_cycle_count: u32::from_be_bytes(
-                        bytes[0..=3]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    power_cycle_count: u32::from_be_bytes(bytes[0..=3].try_into()?),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DisplayInvert) => {
@@ -821,11 +617,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::RealTimeClock) => {
                 Ok(Self::GetRealTimeClock {
-                    year: u16::from_be_bytes(
-                        bytes[0..=1]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    year: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     month: bytes[2],
                     day: bytes[3],
                     hour: bytes[4],
@@ -858,11 +650,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetPlayback) => {
                 Ok(Self::GetPresetPlayback {
-                    mode: u16::from_be_bytes(
-                        bytes[0..=1]
-                            .try_into()
-                            .map_err(|_| ProtocolError::TryFromSliceError)?,
-                    ),
+                    mode: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     level: bytes[2],
                 })
             }
@@ -886,7 +674,7 @@ impl ResponseParameterData {
             //         frequency: u32::from_be_bytes(
             //             bytes[1..=4]
             //                 .try_into()
-            //                 .map_err(|_| ProtocolError::TryFromSliceError)?,
+            //                 ?,
             //         ),
             //         description: CStr::from_bytes_with_nul(&bytes[5..])?
             //             .to_string_lossy()
@@ -897,22 +685,22 @@ impl ResponseParameterData {
             //     minimum_level_lower_limit: u16::from_be_bytes(
             //         bytes[0..=1]
             //             .try_into()
-            //             .map_err(|_| ProtocolError::TryFromSliceError)?,
+            //             ?,
             //     ),
             //     minimum_level_upper_limit: u16::from_be_bytes(
             //         bytes[2..=3]
             //             .try_into()
-            //             .map_err(|_| ProtocolError::TryFromSliceError)?,
+            //             ?,
             //     ),
             //     maximum_level_lower_limit: u16::from_be_bytes(
             //         bytes[4..=5]
             //             .try_into()
-            //             .map_err(|_| ProtocolError::TryFromSliceError)?,
+            //             ?,
             //     ),
             //     maximum_level_upper_limit: u16::from_be_bytes(
             //         bytes[6..=7]
             //             .try_into()
-            //             .map_err(|_| ProtocolError::TryFromSliceError)?,
+            //             ?,
             //     ),
             //     num_of_supported_curves: bytes[8],
             //     levels_resolution: bytes[9],
@@ -922,12 +710,12 @@ impl ResponseParameterData {
             //     minimum_level_increasing: u16::from_be_bytes(
             //         bytes[0..=1]
             //             .try_into()
-            //             .map_err(|_| ProtocolError::TryFromSliceError)?,
+            //             ?,
             //     ),
             //     minimum_level_decreasing: u16::from_be_bytes(
             //         bytes[2..=3]
             //             .try_into()
-            //             .map_err(|_| ProtocolError::TryFromSliceError)?,
+            //             ?,
             //     ),
             //     on_below_minimum: bytes[4],
             // }),
@@ -935,7 +723,7 @@ impl ResponseParameterData {
             //     maximum_level: u16::from_be_bytes(
             //         bytes[0..=1]
             //             .try_into()
-            //             .map_err(|_| ProtocolError::TryFromSliceError)?,
+            //             ?,
             //     ),
             // }),
             // (CommandClass::GetCommandResponse, ParameterId::OutputResponseTime) => Ok(Self::GetOutputResponseTime {
@@ -980,9 +768,7 @@ impl RdmResponse {
         }
 
         let packet_checksum = u16::from_be_bytes(
-            bytes[message_length as usize..=message_length as usize + 1]
-                .try_into()
-                .map_err(|_| ProtocolError::TryFromSliceError)?,
+            bytes[message_length as usize..=message_length as usize + 1].try_into()?,
         );
 
         let decoded_checksum = bsd_16_crc(&bytes[..message_length as usize - 1]);
@@ -994,28 +780,12 @@ impl RdmResponse {
             ));
         }
 
-        let destination_manufacturer_id = u16::from_be_bytes(
-            bytes[3..=4]
-                .try_into()
-                .map_err(|_| ProtocolError::TryFromSliceError)?,
-        );
-        let destination_device_id = u32::from_be_bytes(
-            bytes[5..=8]
-                .try_into()
-                .map_err(|_| ProtocolError::TryFromSliceError)?,
-        );
+        let destination_manufacturer_id = u16::from_be_bytes(bytes[3..=4].try_into()?);
+        let destination_device_id = u32::from_be_bytes(bytes[5..=8].try_into()?);
         let destination_uid = DeviceUID::new(destination_manufacturer_id, destination_device_id);
 
-        let source_manufacturer_id = u16::from_be_bytes(
-            bytes[9..=10]
-                .try_into()
-                .map_err(|_| ProtocolError::TryFromSliceError)?,
-        );
-        let source_device_id = u32::from_be_bytes(
-            bytes[11..=14]
-                .try_into()
-                .map_err(|_| ProtocolError::TryFromSliceError)?,
-        );
+        let source_manufacturer_id = u16::from_be_bytes(bytes[9..=10].try_into()?);
+        let source_device_id = u32::from_be_bytes(bytes[11..=14].try_into()?);
         let source_uid = DeviceUID::new(source_manufacturer_id, source_device_id);
 
         let transaction_number = bytes[15];
@@ -1024,19 +794,11 @@ impl RdmResponse {
 
         let message_count = bytes[17];
 
-        let sub_device_id = u16::from_be_bytes(
-            bytes[18..=19]
-                .try_into()
-                .map_err(|_| ProtocolError::TryFromSliceError)?,
-        );
+        let sub_device_id = u16::from_be_bytes(bytes[18..=19].try_into()?);
 
         let command_class = CommandClass::try_from(bytes[20])?;
 
-        let parameter_id = ParameterId::try_from(u16::from_be_bytes(
-            bytes[21..=22]
-                .try_into()
-                .map_err(|_| ProtocolError::TryFromSliceError)?,
-        ))?;
+        let parameter_id = ParameterId::try_from(u16::from_be_bytes(bytes[21..=22].try_into()?))?;
 
         let parameter_data_length = bytes[23];
 

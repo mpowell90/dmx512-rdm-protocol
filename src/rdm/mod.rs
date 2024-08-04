@@ -5,6 +5,7 @@ pub mod request;
 pub mod codec;
 pub mod device;
 
+use std::array::TryFromSliceError;
 use thiserror::Error;
 
 pub const SC_RDM: u8 = 0xcc;
@@ -71,6 +72,12 @@ pub enum ProtocolError {
     InvalidSensorType(u8),
     #[error("Malformed packet")]
     MalformedPacket,
+}
+
+impl From<TryFromSliceError> for ProtocolError {
+    fn from(_: TryFromSliceError) -> Self {
+        ProtocolError::TryFromSliceError
+    }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
