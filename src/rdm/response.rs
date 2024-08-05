@@ -267,7 +267,8 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::SupportedParameters) => {
                 let parameters = bytes
                     .chunks(2)
-                    .map(|chunk| u16::from_be_bytes(chunk.try_into().unwrap()));
+                    .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?)))
+                    .filter_map(|parameter_id: Result<u16, ProtocolError>| parameter_id.ok());
 
                 Ok(Self::GetSupportedParameters {
                     standard_parameters: parameters
