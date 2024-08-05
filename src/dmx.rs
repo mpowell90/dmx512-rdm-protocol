@@ -3,7 +3,7 @@ use thiserror::Error;
 
 const MAXIMUM_CHANNEL_COUNT: u16 = 512;
 
-#[derive(Clone, Debug, Error)]
+#[derive(Copy, Clone, Debug, Error, PartialEq)]
 pub enum DmxError {
     #[error("Channel out of bounds")]
     ChannelOutOfBounds,

@@ -15,7 +15,7 @@ pub const BROADCAST_ALL_DEVICES_ID: u64 = 0xffffffffffff;
 pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
 pub const ROOT_DEVICE: u16 = 0x0000;
 
-#[derive(Clone, Debug, Error, PartialEq, Eq)]
+#[derive(Clone, Debug, Error, PartialEq)]
 pub enum ProtocolError {
     #[error("Invalid start code")]
     InvalidStartCode,
