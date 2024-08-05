@@ -72,6 +72,10 @@ impl DmxUniverse {
             Err(DmxError::ChannelOutOfBounds)
         }
     }
+
+    pub fn set_all_channel_values(&mut self, value: u8) {
+        self.channels.fill(value)
+    }
 }
 
 impl Default for DmxUniverse {
@@ -163,6 +167,18 @@ mod tests {
         universe.set_channel_values(0, &[64, 128, 192]).unwrap();
 
         assert_eq!(universe.channels, vec![64, 128, 192, 0]);
+    }
+
+    #[test]
+    fn should_set_all_channel_values() {
+        let mut universe = DmxUniverse {
+            channel_count: 4,
+            channels: vec![0; 4],
+        };
+
+        universe.set_all_channel_values(255);
+
+        assert_eq!(universe.channels, vec![255, 255, 255, 255]);
     }
 
     #[test]
