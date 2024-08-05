@@ -159,12 +159,3 @@ pub fn bsd_16_crc(packet: &[u8]) -> u16 {
         .iter()
         .fold(0_u16, |sum, byte| (sum.overflowing_add(*byte as u16).0))
 }
-
-pub fn is_checksum_valid(packet: &[u8]) -> bool {
-    let packet_checksum =
-        u16::from_be_bytes(packet[packet.len() - 2..packet.len()].try_into().unwrap());
-
-    let calculated_checksum = bsd_16_crc(&packet[..packet.len() - 2]);
-
-    packet_checksum == calculated_checksum
-}
