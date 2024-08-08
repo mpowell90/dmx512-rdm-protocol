@@ -544,7 +544,7 @@ pub struct RdmResponse {
 }
 
 impl RdmResponse {
-    pub fn parse(bytes: &mut [u8]) -> Result<Self, ProtocolError> {
+    pub fn parse(bytes: &[u8]) -> Result<Self, ProtocolError> {
         let message_length = bytes[2];
 
         if message_length < 24 {
@@ -638,7 +638,7 @@ impl RdmResponse {
 pub struct DiscoveryUniqueBranchResponse(DeviceUID);
 
 impl DiscoveryUniqueBranchResponse {
-    pub fn parse(bytes: &mut [u8]) -> Result<Self, ProtocolError> {
+    pub fn parse(bytes: &[u8]) -> Result<Self, ProtocolError> {
         let Some(frame_start_index) = bytes.iter().position(|&x| x == 0xaa) else {
             return Err(ProtocolError::InvalidDiscoveryUniqueBranchPreamble);
         };
@@ -675,7 +675,7 @@ pub enum RdmFrame {
 }
 
 impl RdmFrame {
-    pub fn parse(bytes: &mut [u8]) -> Result<Option<Self>, ProtocolError> {
+    pub fn parse(bytes: &[u8]) -> Result<Option<Self>, ProtocolError> {
         if bytes[0] == SC_RDM && bytes[1] == SC_SUB_MESSAGE {
             if bytes.len() < 25 {
                 return Err(ProtocolError::InvalidFrameLength(bytes.len() as u8));
@@ -705,7 +705,7 @@ mod tests {
 
     #[test]
     fn should_parse_valid_rdm_ack_response() {
-        let bytes = &mut [
+        let bytes = &[
             SC_RDM,
             SC_SUB_MESSAGE,
             25,   // message length
@@ -755,7 +755,7 @@ mod tests {
 
     #[test]
     fn should_parse_valid_rdm_ack_timer_response() {
-        let bytes = &mut [
+        let bytes = &[
             SC_RDM,
             SC_SUB_MESSAGE,
             26,   // message length
@@ -804,7 +804,7 @@ mod tests {
 
     #[test]
     fn should_parse_valid_rdm_nack_reason_response() {
-        let bytes = &mut [
+        let bytes = &[
             SC_RDM,
             SC_SUB_MESSAGE,
             26,   // message length
@@ -853,7 +853,7 @@ mod tests {
 
     #[test]
     fn should_parse_valid_rdm_ack_overflow_response() {
-        let bytes = &mut [
+        let bytes = &[
             SC_RDM,
             SC_SUB_MESSAGE,
             25,   // message length
@@ -904,7 +904,7 @@ mod tests {
     #[test]
     fn should_parse_valid_discovery_unique_branch_response() {
         // includes preamble bytes
-        let bytes = &mut [
+        let bytes = &[
             DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
             DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
             DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
@@ -939,7 +939,7 @@ mod tests {
         );
 
         // does not include preamble bytes
-        let bytes = &mut [
+        let bytes = &[
             DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
             0xab, // euid 11 = manufacturer id 1 (MSB)
             0x55, // euid 10 = manufacturer id 1 (MSB)
