@@ -555,8 +555,6 @@ impl RdmFrameResponse {
             bytes[message_length as usize..=message_length as usize + 1].try_into()?,
         );
 
-        println!("{:02X?}", &bytes[..message_length as usize]);
-
         let decoded_checksum = bsd_16_crc(&bytes[..message_length as usize]);
 
         if decoded_checksum != packet_checksum {
