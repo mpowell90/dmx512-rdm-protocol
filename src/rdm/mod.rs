@@ -31,6 +31,8 @@ pub enum RdmError {
     InvalidCommandClass(u8),
     #[error("Invalid CommandClass Implementation: {0}")]
     InvalidCommandClassImplementation(u8),
+    #[error("Invalid ProductDetail: {0}")]
+    InvalidProductDetail(u16),
     #[error("Unsupported Parameter, CommandClass: {0}, ParameterId: {1}")]
     UnsupportedParameter(u8, u16),
     #[error("Unsupported ParameterId: {0}")]

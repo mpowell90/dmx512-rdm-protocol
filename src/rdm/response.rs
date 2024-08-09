@@ -2,8 +2,8 @@ use super::{
     bsd_16_crc,
     parameter::{
         DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription,
-        ParameterId, PowerState, PresetPlaybackMode, ProductCategory, SelfTest, SensorDefinition,
-        SensorValue, SlotInfo, StatusMessage, StatusType,
+        ParameterId, PowerState, PresetPlaybackMode, ProductCategory, ProductDetail, SelfTest,
+        SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
     },
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
@@ -136,7 +136,7 @@ pub enum ResponseParameterData {
         sub_device_count: u16,
         sensor_count: u8,
     },
-    GetProductDetailIdList(Vec<u16>),
+    GetProductDetailIdList(Vec<ProductDetail>),
     GetDeviceModelDescription(String),
     GetManufacturerLabel(String),
     GetDeviceLabel(String),
@@ -337,8 +337,8 @@ impl ResponseParameterData {
                 Ok(Self::GetProductDetailIdList(
                     bytes
                         .chunks(2)
-                        .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?)))
-                        .collect::<Result<Vec<u16>, RdmError>>()?,
+                        .map(|chunk| u16::from_be_bytes(chunk.try_into()?).try_into())
+                        .collect::<Result<Vec<ProductDetail>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => {
