@@ -57,8 +57,6 @@ pub enum RdmError {
     TryFromSliceError,
     #[error("Invalid SlotType: {0}")]
     InvalidSlotType(u8),
-    #[error("Unsupported SlotIdDefinition: {0}")]
-    UnsupportedSlotIdDefinition(u16),
     #[error("Invalid LampState: {0}")]
     InvalidLampState(u8),
     #[error("Invalid LampOnMode: {0}")]
