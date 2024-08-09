@@ -1,24 +1,31 @@
 use core::ops::{Index, IndexMut, RangeInclusive};
 use thiserror::Error;
 
+const DMX_START_CODE: u8 = 0;
 const MAXIMUM_CHANNEL_COUNT: u16 = 512;
 
 #[derive(Copy, Clone, Debug, Error, PartialEq)]
 pub enum DmxError {
+    #[error("Invalid frame length: {0}")]
+    InvalidFrameLength(u16),
+    #[error("Invalid start code: {0}")]
+    InvalidStartCode(u8),
+    #[error("Invalid channel count: {0}")]
+    InvalidChannelCount(u16),
     #[error("Channel out of bounds")]
     ChannelOutOfBounds,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct DmxUniverse {
     pub channel_count: u16,
     channels: Vec<u8>,
 }
 
 impl DmxUniverse {
-    pub fn new(channel_count: u16) -> Result<Self, &'static str> {
+    pub fn new(channel_count: u16) -> Result<Self, DmxError> {
         if channel_count > MAXIMUM_CHANNEL_COUNT {
-            return Err("Channel count exceeds maximum of 512");
+            return Err(DmxError::InvalidChannelCount(channel_count));
         }
 
         Ok(Self {
@@ -49,11 +56,7 @@ impl DmxUniverse {
         }
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.channels
-    }
-
-    pub fn set_channel_value(&mut self, channel: u16, value: u8) -> Result<(), DmxError>{
+    pub fn set_channel_value(&mut self, channel: u16, value: u8) -> Result<(), DmxError> {
         if channel < self.channel_count {
             self.channels[channel as usize] = value;
             Ok(())
@@ -62,7 +65,7 @@ impl DmxUniverse {
         }
     }
 
-    pub fn set_channel_values(&mut self, channel: u16, values: &[u8]) -> Result<(), DmxError>{
+    pub fn set_channel_values(&mut self, channel: u16, values: &[u8]) -> Result<(), DmxError> {
         if channel + (values.len() as u16) < self.channel_count {
             for (i, &value) in values.iter().enumerate() {
                 self.channels[channel as usize + i] = value;
@@ -75,6 +78,32 @@ impl DmxUniverse {
 
     pub fn set_all_channel_values(&mut self, value: u8) {
         self.channels.fill(value)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.channels
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, DmxError> {
+        if bytes.len() < 2 || bytes.len() > MAXIMUM_CHANNEL_COUNT as usize + 1 {
+            return Err(DmxError::InvalidFrameLength(bytes.len() as u16));
+        }
+
+        if bytes[0] != DMX_START_CODE {
+            return Err(DmxError::InvalidStartCode(bytes[0]));
+        }
+
+        Ok(Self {
+            channel_count: (bytes.len() - 1) as u16,
+            channels: bytes[1..].to_vec(),
+        })
+    }
+
+    pub fn encode(&self) -> Vec<u8> {
+        let mut frame: Vec<u8> = Vec::with_capacity(self.channel_count as usize + 1);
+        frame.push(DMX_START_CODE);
+        frame.extend(self.channels.iter());
+        frame
     }
 }
 
@@ -110,6 +139,30 @@ mod tests {
         let universe = DmxUniverse::new(4).unwrap();
         assert_eq!(universe.channel_count, 4);
         assert_eq!(universe.channels, vec![0; 4]);
+    }
+
+    #[test]
+    fn should_decode_dmx_frame() {
+        let decoded = DmxUniverse::decode(&[0x00, 0x40, 0x80, 0xc0, 0xff]);
+
+        let expected: Result<DmxUniverse, DmxError> = Ok(DmxUniverse {
+            channel_count: 4,
+            channels: vec![0x40, 0x80, 0xc0, 0xff],
+        });
+
+        assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn should_encode_dmx_universe() {
+        let encoded = DmxUniverse {
+            channel_count: 4,
+            channels: vec![0x40, 0x80, 0xc0, 0xff],
+        }.encode();
+
+        let expected = vec![0x00, 0x40, 0x80, 0xc0, 0xff];
+
+        assert_eq!(encoded, expected);
     }
 
     #[test]
