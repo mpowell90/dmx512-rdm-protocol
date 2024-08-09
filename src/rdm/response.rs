@@ -1,12 +1,14 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, SelfTest, SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType
+        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription,
+        ParameterId, PowerState, PresetPlaybackMode, ProductCategory, SelfTest, SensorDefinition,
+        SensorValue, SlotInfo, StatusMessage, StatusType,
     },
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
-use std::ffi::CStr;
+use std::{ffi::CStr, fmt::Display};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResponseNackReasonCode {
@@ -41,6 +43,26 @@ impl TryFrom<u16> for ResponseNackReasonCode {
             0x000a => Ok(Self::ProxyBufferFull),
             value => Err(RdmError::InvalidNackReasonCode(value)),
         }
+    }
+}
+
+impl Display for ResponseNackReasonCode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let message = match self {
+            Self::UnknownPid => "The responder cannot comply with request because the message is not implemented in responder.",
+            Self::FormatError => "The responder cannot interpret request as controller data was not formatted correctly.",
+            Self::HardwareFault => "The responder cannot comply due to an internal hardware fault.",
+            Self::ProxyReject => "Proxy is not the RDM line master and cannot comply with message.",
+            Self::WriteProtect => "Command normally allowed but being blocked currently.",
+            Self::UnsupportedCommandClass => "Not valid for Command Class attempted. May be used where GET allowed but SET is not supported.",
+            Self::DataOutOfRange => "Value for given Parameter out of allowable range or not supported.",
+            Self::BufferFull => "Buffer or Queue space currently has no free space to store data.",
+            Self::PacketSizeUnsupported => "Incoming message exceeds buffer capacity.",
+            Self::SubDeviceIdOutOfRange => "Sub-Device is out of range or unknown.",
+            Self::ProxyBufferFull => "The proxy buffer is full and can not store any more Queued Message or Status Message responses.",
+        };
+
+        f.write_str(message)
     }
 }
 
