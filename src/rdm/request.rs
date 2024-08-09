@@ -591,6 +591,12 @@ impl RdmRequest {
     }
 }
 
+impl From<RdmRequest> for Vec<u8> {
+    fn from(request: RdmRequest) -> Self {
+        request.encode()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
