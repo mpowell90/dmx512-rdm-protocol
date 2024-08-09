@@ -1,9 +1,7 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription,
-        ParameterId, PowerState, PresetPlaybackMode, ProductCategory, SensorDefinition,
-        SensorValue, SlotInfo, StatusMessage, StatusType,
+        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, SelfTest, SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType
     },
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
@@ -168,7 +166,7 @@ pub enum ResponseParameterData {
     GetPowerState(PowerState),
     GetPerformSelfTest(bool),
     GetSelfTestDescription {
-        self_test_id: u8,
+        self_test_id: SelfTest,
         description: String,
     },
     GetPresetPlayback {
@@ -513,7 +511,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::SelfTestDescription) => {
                 Ok(Self::GetSelfTestDescription {
-                    self_test_id: bytes[0],
+                    self_test_id: bytes[0].into(),
                     description: CStr::from_bytes_with_nul(&bytes[1..])?
                         .to_string_lossy()
                         .to_string(),

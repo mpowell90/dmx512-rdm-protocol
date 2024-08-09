@@ -605,6 +605,33 @@ impl TryFrom<u8> for ResetDeviceMode {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SelfTest {
+    Off,
+    All,
+    ManufacturerId(u8),
+}
+
+impl From<u8> for SelfTest {
+    fn from(value: u8) -> Self {
+        match value {
+            0x00 => Self::Off,
+            0xff => Self::All,
+            value => Self::ManufacturerId(value),
+        }
+    }
+}
+
+impl From<SelfTest> for u8 {
+    fn from(value: SelfTest) -> u8 {
+        match value {
+            SelfTest::Off => 0x00,
+            SelfTest::All => 0xff,
+            SelfTest::ManufacturerId(value) => value,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PresetPlaybackMode {
     Off,
     All,

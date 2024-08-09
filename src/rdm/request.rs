@@ -2,7 +2,7 @@ use super::{
     bsd_16_crc,
     parameter::{
         DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, PowerState,
-        PresetPlaybackMode, ResetDeviceMode, StatusType,
+        PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType,
     },
     CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
@@ -147,14 +147,14 @@ pub enum RequestParameter<'a> {
     },
     GetPerformSelfTest,
     SetPerformSelfTest {
-        self_test_id: u8,
+        self_test_id: SelfTest,
     },
     SetCapturePreset {
         scene_id: u16,
         fade_times: Option<FadeTimes>,
     },
     GetSelfTestDescription {
-        self_test_id: u8,
+        self_test_id: SelfTest,
     },
     GetPresetPlayback,
     SetPresetPlayback {
@@ -504,7 +504,7 @@ impl<'a> RequestParameter<'a> {
             Self::GetPerformSelfTest => {}
             Self::SetPerformSelfTest { self_test_id } => {
                 buf.reserve(0x01);
-                buf.push(*self_test_id)
+                buf.push((*self_test_id).into())
             }
             Self::SetCapturePreset {
                 scene_id,
@@ -521,7 +521,7 @@ impl<'a> RequestParameter<'a> {
             }
             Self::GetSelfTestDescription { self_test_id } => {
                 buf.reserve(0x01);
-                buf.push(*self_test_id)
+                buf.push((*self_test_id).into())
             }
             Self::GetPresetPlayback => {}
             Self::SetPresetPlayback { mode, level } => {
