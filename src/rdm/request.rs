@@ -8,7 +8,7 @@ use super::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum RequestParameter {
+pub enum RequestParameter<'a> {
     DiscMute,
     DiscUnMute,
     DiscUniqueBranch {
@@ -161,9 +161,14 @@ pub enum RequestParameter {
         mode: PresetPlaybackMode,
         level: u8,
     },
+    ManufacturerSpecific {
+        command_class: CommandClass,
+        parameter_id: u16,
+        parameter_data: &'a [u8],
+    },
 }
 
-impl RequestParameter {
+impl<'a> RequestParameter<'a> {
     pub fn command_class(&self) -> CommandClass {
         match self {
             Self::DiscMute | Self::DiscUnMute | Self::DiscUniqueBranch { .. } => {
@@ -240,6 +245,7 @@ impl RequestParameter {
             | Self::SetPerformSelfTest { .. }
             | Self::SetCapturePreset { .. }
             | Self::SetPresetPlayback { .. } => CommandClass::SetCommand,
+            Self::ManufacturerSpecific { command_class, .. } => *command_class,
         }
     }
 
@@ -304,6 +310,9 @@ impl RequestParameter {
             Self::SetCapturePreset { .. } => ParameterId::CapturePreset,
             Self::GetSelfTestDescription { .. } => ParameterId::SelfTestDescription,
             Self::GetPresetPlayback | Self::SetPresetPlayback { .. } => ParameterId::PresetPlayback,
+            Self::ManufacturerSpecific { parameter_id, .. } => {
+                ParameterId::ManufacturerSpecific(*parameter_id)
+            }
         }
     }
 
@@ -520,6 +529,10 @@ impl RequestParameter {
                 buf.extend(u16::from(*mode).to_be_bytes().iter());
                 buf.push(*level);
             }
+            Self::ManufacturerSpecific { parameter_data, .. } => {
+                buf.reserve(parameter_data.len());
+                buf.extend(*parameter_data);
+            }
         };
 
         buf
@@ -527,24 +540,27 @@ impl RequestParameter {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct RdmRequest {
+pub struct RdmRequest<'a> {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub port_id: u8,
     pub sub_device_id: u16,
-    pub parameter: RequestParameter,
+    pub parameter: RequestParameter<'a>,
 }
 
-impl RdmRequest {
-    pub fn new(
+impl<'a> RdmRequest<'a> {
+    pub fn new<'b>(
         destination_uid: DeviceUID,
         source_uid: DeviceUID,
         transaction_number: u8,
         port_id: u8,
         sub_device_id: u16,
-        parameter: RequestParameter,
-    ) -> Self {
+        parameter: RequestParameter<'b>,
+    ) -> Self
+    where
+        'b: 'a,
+    {
         RdmRequest {
             destination_uid,
             source_uid,
@@ -582,7 +598,11 @@ impl RdmRequest {
         buf.push(0x00); // Message Count shall be set to 0x00 in all controller generated requests
         buf.extend(self.sub_device_id.to_be_bytes().iter());
         buf.push(self.parameter.command_class() as u8);
-        buf.extend((self.parameter.parameter_id() as u16).to_be_bytes().iter());
+        buf.extend(
+            u16::from(self.parameter.parameter_id())
+                .to_be_bytes()
+                .iter(),
+        );
         buf.push(parameter_data.len() as u8);
         buf.extend(parameter_data);
         buf.extend(bsd_16_crc(&buf[..]).to_be_bytes().iter());
@@ -591,7 +611,7 @@ impl RdmRequest {
     }
 }
 
-impl From<RdmRequest> for Vec<u8> {
+impl<'a> From<RdmRequest<'a>> for Vec<u8> {
     fn from(request: RdmRequest) -> Self {
         request.encode()
     }
@@ -644,7 +664,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
-            0x0001,
+            0x0000,
             RequestParameter::GetIdentifyDevice,
         )
         .encode();
@@ -658,11 +678,47 @@ mod tests {
             0x00, // Transaction Number
             0x01, // Port ID
             0x00, // Message Count
-            0x00, 0x01, // Sub-Device ID
-            0x20, // Command Class
-            0x10, 0x00, // Parameter ID
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x20, // Command Class = GetCommand
+            0x10, 0x00, // Parameter ID = Identify Device
             0x00, // PDL
-            0x01, 0x41, // Checksum
+            0x01, 0x40, // Checksum
+        ];
+
+        assert_eq!(encoded, expected);
+    }
+
+    #[test]
+    fn should_encode_manufacturer_specific_rdm_request() {
+        let encoded = RdmRequest::new(
+            DeviceUID::new(0x0102, 0x03040506),
+            DeviceUID::new(0x0605, 0x04030201),
+            0x00,
+            0x01,
+            0x0000,
+            RequestParameter::ManufacturerSpecific {
+                command_class: CommandClass::SetCommand,
+                parameter_id: 0x8080,
+                parameter_data: &[0x01, 0x02, 0x03, 0x04],
+            },
+        )
+        .encode();
+
+        let expected = &[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            0x1c, // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Port ID
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x30, // Command Class = SetCommand
+            0x80, 0x80, // Parameter ID = Identify Device
+            0x04, // PDL
+            0x01, 0x02, 0x03, 0x04, // Parameter Data
+            0x02, 0x52, // Checksum
         ];
 
         assert_eq!(encoded, expected);

@@ -175,6 +175,7 @@ pub enum ResponseParameterData {
         mode: PresetPlaybackMode,
         level: u8,
     },
+    ManufacturerSpecific(Vec<u8>),
 }
 
 impl ResponseParameterData {
@@ -522,9 +523,12 @@ impl ResponseParameterData {
                     level: bytes[2],
                 })
             }
+            (_, ParameterId::ManufacturerSpecific(_)) => Ok(Self::ManufacturerSpecific(
+                bytes.to_vec(),
+            )),
             (_, _) => Err(ProtocolError::UnsupportedParameter(
                 command_class as u8,
-                parameter_id as u16,
+                parameter_id.into(),
             )),
         }
     }
@@ -598,7 +602,7 @@ impl RdmFrameResponse {
                     Some(ResponseParameterData::decode(
                         command_class,
                         parameter_id,
-                        &bytes[24..=message_length as usize + 1],
+                        &bytes[24..=(24 + parameter_data_length as usize - 1)],
                     )?)
                 } else {
                     None
@@ -726,7 +730,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn should_parse_valid_rdm_ack_response() {
+    fn should_decode_valid_rdm_ack_response() {
         let bytes = &[
             SC_RDM,
             SC_SUB_MESSAGE,
@@ -774,6 +778,57 @@ mod tests {
             }))
         );
     }
+
+    #[test]
+    fn should_decode_valid_rdm_ack_manufacturer_specific_response() {
+        let bytes = &[
+            SC_RDM,
+            SC_SUB_MESSAGE,
+            28,   // message length
+            0x01, // destination uid
+            0x02,
+            0x03,
+            0x04,
+            0x05,
+            0x06,
+            0x06, // source uid
+            0x05,
+            0x04,
+            0x03,
+            0x02,
+            0x01,
+            0x00, // transaction number
+            0x00, // response type = Ack
+            0x00, // message count
+            0x00, // sub device id = root device
+            0x00,
+            0x31, // command class = Set command response
+            0x80, // parameter id = identify device
+            0x80,
+            0x04, // parameter data length
+            0x04, 0x03, 0x02, 0x01, // Arbitrary manufacturer specific data
+            0x02, // checksum
+            0x52,
+        ];
+
+        assert_eq!(
+            RdmResponse::decode(bytes),
+            Ok(RdmResponse::RdmFrame(RdmFrameResponse {
+                destination_uid: DeviceUID::new(0x0102, 0x03040506),
+                source_uid: DeviceUID::new(0x0605, 0x04030201),
+                transaction_number: 0x00,
+                response_type: ResponseType::Ack,
+                message_count: 0x00,
+                sub_device_id: 0x0000,
+                command_class: CommandClass::SetCommandResponse,
+                parameter_id: ParameterId::ManufacturerSpecific(0x8080),
+                parameter_data: ResponseData::ParameterData(Some(
+                    ResponseParameterData::ManufacturerSpecific(vec![0x04, 0x03, 0x02, 0x01])
+                )),
+            }))
+        );
+    }
+
 
     #[test]
     fn should_decode_valid_rdm_ack_timer_response() {
