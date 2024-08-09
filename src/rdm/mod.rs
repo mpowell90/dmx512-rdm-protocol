@@ -31,8 +31,6 @@ pub enum RdmError {
     InvalidCommandClass(u8),
     #[error("Invalid CommandClass Implementation: {0}")]
     InvalidCommandClassImplementation(u8),
-    #[error("Invalid ProductDetail: {0}")]
-    InvalidProductDetail(u16),
     #[error("Unsupported Parameter, CommandClass: {0}, ParameterId: {1}")]
     UnsupportedParameter(u8, u16),
     #[error("Invalid parameter data length: {0}, must be >= 0 and <= 231")]
@@ -57,8 +55,6 @@ pub enum RdmError {
     },
     #[error("Could not convert slice to array")]
     TryFromSliceError,
-    #[error("Invalid ProductCategory: {0}")]
-    InvalidProductCategory(u16),
     #[error("Invalid SlotType: {0}")]
     InvalidSlotType(u8),
     #[error("Unsupported SlotIdDefinition: {0}")]
