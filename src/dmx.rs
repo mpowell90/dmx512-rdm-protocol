@@ -130,6 +130,20 @@ impl IndexMut<u16> for DmxUniverse {
     }
 }
 
+impl TryFrom<&[u8]> for DmxUniverse {
+    type Error = DmxError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        DmxUniverse::decode(bytes)
+    }
+}
+
+impl From<DmxUniverse> for Vec<u8> {
+    fn from(universe: DmxUniverse) -> Self {
+        universe.encode()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
