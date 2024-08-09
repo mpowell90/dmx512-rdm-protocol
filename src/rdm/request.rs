@@ -170,7 +170,7 @@ pub enum RequestParameter<'a> {
         command_class: CommandClass,
         parameter_id: u16,
         parameter_data: &'a [u8],
-    }
+    },
 }
 
 impl<'a> RequestParameter<'a> {
@@ -438,12 +438,12 @@ impl<'a> RequestParameter<'a> {
             Self::GetLampState => {}
             Self::SetLampState { lamp_state } => {
                 buf.reserve(0x01);
-                buf.push(*lamp_state as u8)
+                buf.push(u8::from(*lamp_state))
             }
             Self::GetLampOnMode => {}
             Self::SetLampOnMode { lamp_on_mode } => {
                 buf.reserve(0x01);
-                buf.push(*lamp_on_mode as u8)
+                buf.push(u8::from(*lamp_on_mode))
             }
             Self::GetDevicePowerCycles => {}
             Self::SetDevicePowerCycles {
