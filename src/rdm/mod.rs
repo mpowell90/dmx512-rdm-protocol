@@ -11,8 +11,6 @@ pub const SC_SUB_MESSAGE: u8 = 0x01;
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE: u8 = 0xfe;
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE: u8 = 0xaa;
 
-pub const BROADCAST_ALL_DEVICES_ID: u64 = 0xffffffffffff;
-
 #[derive(Clone, Debug, Error, PartialEq)]
 pub enum RdmError {
     #[error("Invalid start code")]
@@ -134,21 +132,6 @@ impl DeviceUID {
             manufacturer_id: 0xffff,
             device_id: 0xffffffff,
         }
-    }
-}
-
-impl From<u64> for DeviceUID {
-    fn from(value: u64) -> Self {
-        DeviceUID {
-            manufacturer_id: ((value >> 32_u64) & 0xffff) as u16,
-            device_id: (value & 0xffffffff) as u32,
-        }
-    }
-}
-
-impl From<DeviceUID> for u64 {
-    fn from(device_uid: DeviceUID) -> u64 {
-        ((device_uid.manufacturer_id as u64) << 32u64) + device_uid.device_id as u64
     }
 }
 
