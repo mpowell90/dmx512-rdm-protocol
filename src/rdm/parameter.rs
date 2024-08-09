@@ -815,12 +815,13 @@ impl From<ProductCategory> for u16 {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LampState {
-    LampOff = 0x00,
-    LampOn = 0x01,
-    LampStrike = 0x02,
-    LampStandby = 0x03,
-    LampNotPresent = 0x04,
-    LampError = 0x05,
+    LampOff,
+    LampOn,
+    LampStrike,
+    LampStandby,
+    LampNotPresent,
+    LampError,
+    ManufacturerSpecific(u8),
 }
 
 impl TryFrom<u8> for LampState {
@@ -834,7 +835,22 @@ impl TryFrom<u8> for LampState {
             0x03 => Ok(Self::LampStandby),
             0x04 => Ok(Self::LampNotPresent),
             0x05 => Ok(Self::LampError),
+            n if (0x80..=0xdf).contains(&n) => Ok(Self::ManufacturerSpecific(n)),
             _ => Err(RdmError::InvalidLampState(value)),
+        }
+    }
+}
+
+impl From<LampState> for u8 {
+    fn from(value: LampState) -> u8 {
+        match value {
+            LampState::LampOff => 0x00,
+            LampState::LampOn => 0x01,
+            LampState::LampStrike => 0x02,
+            LampState::LampStandby => 0x03,
+            LampState::LampNotPresent => 0x04,
+            LampState::LampError => 0x05,
+            LampState::ManufacturerSpecific(n) => n,
         }
     }
 }
