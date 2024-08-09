@@ -1112,33 +1112,50 @@ impl StatusMessage {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum SlotType {
-    Primary = 0x00,
-    SecondaryFine = 0x01,
-    SecondaryTiming = 0x02,
-    SecondarySpeed = 0x03,
-    SecondaryControl = 0x04,
-    SecondaryIndex = 0x05,
-    SecondaryRotation = 0x06,
-    SecondaryIndexRotate = 0x07,
-    SecondaryUndefined = 0xff,
+    Primary,
+    SecondaryFine,
+    SecondaryTiming,
+    SecondarySpeed,
+    SecondaryControl,
+    SecondaryIndex,
+    SecondaryRotation,
+    SecondaryIndexRotate,
+    SecondaryUndefined,
+    Unknown(u8)
 }
 
-impl TryFrom<u8> for SlotType {
-    type Error = RdmError;
-
-    fn try_from(value: u8) -> Result<Self, RdmError> {
+impl From<u8> for SlotType {
+    fn from(value: u8) -> Self {
         match value {
-            0x00 => Ok(Self::Primary),
-            0x01 => Ok(Self::SecondaryFine),
-            0x02 => Ok(Self::SecondaryTiming),
-            0x03 => Ok(Self::SecondarySpeed),
-            0x04 => Ok(Self::SecondaryControl),
-            0x05 => Ok(Self::SecondaryIndex),
-            0x06 => Ok(Self::SecondaryRotation),
-            0x07 => Ok(Self::SecondaryIndexRotate),
-            0xff => Ok(Self::SecondaryUndefined),
-            _ => Err(RdmError::InvalidSlotType(value)),
+            0x00 => Self::Primary,
+            0x01 => Self::SecondaryFine,
+            0x02 => Self::SecondaryTiming,
+            0x03 => Self::SecondarySpeed,
+            0x04 => Self::SecondaryControl,
+            0x05 => Self::SecondaryIndex,
+            0x06 => Self::SecondaryRotation,
+            0x07 => Self::SecondaryIndexRotate,
+            0xff => Self::SecondaryUndefined,
+            value => Self::Unknown(value),
+        }
+    }
+}
+
+impl From<SlotType> for u8 {
+    fn from(value: SlotType) -> Self {
+        match value {
+            SlotType::Primary => 0x00,
+            SlotType::SecondaryFine => 0x01,
+            SlotType::SecondaryTiming => 0x02,
+            SlotType::SecondarySpeed => 0x03,
+            SlotType::SecondaryControl => 0x04,
+            SlotType::SecondaryIndex => 0x05,
+            SlotType::SecondaryRotation => 0x06,
+            SlotType::SecondaryIndexRotate => 0x07,
+            SlotType::SecondaryUndefined => 0xff,
+            SlotType::Unknown(value) => value,
         }
     }
 }

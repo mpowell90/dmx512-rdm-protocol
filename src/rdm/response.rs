@@ -417,7 +417,7 @@ impl ResponseParameterData {
                     .map(|chunk| {
                         Ok(SlotInfo::new(
                             u16::from_be_bytes(chunk[0..=1].try_into()?),
-                            chunk[2].try_into()?,
+                            chunk[2].into(),
                             u16::from_be_bytes(chunk[3..=4].try_into()?),
                         ))
                     })

@@ -55,8 +55,6 @@ pub enum RdmError {
     },
     #[error("Could not convert slice to array")]
     TryFromSliceError,
-    #[error("Invalid SlotType: {0}")]
-    InvalidSlotType(u8),
     #[error("Invalid LampState: {0}")]
     InvalidLampState(u8),
     #[error("Invalid LampOnMode: {0}")]
