@@ -632,6 +632,14 @@ impl RdmFrameResponse {
     }
 }
 
+impl TryFrom<&[u8]> for RdmFrameResponse {
+    type Error = ProtocolError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        RdmFrameResponse::decode(bytes)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct DiscoveryUniqueBranchFrameResponse(DeviceUID);
 
@@ -666,6 +674,14 @@ impl DiscoveryUniqueBranchFrameResponse {
     }
 }
 
+impl TryFrom<&[u8]> for DiscoveryUniqueBranchFrameResponse {
+    type Error = ProtocolError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        DiscoveryUniqueBranchFrameResponse::decode(bytes)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum RdmResponse {
     RdmFrame(RdmFrameResponse),
@@ -694,6 +710,14 @@ impl RdmResponse {
         }
 
         Err(ProtocolError::InvalidStartCode)
+    }
+}
+
+impl TryFrom<&[u8]> for RdmResponse {
+    type Error = ProtocolError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        RdmResponse::decode(bytes)
     }
 }
 
