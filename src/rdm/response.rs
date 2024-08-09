@@ -523,9 +523,9 @@ impl ResponseParameterData {
                     level: bytes[2],
                 })
             }
-            (_, ParameterId::ManufacturerSpecific(_)) => Ok(Self::ManufacturerSpecific(
-                bytes.to_vec(),
-            )),
+            (_, ParameterId::ManufacturerSpecific(_)) => {
+                Ok(Self::ManufacturerSpecific(bytes.to_vec()))
+            }
             (_, _) => Err(ProtocolError::UnsupportedParameter(
                 command_class as u8,
                 parameter_id.into(),
@@ -732,33 +732,20 @@ mod tests {
     #[test]
     fn should_decode_valid_rdm_ack_response() {
         let bytes = &[
-            SC_RDM,
-            SC_SUB_MESSAGE,
-            25,   // message length
-            0x01, // destination uid
-            0x02,
-            0x03,
-            0x04,
-            0x05,
-            0x06,
-            0x06, // source uid
-            0x05,
-            0x04,
-            0x03,
-            0x02,
-            0x01,
-            0x00, // transaction number
-            0x00, // response type = Ack
-            0x00, // message count
-            0x00, // sub device id = root device
-            0x00,
-            0x21, // command class = get command response
-            0x10, // parameter id = identify device
-            0x00,
-            0x01, // parameter data length
-            0x01, // identifying = true
-            0x01, // checksum
-            0x43,
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            25,   // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x00, // Response Type = Ack
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x21, // Command Class = GetCommandResponse
+            0x10, 0x00, // Parameter ID = Identify Device
+            0x01, // PDL
+            0x01, // Identifying = true
+            0x01, 0x43, // Checksum
         ];
 
         assert_eq!(
@@ -782,33 +769,20 @@ mod tests {
     #[test]
     fn should_decode_valid_rdm_ack_manufacturer_specific_response() {
         let bytes = &[
-            SC_RDM,
-            SC_SUB_MESSAGE,
-            28,   // message length
-            0x01, // destination uid
-            0x02,
-            0x03,
-            0x04,
-            0x05,
-            0x06,
-            0x06, // source uid
-            0x05,
-            0x04,
-            0x03,
-            0x02,
-            0x01,
-            0x00, // transaction number
-            0x00, // response type = Ack
-            0x00, // message count
-            0x00, // sub device id = root device
-            0x00,
-            0x31, // command class = Set command response
-            0x80, // parameter id = identify device
-            0x80,
-            0x04, // parameter data length
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            28,   // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x00, // Response Type = Ack
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x31, // Command Class = SetCommandResponse
+            0x80, 0x80, // Parameter ID = Identify Device
+            0x04, // PDL
             0x04, 0x03, 0x02, 0x01, // Arbitrary manufacturer specific data
-            0x02, // checksum
-            0x52,
+            0x02, 0x52, // Checksum
         ];
 
         assert_eq!(
@@ -829,38 +803,23 @@ mod tests {
         );
     }
 
-
     #[test]
     fn should_decode_valid_rdm_ack_timer_response() {
         let bytes = &[
-            SC_RDM,
-            SC_SUB_MESSAGE,
-            26,   // message length
-            0x01, // destination uid
-            0x02,
-            0x03,
-            0x04,
-            0x05,
-            0x06,
-            0x06, // source uid
-            0x05,
-            0x04,
-            0x03,
-            0x02,
-            0x01,
-            0x00, // transaction number
-            0x01, // response type = AckTimer
-            0x00, // message count
-            0x00, // sub device id = root device
-            0x00,
-            0x21, // command class = get command response
-            0x10, // parameter id = identify device
-            0x00,
-            0x02, // parameter data length
-            0x00, // Estimated Response Time = 10x 100ms = 1 second
-            0x0a,
-            0x01, // checksum
-            0x4f,
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            26,   // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Response Type = AckTimer
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x21, // Command Class = GetCommandResponse
+            0x10, 0x00, // Parameter ID = Identify Device
+            0x02, // PDL
+            0x00, 0x0a, // Estimated Response Time = 10x 100ms = 1 second
+            0x01, 0x4f, // Checksum
         ];
 
         assert_eq!(
@@ -882,34 +841,20 @@ mod tests {
     #[test]
     fn should_decode_valid_rdm_nack_reason_response() {
         let bytes = &[
-            SC_RDM,
-            SC_SUB_MESSAGE,
-            26,   // message length
-            0x01, // destination uid
-            0x02,
-            0x03,
-            0x04,
-            0x05,
-            0x06,
-            0x06, // source uid
-            0x05,
-            0x04,
-            0x03,
-            0x02,
-            0x01,
-            0x00, // transaction number
-            0x02, // response type = Nack_Reason
-            0x00, // message count
-            0x00, // sub device id = root device
-            0x00,
-            0x21, // command class = get command response
-            0x10, // parameter id = identify device
-            0x00,
-            0x02, // parameter data length
-            0x00, // Nack Reason = FormatError
-            0x01,
-            0x01, // checksum
-            0x47,
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            26,   // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x02, // Response Type = Nack_Reason
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x21, // Command Class = GetCommandResponse
+            0x10, 0x00, // Parameter ID = Identify Device
+            0x02, // PDL
+            0x00, 0x01, // Nack Reason = FormatError
+            0x01, 0x47, // Checksum
         ];
 
         assert_eq!(
@@ -931,33 +876,20 @@ mod tests {
     #[test]
     fn should_decode_valid_rdm_ack_overflow_response() {
         let bytes = &[
-            SC_RDM,
-            SC_SUB_MESSAGE,
-            25,   // message length
-            0x01, // destination uid
-            0x02,
-            0x03,
-            0x04,
-            0x05,
-            0x06,
-            0x06, // source uid
-            0x05,
-            0x04,
-            0x03,
-            0x02,
-            0x01,
-            0x00, // transaction number
-            0x03, // response type = Ack_Overflow
-            0x00, // message count
-            0x00, // sub device id = root device
-            0x00,
-            0x21, // command class = get command response
-            0x10, // parameter id = identify device
-            0x00,
-            0x01, // parameter data length
-            0x01, // identifying = true
-            0x01, // checksum
-            0x46,
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            25,   // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x03, // Response Type = Ack_Overflow
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x21, // Command Class = GetCommandResponse
+            0x10, 0x00, // Parameter ID = Identify Device
+            0x01, // PDL
+            0x01, // Identifying = true
+            0x01, 0x46, // Checksum
         ];
 
         assert_eq!(

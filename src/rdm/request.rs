@@ -658,7 +658,7 @@ mod tests {
     }
 
     #[test]
-    fn should_encode_rdm_request() {
+    fn should_encode_valid_rdm_request() {
         let encoded = RdmRequest::new(
             DeviceUID::new(0x0102, 0x03040506),
             DeviceUID::new(0x0605, 0x04030201),
