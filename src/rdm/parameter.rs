@@ -1,4 +1,4 @@
-use super::ProtocolError;
+use super::RdmError;
 use std::{ffi::CStr, fmt::Display};
 
 #[non_exhaustive]
@@ -60,7 +60,7 @@ pub enum ParameterId {
 }
 
 impl TryFrom<u16> for ParameterId {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
@@ -117,7 +117,7 @@ impl TryFrom<u16> for ParameterId {
             0x1030 => Ok(Self::CapturePreset),
             0x1031 => Ok(Self::PresetPlayback),
             n if (0x8000..=0xffdf).contains(&n) => Ok(Self::ManufacturerSpecific(n)),
-            _ => Err(ProtocolError::UnsupportedParameterId(value)),
+            _ => Err(RdmError::UnsupportedParameterId(value)),
         }
     }
 }
@@ -190,14 +190,14 @@ pub enum ImplementedCommandClass {
 }
 
 impl TryFrom<u8> for ImplementedCommandClass {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x01 => Ok(Self::Get),
             0x02 => Ok(Self::Set),
             0x03 => Ok(Self::GetSet),
-            _ => Err(ProtocolError::InvalidCommandClassImplementation(value)),
+            _ => Err(RdmError::InvalidCommandClassImplementation(value)),
         }
     }
 }
@@ -217,9 +217,9 @@ pub enum ParameterDataType {
 }
 
 impl TryFrom<u8> for ParameterDataType {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
-    fn try_from(value: u8) -> Result<Self, ProtocolError> {
+    fn try_from(value: u8) -> Result<Self, RdmError> {
         match value {
             0x00 => Ok(Self::NotDefined),
             0x01 => Ok(Self::BitField),
@@ -231,7 +231,7 @@ impl TryFrom<u8> for ParameterDataType {
             0x07 => Ok(Self::UnsignedDWord),
             0x08 => Ok(Self::SignedDWord),
             n if (0x80..=0xdf).contains(&n) => Ok(Self::ManufacturerSpecific(n)),
-            _ => Err(ProtocolError::InvalidParameterDataType(value)),
+            _ => Err(RdmError::InvalidParameterDataType(value)),
         }
     }
 }
@@ -266,28 +266,28 @@ impl ParameterDescription {
     fn convert_parameter_value(
         parameter_data_type: ParameterDataType,
         value: [u8; 4],
-    ) -> Result<ConvertedParameterValue, ProtocolError> {
+    ) -> Result<ConvertedParameterValue, RdmError> {
         match parameter_data_type {
-            ParameterDataType::BitField => Ok(ConvertedParameterValue::BitField(
-                value[3],
-            )),
+            ParameterDataType::BitField => Ok(ConvertedParameterValue::BitField(value[3])),
             ParameterDataType::Ascii => Ok(ConvertedParameterValue::Ascii(
                 CStr::from_bytes_with_nul(&value)?
                     .to_string_lossy()
                     .to_string(),
             )),
-            ParameterDataType::UnsignedByte => Ok(ConvertedParameterValue::UnsignedByte(
-                value[3],
-            )),
-            ParameterDataType::SignedByte => Ok(ConvertedParameterValue::SignedByte(
-                value[3] as i8,
-            )),
-            ParameterDataType::UnsignedWord => Ok(ConvertedParameterValue::UnsignedWord(
-                u16::from_be_bytes([value[2], value[3]]),
-            )),
-            ParameterDataType::SignedWord => Ok(ConvertedParameterValue::SignedWord(
-                i16::from_be_bytes([value[2], value[3]]),
-            )),
+            ParameterDataType::UnsignedByte => Ok(ConvertedParameterValue::UnsignedByte(value[3])),
+            ParameterDataType::SignedByte => {
+                Ok(ConvertedParameterValue::SignedByte(value[3] as i8))
+            }
+            ParameterDataType::UnsignedWord => {
+                Ok(ConvertedParameterValue::UnsignedWord(u16::from_be_bytes([
+                    value[2], value[3],
+                ])))
+            }
+            ParameterDataType::SignedWord => {
+                Ok(ConvertedParameterValue::SignedWord(i16::from_be_bytes([
+                    value[2], value[3],
+                ])))
+            }
             ParameterDataType::UnsignedDWord => Ok(ConvertedParameterValue::UnsignedDWord(
                 u32::from_be_bytes(value),
             )),
@@ -300,13 +300,13 @@ impl ParameterDescription {
         }
     }
 
-    pub fn minimum_valid_value(&self) -> Result<ConvertedParameterValue, ProtocolError> {
+    pub fn minimum_valid_value(&self) -> Result<ConvertedParameterValue, RdmError> {
         Self::convert_parameter_value(self.data_type, self.raw_minimum_valid_value)
     }
-    pub fn maximum_valid_value(&self) -> Result<ConvertedParameterValue, ProtocolError> {
+    pub fn maximum_valid_value(&self) -> Result<ConvertedParameterValue, RdmError> {
         Self::convert_parameter_value(self.data_type, self.raw_maximum_valid_value)
     }
-    pub fn default_value(&self) -> Result<ConvertedParameterValue, ProtocolError> {
+    pub fn default_value(&self) -> Result<ConvertedParameterValue, RdmError> {
         Self::convert_parameter_value(self.data_type, self.raw_default_value)
     }
 }
@@ -324,9 +324,9 @@ pub enum StatusType {
 }
 
 impl TryFrom<u8> for StatusType {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
-    fn try_from(value: u8) -> Result<Self, ProtocolError> {
+    fn try_from(value: u8) -> Result<Self, RdmError> {
         match value {
             0x00 => Ok(Self::None),
             0x01 => Ok(Self::GetLastMessage),
@@ -336,7 +336,7 @@ impl TryFrom<u8> for StatusType {
             0x12 => Ok(Self::AdvisoryCleared),
             0x13 => Ok(Self::WarningCleared),
             0x14 => Ok(Self::ErrorCleared),
-            _ => Err(ProtocolError::InvalidStatusType(value)),
+            _ => Err(RdmError::InvalidStatusType(value)),
         }
     }
 }
@@ -408,7 +408,7 @@ pub enum ProductCategory {
 }
 
 impl TryFrom<u16> for ProductCategory {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
@@ -473,7 +473,7 @@ impl TryFrom<u16> for ProductCategory {
             0x7101 => Ok(Self::TestEquipment),
             0x71ff => Ok(Self::TestEquipmentOther),
             0x7fff => Ok(Self::Other),
-            _ => Err(ProtocolError::InvalidProductCategory(value)),
+            _ => Err(RdmError::InvalidProductCategory(value)),
         }
     }
 }
@@ -489,7 +489,7 @@ pub enum LampState {
 }
 
 impl TryFrom<u8> for LampState {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -499,7 +499,7 @@ impl TryFrom<u8> for LampState {
             0x03 => Ok(Self::LampStandby),
             0x04 => Ok(Self::LampNotPresent),
             0x05 => Ok(Self::LampError),
-            _ => Err(ProtocolError::InvalidLampState(value)),
+            _ => Err(RdmError::InvalidLampState(value)),
         }
     }
 }
@@ -513,7 +513,7 @@ pub enum LampOnMode {
 }
 
 impl TryFrom<u8> for LampOnMode {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -521,7 +521,7 @@ impl TryFrom<u8> for LampOnMode {
             0x01 => Ok(Self::DmxMode),
             0x02 => Ok(Self::OnMode),
             0x03 => Ok(Self::AfterCal),
-            _ => Err(ProtocolError::InvalidLampOnMode(value)),
+            _ => Err(RdmError::InvalidLampOnMode(value)),
         }
     }
 }
@@ -535,7 +535,7 @@ pub enum PowerState {
 }
 
 impl TryFrom<u8> for PowerState {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -543,7 +543,7 @@ impl TryFrom<u8> for PowerState {
             0x01 => Ok(Self::Shutdown),
             0x02 => Ok(Self::Standby),
             0x03 => Ok(Self::Normal),
-            _ => Err(ProtocolError::InvalidPowerState(value)),
+            _ => Err(RdmError::InvalidPowerState(value)),
         }
     }
 }
@@ -555,13 +555,13 @@ pub enum OnOffStates {
 }
 
 impl TryFrom<u8> for OnOffStates {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x00 => Ok(Self::Off),
             0x01 => Ok(Self::On),
-            _ => Err(ProtocolError::InvalidOnOffStates(value)),
+            _ => Err(RdmError::InvalidOnOffStates(value)),
         }
     }
 }
@@ -574,14 +574,14 @@ pub enum DisplayInvertMode {
 }
 
 impl TryFrom<u8> for DisplayInvertMode {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x00 => Ok(Self::Off),
             0x01 => Ok(Self::On),
             0x02 => Ok(Self::Auto),
-            _ => Err(ProtocolError::InvalidDisplayInvertMode(value)),
+            _ => Err(RdmError::InvalidDisplayInvertMode(value)),
         }
     }
 }
@@ -593,13 +593,13 @@ pub enum ResetDeviceMode {
 }
 
 impl TryFrom<u8> for ResetDeviceMode {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
             0x01 => Ok(Self::Warm),
             0xff => Ok(Self::Cold),
-            _ => Err(ProtocolError::InvalidResetDeviceMode(value)),
+            _ => Err(RdmError::InvalidResetDeviceMode(value)),
         }
     }
 }
@@ -775,9 +775,9 @@ pub enum SlotType {
 }
 
 impl TryFrom<u8> for SlotType {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
-    fn try_from(value: u8) -> Result<Self, ProtocolError> {
+    fn try_from(value: u8) -> Result<Self, RdmError> {
         match value {
             0x00 => Ok(Self::Primary),
             0x01 => Ok(Self::SecondaryFine),
@@ -788,7 +788,7 @@ impl TryFrom<u8> for SlotType {
             0x06 => Ok(Self::SecondaryRotation),
             0x07 => Ok(Self::SecondaryIndexRotate),
             0xff => Ok(Self::SecondaryUndefined),
-            _ => Err(ProtocolError::InvalidSlotType(value)),
+            _ => Err(RdmError::InvalidSlotType(value)),
         }
     }
 }
@@ -848,7 +848,7 @@ pub enum SlotIdDefinition {
 }
 
 impl TryFrom<u16> for SlotIdDefinition {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u16) -> Result<Self, Self::Error> {
         match value {
@@ -884,7 +884,7 @@ impl TryFrom<u16> for SlotIdDefinition {
             0x0503 => Ok(Self::FixtureSpeed),
             0x0504 => Ok(Self::Macro),
             0xffff => Ok(Self::Undefined),
-            _ => Err(ProtocolError::UnsupportedSlotIdDefinition(value)),
+            _ => Err(RdmError::UnsupportedSlotIdDefinition(value)),
         }
     }
 }
@@ -981,8 +981,8 @@ pub enum SensorType {
 }
 
 impl TryFrom<u8> for SensorType {
-    type Error = ProtocolError;
-    fn try_from(value: u8) -> Result<Self, ProtocolError> {
+    type Error = RdmError;
+    fn try_from(value: u8) -> Result<Self, RdmError> {
         match value {
             0x00 => Ok(Self::Temperature),
             0x01 => Ok(Self::Voltage),
@@ -1018,7 +1018,7 @@ impl TryFrom<u8> for SensorType {
             0x1f => Ok(Self::Humidity),
             0x20 => Ok(Self::Counter16Bit),
             0x7f => Ok(Self::Other),
-            _ => Err(ProtocolError::InvalidSensorType(value)),
+            _ => Err(RdmError::InvalidSensorType(value)),
         }
     }
 }
@@ -1057,7 +1057,7 @@ pub enum SensorUnit {
 }
 
 impl TryFrom<u8> for SensorUnit {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -1090,7 +1090,7 @@ impl TryFrom<u8> for SensorUnit {
             0x1a => Ok(Self::Lux),
             0x1b => Ok(Self::Ire),
             0x1c => Ok(Self::Byte),
-            _ => Err(ProtocolError::InvalidSensorUnit(value)),
+            _ => Err(RdmError::InvalidSensorUnit(value)),
         }
     }
 }
@@ -1121,7 +1121,7 @@ pub enum SensorUnitPrefix {
 }
 
 impl TryFrom<u8> for SensorUnitPrefix {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -1146,7 +1146,7 @@ impl TryFrom<u8> for SensorUnitPrefix {
             0x18 => Ok(Self::Exa),
             0x19 => Ok(Self::Zetta),
             0x1a => Ok(Self::Yotta),
-            _ => Err(ProtocolError::InvalidSensorUnitPrefix(value)),
+            _ => Err(RdmError::InvalidSensorUnitPrefix(value)),
         }
     }
 }

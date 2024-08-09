@@ -5,7 +5,7 @@ use super::{
         ParameterId, PowerState, PresetPlaybackMode, ProductCategory, SensorDefinition,
         SensorValue, SlotInfo, StatusMessage, StatusType,
     },
-    CommandClass, DeviceUID, ProtocolError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+    CommandClass, DeviceUID, RdmError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
 };
 use std::ffi::CStr;
@@ -26,9 +26,9 @@ pub enum ResponseNackReasonCode {
 }
 
 impl TryFrom<u16> for ResponseNackReasonCode {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
-    fn try_from(value: u16) -> Result<Self, ProtocolError> {
+    fn try_from(value: u16) -> Result<Self, RdmError> {
         match value {
             0x0000 => Ok(Self::UnknownPid),
             0x0001 => Ok(Self::FormatError),
@@ -41,7 +41,7 @@ impl TryFrom<u16> for ResponseNackReasonCode {
             0x0008 => Ok(Self::PacketSizeUnsupported),
             0x0009 => Ok(Self::SubDeviceOutOfRange),
             0x000a => Ok(Self::ProxyBufferFull),
-            value => Err(ProtocolError::InvalidNackReasonCode(value)),
+            value => Err(RdmError::InvalidNackReasonCode(value)),
         }
     }
 }
@@ -55,7 +55,7 @@ pub enum ResponseType {
 }
 
 impl TryFrom<u8> for ResponseType {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -63,7 +63,7 @@ impl TryFrom<u8> for ResponseType {
             0x01 => Ok(Self::AckTimer),
             0x02 => Ok(Self::NackReason),
             0x03 => Ok(Self::AckOverflow),
-            _ => Err(ProtocolError::InvalidResponseType(value)),
+            _ => Err(RdmError::InvalidResponseType(value)),
         }
     }
 }
@@ -183,7 +183,7 @@ impl ResponseParameterData {
         command_class: CommandClass,
         parameter_id: ParameterId,
         bytes: &[u8],
-    ) -> Result<Self, ProtocolError> {
+    ) -> Result<Self, RdmError> {
         match (command_class, parameter_id) {
             (CommandClass::DiscoveryCommandResponse, ParameterId::DiscMute) => {
                 let binding_uid = if bytes.len() > 2 {
@@ -229,7 +229,7 @@ impl ResponseParameterData {
                                 u32::from_be_bytes(chunk[2..=5].try_into()?),
                             ))
                         })
-                        .collect::<Result<Vec<DeviceUID>, ProtocolError>>()?,
+                        .collect::<Result<Vec<DeviceUID>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::CommsStatus) => {
@@ -252,7 +252,7 @@ impl ResponseParameterData {
                                 u16::from_be_bytes(chunk[7..=8].try_into()?),
                             ))
                         })
-                        .collect::<Result<Vec<StatusMessage>, ProtocolError>>()?,
+                        .collect::<Result<Vec<StatusMessage>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => {
@@ -269,7 +269,7 @@ impl ResponseParameterData {
                 let parameters = bytes
                     .chunks(2)
                     .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?)))
-                    .filter_map(|parameter_id: Result<u16, ProtocolError>| parameter_id.ok());
+                    .filter_map(|parameter_id: Result<u16, RdmError>| parameter_id.ok());
 
                 Ok(Self::GetSupportedParameters {
                     standard_parameters: parameters
@@ -316,7 +316,7 @@ impl ResponseParameterData {
                     bytes
                         .chunks(2)
                         .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?)))
-                        .collect::<Result<Vec<u16>, ProtocolError>>()?,
+                        .collect::<Result<Vec<u16>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => {
@@ -348,7 +348,7 @@ impl ResponseParameterData {
                     bytes
                         .chunks(2)
                         .map(|chunk| Ok(std::str::from_utf8(chunk)?.to_string()))
-                        .collect::<Result<Vec<String>, ProtocolError>>()?,
+                        .collect::<Result<Vec<String>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(
@@ -399,7 +399,7 @@ impl ResponseParameterData {
                             u16::from_be_bytes(chunk[3..=4].try_into()?),
                         ))
                     })
-                    .collect::<Result<Vec<SlotInfo>, ProtocolError>>()?,
+                    .collect::<Result<Vec<SlotInfo>, RdmError>>()?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
                 Ok(Self::GetSlotDescription {
@@ -419,7 +419,7 @@ impl ResponseParameterData {
                                 chunk[2],
                             ))
                         })
-                        .collect::<Result<Vec<DefaultSlotValue>, ProtocolError>>()?,
+                        .collect::<Result<Vec<DefaultSlotValue>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorDefinition) => {
@@ -526,7 +526,7 @@ impl ResponseParameterData {
             (_, ParameterId::ManufacturerSpecific(_)) => {
                 Ok(Self::ManufacturerSpecific(bytes.to_vec()))
             }
-            (_, _) => Err(ProtocolError::UnsupportedParameter(
+            (_, _) => Err(RdmError::UnsupportedParameter(
                 command_class as u8,
                 parameter_id.into(),
             )),
@@ -548,11 +548,11 @@ pub struct RdmFrameResponse {
 }
 
 impl RdmFrameResponse {
-    pub fn decode(bytes: &[u8]) -> Result<Self, ProtocolError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         let message_length = bytes[2];
 
         if message_length < 24 {
-            return Err(ProtocolError::InvalidMessageLength(message_length));
+            return Err(RdmError::InvalidMessageLength(message_length));
         }
 
         let packet_checksum = u16::from_be_bytes(
@@ -562,10 +562,7 @@ impl RdmFrameResponse {
         let decoded_checksum = bsd_16_crc(&bytes[..message_length as usize]);
 
         if decoded_checksum != packet_checksum {
-            return Err(ProtocolError::InvalidChecksum(
-                decoded_checksum,
-                packet_checksum,
-            ));
+            return Err(RdmError::InvalidChecksum(decoded_checksum, packet_checksum));
         }
 
         let destination_manufacturer_id = u16::from_be_bytes(bytes[3..=4].try_into()?);
@@ -591,9 +588,7 @@ impl RdmFrameResponse {
         let parameter_data_length = bytes[23];
 
         if parameter_data_length > 231 {
-            return Err(ProtocolError::InvalidParameterDataLength(
-                parameter_data_length,
-            ));
+            return Err(RdmError::InvalidParameterDataLength(parameter_data_length));
         }
 
         let parameter_data = match response_type {
@@ -637,7 +632,7 @@ impl RdmFrameResponse {
 }
 
 impl TryFrom<&[u8]> for RdmFrameResponse {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         RdmFrameResponse::decode(bytes)
@@ -648,9 +643,9 @@ impl TryFrom<&[u8]> for RdmFrameResponse {
 pub struct DiscoveryUniqueBranchFrameResponse(DeviceUID);
 
 impl DiscoveryUniqueBranchFrameResponse {
-    pub fn decode(bytes: &[u8]) -> Result<Self, ProtocolError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         let Some(frame_start_index) = bytes.iter().position(|&x| x == 0xaa) else {
-            return Err(ProtocolError::InvalidDiscoveryUniqueBranchPreamble);
+            return Err(RdmError::InvalidDiscoveryUniqueBranchPreamble);
         };
 
         let euid = &bytes[(frame_start_index + 1)..=(frame_start_index + 12)];
@@ -662,7 +657,7 @@ impl DiscoveryUniqueBranchFrameResponse {
         let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
 
         if checksum != decoded_checksum {
-            return Err(ProtocolError::InvalidChecksum(decoded_checksum, checksum));
+            return Err(RdmError::InvalidChecksum(decoded_checksum, checksum));
         }
 
         let manufacturer_id = u16::from_be_bytes([euid[0] & euid[1], euid[2] & euid[3]]);
@@ -679,7 +674,7 @@ impl DiscoveryUniqueBranchFrameResponse {
 }
 
 impl TryFrom<&[u8]> for DiscoveryUniqueBranchFrameResponse {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         DiscoveryUniqueBranchFrameResponse::decode(bytes)
@@ -693,10 +688,10 @@ pub enum RdmResponse {
 }
 
 impl RdmResponse {
-    pub fn decode(bytes: &[u8]) -> Result<Self, ProtocolError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes[0] == SC_RDM && bytes[1] == SC_SUB_MESSAGE {
             if bytes.len() < 25 {
-                return Err(ProtocolError::InvalidFrameLength(bytes.len() as u8));
+                return Err(RdmError::InvalidFrameLength(bytes.len() as u8));
             }
 
             return RdmFrameResponse::decode(bytes).map(RdmResponse::RdmFrame);
@@ -706,19 +701,19 @@ impl RdmResponse {
             || bytes[0] == DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE
         {
             if bytes.len() < 17 {
-                return Err(ProtocolError::InvalidFrameLength(bytes.len() as u8));
+                return Err(RdmError::InvalidFrameLength(bytes.len() as u8));
             }
 
             return DiscoveryUniqueBranchFrameResponse::decode(bytes)
                 .map(RdmResponse::DiscoveryUniqueBranchFrame);
         }
 
-        Err(ProtocolError::InvalidStartCode)
+        Err(RdmError::InvalidStartCode)
     }
 }
 
 impl TryFrom<&[u8]> for RdmResponse {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         RdmResponse::decode(bytes)

@@ -16,7 +16,7 @@ pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
 pub const ROOT_DEVICE: u16 = 0x0000;
 
 #[derive(Clone, Debug, Error, PartialEq)]
-pub enum ProtocolError {
+pub enum RdmError {
     #[error("Invalid start code")]
     InvalidStartCode,
     #[error("Invalid frame length: {0}")]
@@ -85,9 +85,9 @@ pub enum ProtocolError {
     MalformedPacket,
 }
 
-impl From<TryFromSliceError> for ProtocolError {
+impl From<TryFromSliceError> for RdmError {
     fn from(_: TryFromSliceError) -> Self {
-        ProtocolError::TryFromSliceError
+        RdmError::TryFromSliceError
     }
 }
 
@@ -102,7 +102,7 @@ pub enum CommandClass {
 }
 
 impl TryFrom<u8> for CommandClass {
-    type Error = ProtocolError;
+    type Error = RdmError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -112,7 +112,7 @@ impl TryFrom<u8> for CommandClass {
             0x21 => Ok(Self::GetCommandResponse),
             0x30 => Ok(Self::SetCommand),
             0x31 => Ok(Self::SetCommandResponse),
-            _ => Err(ProtocolError::InvalidCommandClass(value)),
+            _ => Err(RdmError::InvalidCommandClass(value)),
         }
     }
 }
