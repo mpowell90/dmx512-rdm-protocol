@@ -112,6 +112,9 @@ pub struct DeviceUID {
 }
 
 impl DeviceUID {
+    pub const ALL_MANUFACTURERS_ID: u16 = 0xffff;
+    pub const ALL_DEVICES_ID: u32 = 0xffffffff;
+
     pub fn new(manufacturer_id: u16, device_id: u32) -> Self {
         DeviceUID {
             manufacturer_id,
@@ -119,10 +122,17 @@ impl DeviceUID {
         }
     }
 
-    pub fn broadcast_all_devices() -> Self {
+    pub fn broadcast_to_all_devices() -> Self {
         DeviceUID {
-            manufacturer_id: 0xffff,
-            device_id: 0xffffffff,
+            manufacturer_id: Self::ALL_MANUFACTURERS_ID,
+            device_id: Self::ALL_DEVICES_ID,
+        }
+    }
+
+    pub fn broadcast_to_devices_with_manufacturer_id(manufacturer_id: u16) -> Self {
+        DeviceUID {
+            manufacturer_id,
+            device_id: Self::ALL_DEVICES_ID,
         }
     }
 }
