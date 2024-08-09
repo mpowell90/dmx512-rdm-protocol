@@ -57,7 +57,7 @@ pub enum ParameterId {
     CapturePreset,
     PresetPlayback,
     ManufacturerSpecific(u16),
-    Unsupported(u16),
+    Unknown(u16),
 }
 
 impl From<u16> for ParameterId {
@@ -116,7 +116,7 @@ impl From<u16> for ParameterId {
             0x1030 => Self::CapturePreset,
             0x1031 => Self::PresetPlayback,
             n if (0x8000..=0xffdf).contains(&n) => Self::ManufacturerSpecific(n),
-            n => Self::Unsupported(n),
+            n => Self::Unknown(n),
         }
     }
 }
@@ -177,7 +177,7 @@ impl From<ParameterId> for u16 {
             ParameterId::CapturePreset => 0x1030,
             ParameterId::PresetPlayback => 0x1031,
             ParameterId::ManufacturerSpecific(pid) => pid,
-            ParameterId::Unsupported(pid) => pid,
+            ParameterId::Unknown(pid) => pid,
         }
     }
 }
@@ -265,7 +265,7 @@ pub enum ProductDetail {
     ControllableBreaker,
     Other,
     ManufacturerSpecific(u16),
-    Unsupported(u16),
+    Unknown(u16),
 }
 
 impl From<u16> for ProductDetail {
@@ -352,7 +352,7 @@ impl From<u16> for ProductDetail {
             0x0a02 => Self::ControllableBreaker,
             0x7fff => Self::Other,
             value if (0x8000..=0xdfff).contains(&value) => Self::ManufacturerSpecific(value),
-            value => Self::Unsupported(value),
+            value => Self::Unknown(value),
         }
     }
 }
@@ -441,7 +441,7 @@ impl From<ProductDetail> for u16 {
             ProductDetail::ControllableBreaker => 0x0a02,
             ProductDetail::Other => 0x7fff,
             ProductDetail::ManufacturerSpecific(value) => value,
-            ProductDetail::Unsupported(value) => value,
+            ProductDetail::Unknown(value) => value,
         }
     }
 }
@@ -670,7 +670,7 @@ pub enum ProductCategory {
     TestEquipmentOther,
     Other,
     ManufacturerSpecific(u16),
-    Unsupported(u16),
+    Unknown(u16),
 }
 
 impl From<u16> for ProductCategory {
@@ -738,7 +738,7 @@ impl From<u16> for ProductCategory {
             0x71ff => Self::TestEquipmentOther,
             0x7fff => Self::Other,
             value if (0x8000..=0xdfff).contains(&value) => Self::ManufacturerSpecific(value),
-            value => Self::Unsupported(value),
+            value => Self::Unknown(value),
         }
     }
 }
@@ -808,7 +808,7 @@ impl From<ProductCategory> for u16 {
             ProductCategory::TestEquipmentOther => 0x71ff,
             ProductCategory::Other => 0x7fff,
             ProductCategory::ManufacturerSpecific(value) => value,
-            ProductCategory::Unsupported(value) => value,
+            ProductCategory::Unknown(value) => value,
         }
     }
 }
