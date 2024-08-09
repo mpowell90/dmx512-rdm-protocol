@@ -531,7 +531,7 @@ impl ResponseParameterData {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct RdmResponse {
+pub struct RdmFrameResponse {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
@@ -543,8 +543,8 @@ pub struct RdmResponse {
     pub parameter_data: ResponseData,
 }
 
-impl RdmResponse {
-    pub fn parse(bytes: &[u8]) -> Result<Self, ProtocolError> {
+impl RdmFrameResponse {
+    pub fn decode(bytes: &[u8]) -> Result<Self, ProtocolError> {
         let message_length = bytes[2];
 
         if message_length < 24 {
@@ -635,10 +635,10 @@ impl RdmResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct DiscoveryUniqueBranchResponse(DeviceUID);
+pub struct DiscoveryUniqueBranchFrameResponse(DeviceUID);
 
-impl DiscoveryUniqueBranchResponse {
-    pub fn parse(bytes: &[u8]) -> Result<Self, ProtocolError> {
+impl DiscoveryUniqueBranchFrameResponse {
+    pub fn decode(bytes: &[u8]) -> Result<Self, ProtocolError> {
         let Some(frame_start_index) = bytes.iter().position(|&x| x == 0xaa) else {
             return Err(ProtocolError::InvalidDiscoveryUniqueBranchPreamble);
         };
@@ -669,19 +669,19 @@ impl DiscoveryUniqueBranchResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum RdmFrame {
-    Rdm(RdmResponse),
-    DiscoveryUniqueBranch(DiscoveryUniqueBranchResponse),
+pub enum RdmResponse {
+    RdmFrame(RdmFrameResponse),
+    DiscoveryUniqueBranchFrame(DiscoveryUniqueBranchFrameResponse),
 }
 
-impl RdmFrame {
-    pub fn parse(bytes: &[u8]) -> Result<Option<Self>, ProtocolError> {
+impl RdmResponse {
+    pub fn decode(bytes: &[u8]) -> Result<Self, ProtocolError> {
         if bytes[0] == SC_RDM && bytes[1] == SC_SUB_MESSAGE {
             if bytes.len() < 25 {
                 return Err(ProtocolError::InvalidFrameLength(bytes.len() as u8));
             }
 
-            return RdmResponse::parse(bytes).map(|frame| Some(RdmFrame::Rdm(frame)));
+            return RdmFrameResponse::decode(bytes).map(RdmResponse::RdmFrame);
         }
 
         if bytes[0] == DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE
@@ -691,8 +691,8 @@ impl RdmFrame {
                 return Err(ProtocolError::InvalidFrameLength(bytes.len() as u8));
             }
 
-            return DiscoveryUniqueBranchResponse::parse(bytes)
-                .map(|frame| Some(RdmFrame::DiscoveryUniqueBranch(frame)));
+            return DiscoveryUniqueBranchFrameResponse::decode(bytes)
+                .map(RdmResponse::DiscoveryUniqueBranchFrame);
         }
 
         Err(ProtocolError::InvalidStartCode)
@@ -736,8 +736,8 @@ mod tests {
         ];
 
         assert_eq!(
-            RdmFrame::parse(bytes),
-            Ok(Some(RdmFrame::Rdm(RdmResponse {
+            RdmResponse::decode(bytes),
+            Ok(RdmResponse::RdmFrame(RdmFrameResponse {
                 destination_uid: DeviceUID::new(0x0102, 0x03040506),
                 source_uid: DeviceUID::new(0x0605, 0x04030201),
                 transaction_number: 0x00,
@@ -749,12 +749,12 @@ mod tests {
                 parameter_data: ResponseData::ParameterData(Some(
                     ResponseParameterData::GetIdentifyDevice(true)
                 )),
-            })))
+            }))
         );
     }
 
     #[test]
-    fn should_parse_valid_rdm_ack_timer_response() {
+    fn should_decode_valid_rdm_ack_timer_response() {
         let bytes = &[
             SC_RDM,
             SC_SUB_MESSAGE,
@@ -787,8 +787,8 @@ mod tests {
         ];
 
         assert_eq!(
-            RdmFrame::parse(bytes),
-            Ok(Some(RdmFrame::Rdm(RdmResponse {
+            RdmResponse::decode(bytes),
+            Ok(RdmResponse::RdmFrame(RdmFrameResponse {
                 destination_uid: DeviceUID::new(0x0102, 0x03040506),
                 source_uid: DeviceUID::new(0x0605, 0x04030201),
                 transaction_number: 0x00,
@@ -798,12 +798,12 @@ mod tests {
                 command_class: CommandClass::GetCommandResponse,
                 parameter_id: ParameterId::IdentifyDevice,
                 parameter_data: ResponseData::EstimateResponseTime(0x0a),
-            })))
+            }))
         );
     }
 
     #[test]
-    fn should_parse_valid_rdm_nack_reason_response() {
+    fn should_decode_valid_rdm_nack_reason_response() {
         let bytes = &[
             SC_RDM,
             SC_SUB_MESSAGE,
@@ -836,8 +836,8 @@ mod tests {
         ];
 
         assert_eq!(
-            RdmFrame::parse(bytes),
-            Ok(Some(RdmFrame::Rdm(RdmResponse {
+            RdmResponse::decode(bytes),
+            Ok(RdmResponse::RdmFrame(RdmFrameResponse {
                 destination_uid: DeviceUID::new(0x0102, 0x03040506),
                 source_uid: DeviceUID::new(0x0605, 0x04030201),
                 transaction_number: 0x00,
@@ -847,12 +847,12 @@ mod tests {
                 command_class: CommandClass::GetCommandResponse,
                 parameter_id: ParameterId::IdentifyDevice,
                 parameter_data: ResponseData::NackReason(ResponseNackReasonCode::FormatError),
-            })))
+            }))
         );
     }
 
     #[test]
-    fn should_parse_valid_rdm_ack_overflow_response() {
+    fn should_decode_valid_rdm_ack_overflow_response() {
         let bytes = &[
             SC_RDM,
             SC_SUB_MESSAGE,
@@ -884,8 +884,8 @@ mod tests {
         ];
 
         assert_eq!(
-            RdmFrame::parse(bytes),
-            Ok(Some(RdmFrame::Rdm(RdmResponse {
+            RdmResponse::decode(bytes),
+            Ok(RdmResponse::RdmFrame(RdmFrameResponse {
                 destination_uid: DeviceUID::new(0x0102, 0x03040506),
                 source_uid: DeviceUID::new(0x0605, 0x04030201),
                 transaction_number: 0x00,
@@ -897,12 +897,12 @@ mod tests {
                 parameter_data: ResponseData::ParameterData(Some(
                     ResponseParameterData::GetIdentifyDevice(true)
                 )),
-            })))
+            }))
         );
     }
 
     #[test]
-    fn should_parse_valid_discovery_unique_branch_response() {
+    fn should_decode_valid_discovery_unique_branch_response() {
         // includes preamble bytes
         let bytes = &[
             DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
@@ -932,10 +932,10 @@ mod tests {
         ];
 
         assert_eq!(
-            RdmFrame::parse(bytes),
-            Ok(Some(RdmFrame::DiscoveryUniqueBranch(
-                DiscoveryUniqueBranchResponse(DeviceUID::new(0x0102, 0x03040506))
-            )))
+            RdmResponse::decode(bytes),
+            Ok(RdmResponse::DiscoveryUniqueBranchFrame(
+                DiscoveryUniqueBranchFrameResponse(DeviceUID::new(0x0102, 0x03040506))
+            ))
         );
 
         // does not include preamble bytes
@@ -960,10 +960,10 @@ mod tests {
         ];
 
         assert_eq!(
-            RdmFrame::parse(bytes),
-            Ok(Some(RdmFrame::DiscoveryUniqueBranch(
-                DiscoveryUniqueBranchResponse(DeviceUID::new(0x0102, 0x03040506))
-            )))
+            RdmResponse::decode(bytes),
+            Ok(RdmResponse::DiscoveryUniqueBranchFrame(
+                DiscoveryUniqueBranchFrameResponse(DeviceUID::new(0x0102, 0x03040506))
+            ))
         );
     }
 }
