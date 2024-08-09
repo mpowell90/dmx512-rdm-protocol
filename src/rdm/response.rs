@@ -5,7 +5,7 @@ use super::{
         ParameterId, PowerState, PresetPlaybackMode, ProductCategory, SensorDefinition,
         SensorValue, SlotInfo, StatusMessage, StatusType,
     },
-    CommandClass, DeviceUID, RdmError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+    CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
 };
 use std::ffi::CStr;
@@ -21,7 +21,7 @@ pub enum ResponseNackReasonCode {
     DataOutOfRange = 0x0006,
     BufferFull = 0x0007,
     PacketSizeUnsupported = 0x0008,
-    SubDeviceOutOfRange = 0x0009,
+    SubDeviceIdOutOfRange = 0x0009,
     ProxyBufferFull = 0x000a,
 }
 
@@ -39,7 +39,7 @@ impl TryFrom<u16> for ResponseNackReasonCode {
             0x0006 => Ok(Self::DataOutOfRange),
             0x0007 => Ok(Self::BufferFull),
             0x0008 => Ok(Self::PacketSizeUnsupported),
-            0x0009 => Ok(Self::SubDeviceOutOfRange),
+            0x0009 => Ok(Self::SubDeviceIdOutOfRange),
             0x000a => Ok(Self::ProxyBufferFull),
             value => Err(RdmError::InvalidNackReasonCode(value)),
         }
@@ -98,7 +98,7 @@ pub enum ResponseParameterData {
     },
     GetStatusMessages(Vec<StatusMessage>),
     GetStatusIdDescription(String),
-    GetSubDeviceStatusReportThreshold(StatusType),
+    GetSubDeviceIdStatusReportThreshold(StatusType),
     GetSupportedParameters {
         standard_parameters: Vec<u16>,
         manufacturer_specific_parameters: Vec<u16>,
@@ -245,7 +245,7 @@ impl ResponseParameterData {
                         .chunks(9)
                         .map(|chunk| {
                             Ok(StatusMessage::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?),
+                                u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
                                 chunk[2].try_into()?,
                                 u16::from_be_bytes(chunk[3..=4].try_into()?),
                                 u16::from_be_bytes(chunk[5..=6].try_into()?),
@@ -262,9 +262,11 @@ impl ResponseParameterData {
                         .to_string(),
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::SubDeviceStatusReportThreshold) => Ok(
-                Self::GetSubDeviceStatusReportThreshold(bytes[0].try_into()?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::SubDeviceIdStatusReportThreshold) => {
+                Ok(Self::GetSubDeviceIdStatusReportThreshold(
+                    bytes[0].try_into()?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::SupportedParameters) => {
                 let parameters = bytes
                     .chunks(2)
@@ -541,7 +543,7 @@ pub struct RdmFrameResponse {
     pub transaction_number: u8,
     pub response_type: ResponseType,
     pub message_count: u8,
-    pub sub_device_id: u16,
+    pub sub_device_id: SubDeviceId,
     pub command_class: CommandClass,
     pub parameter_id: ParameterId,
     pub parameter_data: ResponseData,
@@ -579,7 +581,7 @@ impl RdmFrameResponse {
 
         let message_count = bytes[17];
 
-        let sub_device_id = u16::from_be_bytes(bytes[18..=19].try_into()?);
+        let sub_device_id = u16::from_be_bytes(bytes[18..=19].try_into()?).into();
 
         let command_class = CommandClass::try_from(bytes[20])?;
 
@@ -749,7 +751,7 @@ mod tests {
             transaction_number: 0x00,
             response_type: ResponseType::Ack,
             message_count: 0x00,
-            sub_device_id: 0x0000,
+            sub_device_id: SubDeviceId::RootDevice,
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::ParameterData(Some(
@@ -785,7 +787,7 @@ mod tests {
             transaction_number: 0x00,
             response_type: ResponseType::Ack,
             message_count: 0x00,
-            sub_device_id: 0x0000,
+            sub_device_id: SubDeviceId::RootDevice,
             command_class: CommandClass::SetCommandResponse,
             parameter_id: ParameterId::ManufacturerSpecific(0x8080),
             parameter_data: ResponseData::ParameterData(Some(
@@ -821,7 +823,7 @@ mod tests {
             transaction_number: 0x00,
             response_type: ResponseType::AckTimer,
             message_count: 0x00,
-            sub_device_id: 0x0000,
+            sub_device_id: SubDeviceId::RootDevice,
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::EstimateResponseTime(0x0a),
@@ -855,7 +857,7 @@ mod tests {
             transaction_number: 0x00,
             response_type: ResponseType::NackReason,
             message_count: 0x00,
-            sub_device_id: 0x0000,
+            sub_device_id: SubDeviceId::RootDevice,
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::NackReason(ResponseNackReasonCode::FormatError),
@@ -889,7 +891,7 @@ mod tests {
             transaction_number: 0x00,
             response_type: ResponseType::AckOverflow,
             message_count: 0x00,
-            sub_device_id: 0x0000,
+            sub_device_id: SubDeviceId::RootDevice,
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::ParameterData(Some(
@@ -956,7 +958,7 @@ mod tests {
             0xaf, // ecs 1 = Checksum0 (LSB)
             0x5f, // ecs 0 = Checksum0 (LSB)
         ]);
-        
+
         let expected = Ok(RdmResponse::DiscoveryUniqueBranchFrame(
             DiscoveryUniqueBranchFrameResponse(DeviceUID::new(0x0102, 0x03040506)),
         ));

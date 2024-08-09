@@ -1,10 +1,8 @@
 use super::{
-    bsd_16_crc,
-    parameter::{
+    bsd_16_crc, parameter::{
         DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, PowerState,
         PresetPlaybackMode, ResetDeviceMode, StatusType,
-    },
-    CommandClass, DeviceUID, SC_RDM, SC_SUB_MESSAGE,
+    }, CommandClass, DeviceUID, SubDeviceId, SC_RDM, SC_SUB_MESSAGE
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -27,8 +25,8 @@ pub enum RequestParameter<'a> {
         status_id: u16,
     },
     SetClearStatusId,
-    GetSubDeviceStatusReportThreshold,
-    SetSubDeviceStatusReportThreshold {
+    GetSubDeviceIdStatusReportThreshold,
+    SetSubDeviceIdStatusReportThreshold {
         status_type: StatusType,
     },
     GetSupportedParameters,
@@ -178,7 +176,7 @@ impl<'a> RequestParameter<'a> {
             | Self::GetQueuedMessage { .. }
             | Self::GetStatusMessages { .. }
             | Self::GetStatusIdDescription { .. }
-            | Self::GetSubDeviceStatusReportThreshold
+            | Self::GetSubDeviceIdStatusReportThreshold
             | Self::GetSupportedParameters
             | Self::GetParameterDescription { .. }
             | Self::GetDeviceInfo
@@ -219,7 +217,7 @@ impl<'a> RequestParameter<'a> {
             | Self::GetPresetPlayback => CommandClass::GetCommand,
             Self::SetCommsStatus
             | Self::SetClearStatusId
-            | Self::SetSubDeviceStatusReportThreshold { .. }
+            | Self::SetSubDeviceIdStatusReportThreshold { .. }
             | Self::SetDeviceLabel { .. }
             | Self::SetFactoryDefaults
             | Self::SetLanguage { .. }
@@ -259,9 +257,9 @@ impl<'a> RequestParameter<'a> {
             Self::GetStatusMessages { .. } => ParameterId::StatusMessages,
             Self::GetStatusIdDescription { .. } => ParameterId::StatusIdDescription,
             Self::SetClearStatusId => ParameterId::ClearStatusId,
-            Self::GetSubDeviceStatusReportThreshold
-            | Self::SetSubDeviceStatusReportThreshold { .. } => {
-                ParameterId::SubDeviceStatusReportThreshold
+            Self::GetSubDeviceIdStatusReportThreshold
+            | Self::SetSubDeviceIdStatusReportThreshold { .. } => {
+                ParameterId::SubDeviceIdStatusReportThreshold
             }
             Self::GetSupportedParameters => ParameterId::SupportedParameters,
             Self::GetParameterDescription { .. } => ParameterId::ParameterDescription,
@@ -347,8 +345,8 @@ impl<'a> RequestParameter<'a> {
                 buf.extend((*status_id).to_be_bytes().iter());
             }
             Self::SetClearStatusId => {}
-            Self::GetSubDeviceStatusReportThreshold => {}
-            Self::SetSubDeviceStatusReportThreshold { status_type } => {
+            Self::GetSubDeviceIdStatusReportThreshold => {}
+            Self::SetSubDeviceIdStatusReportThreshold { status_type } => {
                 buf.reserve(0x01);
                 buf.push(*status_type as u8)
             }
@@ -545,7 +543,7 @@ pub struct RdmRequest<'a> {
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub port_id: u8,
-    pub sub_device_id: u16,
+    pub sub_device_id: SubDeviceId,
     pub parameter: RequestParameter<'a>,
 }
 
@@ -555,7 +553,7 @@ impl<'a> RdmRequest<'a> {
         source_uid: DeviceUID,
         transaction_number: u8,
         port_id: u8,
-        sub_device_id: u16,
+        sub_device_id: SubDeviceId,
         parameter: RequestParameter<'b>,
     ) -> Self
     where
@@ -596,7 +594,7 @@ impl<'a> RdmRequest<'a> {
         buf.push(self.transaction_number);
         buf.push(self.port_id);
         buf.push(0x00); // Message Count shall be set to 0x00 in all controller generated requests
-        buf.extend(self.sub_device_id.to_be_bytes().iter());
+        buf.extend(u16::from(self.sub_device_id).to_be_bytes().iter());
         buf.push(self.parameter.command_class() as u8);
         buf.extend(
             u16::from(self.parameter.parameter_id())
@@ -628,7 +626,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
-            0x0001,
+            SubDeviceId::Id(0x01),
             RequestParameter::DiscUniqueBranch {
                 lower_bound_uid: DeviceUID::new(0x0000, 0x00000000),
                 upper_bound_uid: DeviceUID::new(0xffff, 0xffffffff),
@@ -664,7 +662,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
-            0x0000,
+            SubDeviceId::RootDevice,
             RequestParameter::GetIdentifyDevice,
         )
         .encode();
@@ -695,7 +693,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
-            0x0000,
+            SubDeviceId::RootDevice,
             RequestParameter::ManufacturerSpecific {
                 command_class: CommandClass::SetCommand,
                 parameter_id: 0x8080,

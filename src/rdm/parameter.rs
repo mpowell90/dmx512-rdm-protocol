@@ -1,4 +1,4 @@
-use super::RdmError;
+use super::{RdmError, SubDeviceId};
 use std::{ffi::CStr, fmt::Display};
 
 #[non_exhaustive]
@@ -14,7 +14,7 @@ pub enum ParameterId {
     StatusMessages,
     StatusIdDescription,
     ClearStatusId,
-    SubDeviceStatusReportThreshold,
+    SubDeviceIdStatusReportThreshold,
     SupportedParameters,
     ParameterDescription,
     DeviceInfo,
@@ -74,7 +74,7 @@ impl TryFrom<u16> for ParameterId {
             0x0030 => Ok(Self::StatusMessages),
             0x0031 => Ok(Self::StatusIdDescription),
             0x0032 => Ok(Self::ClearStatusId),
-            0x0033 => Ok(Self::SubDeviceStatusReportThreshold),
+            0x0033 => Ok(Self::SubDeviceIdStatusReportThreshold),
             0x0050 => Ok(Self::SupportedParameters),
             0x0051 => Ok(Self::ParameterDescription),
             0x0060 => Ok(Self::DeviceInfo),
@@ -135,7 +135,7 @@ impl From<ParameterId> for u16 {
             ParameterId::StatusMessages => 0x0030,
             ParameterId::StatusIdDescription => 0x0031,
             ParameterId::ClearStatusId => 0x0032,
-            ParameterId::SubDeviceStatusReportThreshold => 0x0033,
+            ParameterId::SubDeviceIdStatusReportThreshold => 0x0033,
             ParameterId::SupportedParameters => 0x0050,
             ParameterId::ParameterDescription => 0x0051,
             ParameterId::DeviceInfo => 0x0060,
@@ -669,7 +669,7 @@ pub enum StatusMessageIdDefinition {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct StatusMessage {
-    pub sub_device_id: u16,
+    pub sub_device_id: SubDeviceId,
     pub status_type: StatusType,
     pub status_message_id: u16,
     pub data_value1: u16,
@@ -679,7 +679,7 @@ pub struct StatusMessage {
 
 impl StatusMessage {
     pub fn new(
-        sub_device_id: u16,
+        sub_device_id: SubDeviceId,
         status_type: StatusType,
         status_message_id: u16,
         data_value1: u16,

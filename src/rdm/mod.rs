@@ -159,3 +159,30 @@ pub fn bsd_16_crc(packet: &[u8]) -> u16 {
         .iter()
         .fold(0_u16, |sum, byte| (sum.overflowing_add(*byte as u16).0))
 }
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum SubDeviceId {
+    RootDevice,
+    Id(u16),
+    AllDevices,
+}
+
+impl From<u16> for SubDeviceId {
+    fn from(value: u16) -> SubDeviceId {
+        match value {
+            ROOT_DEVICE => SubDeviceId::RootDevice,
+            SUB_DEVICE_ALL_CALL => SubDeviceId::AllDevices,
+            _ => SubDeviceId::Id(value),
+        }
+    }
+}
+
+impl From<SubDeviceId> for u16 {
+    fn from(sub_device: SubDeviceId) -> u16 {
+        match sub_device {
+            SubDeviceId::RootDevice => ROOT_DEVICE,
+            SubDeviceId::AllDevices => SUB_DEVICE_ALL_CALL,
+            SubDeviceId::Id(id) => id,
+        }
+    }
+}
