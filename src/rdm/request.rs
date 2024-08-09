@@ -166,6 +166,11 @@ pub enum RequestParameter<'a> {
         parameter_id: u16,
         parameter_data: &'a [u8],
     },
+    Unsupported {
+        command_class: CommandClass,
+        parameter_id: u16,
+        parameter_data: &'a [u8],
+    }
 }
 
 impl<'a> RequestParameter<'a> {
@@ -246,6 +251,7 @@ impl<'a> RequestParameter<'a> {
             | Self::SetCapturePreset { .. }
             | Self::SetPresetPlayback { .. } => CommandClass::SetCommand,
             Self::ManufacturerSpecific { command_class, .. } => *command_class,
+            Self::Unsupported { command_class, .. } => *command_class,
         }
     }
 
@@ -313,6 +319,7 @@ impl<'a> RequestParameter<'a> {
             Self::ManufacturerSpecific { parameter_id, .. } => {
                 ParameterId::ManufacturerSpecific(*parameter_id)
             }
+            Self::Unsupported { parameter_id, .. } => ParameterId::Unsupported(*parameter_id),
         }
     }
 
@@ -530,6 +537,10 @@ impl<'a> RequestParameter<'a> {
                 buf.push(*level);
             }
             Self::ManufacturerSpecific { parameter_data, .. } => {
+                buf.reserve(parameter_data.len());
+                buf.extend(*parameter_data);
+            }
+            Self::Unsupported { parameter_data, .. } => {
                 buf.reserve(parameter_data.len());
                 buf.extend(*parameter_data);
             }

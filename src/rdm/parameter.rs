@@ -57,7 +57,7 @@ pub enum ParameterId {
     CapturePreset,
     PresetPlayback,
     ManufacturerSpecific(u16),
-    Unknown(u16),
+    Unsupported(u16),
 }
 
 impl From<u16> for ParameterId {
@@ -116,7 +116,7 @@ impl From<u16> for ParameterId {
             0x1030 => Self::CapturePreset,
             0x1031 => Self::PresetPlayback,
             n if (0x8000..=0xffdf).contains(&n) => Self::ManufacturerSpecific(n),
-            n => Self::Unknown(n),
+            n => Self::Unsupported(n),
         }
     }
 }
@@ -177,7 +177,7 @@ impl From<ParameterId> for u16 {
             ParameterId::CapturePreset => 0x1030,
             ParameterId::PresetPlayback => 0x1031,
             ParameterId::ManufacturerSpecific(pid) => pid,
-            ParameterId::Unknown(pid) => pid,
+            ParameterId::Unsupported(pid) => pid,
         }
     }
 }

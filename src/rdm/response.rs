@@ -196,6 +196,7 @@ pub enum ResponseParameterData {
         level: u8,
     },
     ManufacturerSpecific(Vec<u8>),
+    Unsupported(Vec<u8>),
 }
 
 impl ResponseParameterData {
@@ -548,10 +549,7 @@ impl ResponseParameterData {
             (_, ParameterId::ManufacturerSpecific(_)) => {
                 Ok(Self::ManufacturerSpecific(bytes.to_vec()))
             }
-            (_, _) => Err(RdmError::UnsupportedParameter(
-                command_class as u8,
-                parameter_id.into(),
-            )),
+            (_, _) => Ok(Self::Unsupported(bytes.to_vec())),
         }
     }
 }
