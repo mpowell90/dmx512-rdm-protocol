@@ -35,8 +35,6 @@ pub enum RdmError {
     InvalidProductDetail(u16),
     #[error("Unsupported Parameter, CommandClass: {0}, ParameterId: {1}")]
     UnsupportedParameter(u8, u16),
-    #[error("Unsupported ParameterId: {0}")]
-    UnsupportedParameterId(u16),
     #[error("Invalid parameter data length: {0}, must be >= 0 and <= 231")]
     InvalidParameterDataLength(u8),
     #[error("Invalid ParameterDataType: {0}")]

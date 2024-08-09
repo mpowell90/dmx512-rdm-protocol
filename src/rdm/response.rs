@@ -605,7 +605,7 @@ impl RdmFrameResponse {
 
         let command_class = CommandClass::try_from(bytes[20])?;
 
-        let parameter_id = ParameterId::try_from(u16::from_be_bytes(bytes[21..=22].try_into()?))?;
+        let parameter_id = u16::from_be_bytes(bytes[21..=22].try_into()?).into();
 
         let parameter_data_length = bytes[23];
 
