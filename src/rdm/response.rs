@@ -323,7 +323,7 @@ impl ResponseParameterData {
                 Ok(Self::GetDeviceInfo {
                     protocol_version: format!("{}.{}", bytes[0], bytes[1]),
                     model_id: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                    product_category: u16::from_be_bytes(bytes[4..=5].try_into()?).try_into()?,
+                    product_category: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
                     software_version_id: u32::from_be_bytes(bytes[6..=9].try_into()?),
                     footprint: u16::from_be_bytes(bytes[10..=11].try_into()?),
                     current_personality: bytes[12],
