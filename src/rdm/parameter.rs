@@ -1049,9 +1049,18 @@ impl StatusMessage {
     ) -> Self {
         let description = if status_message_id < 0x8000 {
             match status_message_id {
-                0x0001 => Some(format!("{} failed calibration", SlotIdDefinition::from(data_value1))),
-                0x0002 => Some(format!("{} sensor not found", SlotIdDefinition::from(data_value1))),
-                0x0003 => Some(format!("{} sensor always on", SlotIdDefinition::from(data_value1))),
+                0x0001 => Some(format!(
+                    "{} failed calibration",
+                    SlotIdDefinition::from(data_value1)
+                )),
+                0x0002 => Some(format!(
+                    "{} sensor not found",
+                    SlotIdDefinition::from(data_value1)
+                )),
+                0x0003 => Some(format!(
+                    "{} sensor always on",
+                    SlotIdDefinition::from(data_value1)
+                )),
                 0x0011 => Some("Lamp Doused".to_string()),
                 0x0012 => Some("Lamp Strike".to_string()),
                 0x0021 => Some(format!(
@@ -1123,7 +1132,7 @@ pub enum SlotType {
     SecondaryRotation,
     SecondaryIndexRotate,
     SecondaryUndefined,
-    Unknown(u8)
+    Unknown(u8),
 }
 
 impl From<u8> for SlotType {
@@ -1298,7 +1307,6 @@ impl From<SlotIdDefinition> for u16 {
     }
 }
 
-
 impl Display for SlotIdDefinition {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let definition = match self {
@@ -1337,9 +1345,7 @@ impl Display for SlotIdDefinition {
             Self::ManufacturerSpecific(value) => {
                 return write!(f, "Manufacturer Specific: {}", value)
             }
-            Self::Unknown(value) => {
-                return write!(f, "Unknown Slot Id Definition: {}", value)
-            }
+            Self::Unknown(value) => return write!(f, "Unknown Slot Id Definition: {}", value),
         };
 
         f.write_str(definition)
@@ -1359,41 +1365,43 @@ impl DefaultSlotValue {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum SensorType {
-    Temperature = 0x00,
-    Voltage = 0x01,
-    Current = 0x02,
-    Frequency = 0x03,
-    Resistance = 0x04,
-    Power = 0x05,
-    Mass = 0x06,
-    Length = 0x07,
-    Area = 0x08,
-    Volume = 0x09,
-    Density = 0x0a,
-    Velocity = 0x0b,
-    Acceleration = 0x0c,
-    Force = 0x0d,
-    Energy = 0x0e,
-    Pressure = 0x0f,
-    Time = 0x10,
-    Angle = 0x11,
-    PositionX = 0x12,
-    PositionY = 0x13,
-    PositionZ = 0x14,
-    AngularVelocity = 0x15,
-    LuminousIntensity = 0x16,
-    LuminousFlux = 0x17,
-    Illuminance = 0x18,
-    ChrominanceRed = 0x19,
-    ChrominanceGreen = 0x1a,
-    ChrominanceBlue = 0x1b,
-    Contacts = 0x1c,
-    Memory = 0x1d,
-    Items = 0x1e,
-    Humidity = 0x1f,
-    Counter16Bit = 0x20,
-    Other = 0x7f,
+    Temperature,
+    Voltage,
+    Current,
+    Frequency,
+    Resistance,
+    Power,
+    Mass,
+    Length,
+    Area,
+    Volume,
+    Density,
+    Velocity,
+    Acceleration,
+    Force,
+    Energy,
+    Pressure,
+    Time,
+    Angle,
+    PositionX,
+    PositionY,
+    PositionZ,
+    AngularVelocity,
+    LuminousIntensity,
+    LuminousFlux,
+    Illuminance,
+    ChrominanceRed,
+    ChrominanceGreen,
+    ChrominanceBlue,
+    Contacts,
+    Memory,
+    Items,
+    Humidity,
+    Counter16Bit,
+    Other,
+    ManufacturerSpecific(u8),
 }
 
 impl TryFrom<u8> for SensorType {
@@ -1434,7 +1442,50 @@ impl TryFrom<u8> for SensorType {
             0x1f => Ok(Self::Humidity),
             0x20 => Ok(Self::Counter16Bit),
             0x7f => Ok(Self::Other),
+            value if (0x80..=0xff).contains(&value) => Ok(Self::ManufacturerSpecific(value)),
             _ => Err(RdmError::InvalidSensorType(value)),
+        }
+    }
+}
+
+impl From<SensorType> for u8 {
+    fn from(value: SensorType) -> Self {
+        match value {
+            SensorType::Temperature => 0x00,
+            SensorType::Voltage => 0x01,
+            SensorType::Current => 0x02,
+            SensorType::Frequency => 0x03,
+            SensorType::Resistance => 0x04,
+            SensorType::Power => 0x05,
+            SensorType::Mass => 0x06,
+            SensorType::Length => 0x07,
+            SensorType::Area => 0x08,
+            SensorType::Volume => 0x09,
+            SensorType::Density => 0x0a,
+            SensorType::Velocity => 0x0b,
+            SensorType::Acceleration => 0x0c,
+            SensorType::Force => 0x0d,
+            SensorType::Energy => 0x0e,
+            SensorType::Pressure => 0x0f,
+            SensorType::Time => 0x10,
+            SensorType::Angle => 0x11,
+            SensorType::PositionX => 0x12,
+            SensorType::PositionY => 0x13,
+            SensorType::PositionZ => 0x14,
+            SensorType::AngularVelocity => 0x15,
+            SensorType::LuminousIntensity => 0x16,
+            SensorType::LuminousFlux => 0x17,
+            SensorType::Illuminance => 0x18,
+            SensorType::ChrominanceRed => 0x19,
+            SensorType::ChrominanceGreen => 0x1a,
+            SensorType::ChrominanceBlue => 0x1b,
+            SensorType::Contacts => 0x1c,
+            SensorType::Memory => 0x1d,
+            SensorType::Items => 0x1e,
+            SensorType::Humidity => 0x1f,
+            SensorType::Counter16Bit => 0x20,
+            SensorType::Other => 0x7f,
+            SensorType::ManufacturerSpecific(value) => value,
         }
     }
 }
