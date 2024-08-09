@@ -5,8 +5,8 @@ pub mod response;
 use std::array::TryFromSliceError;
 use thiserror::Error;
 
-pub const SC_RDM: u8 = 0xcc;
-pub const SC_SUB_MESSAGE: u8 = 0x01;
+pub const RDM_START_CODE_BYTE: u8 = 0xcc;
+pub const RDM_SUB_START_CODE_BYTE: u8 = 0x01;
 
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE: u8 = 0xfe;
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE: u8 = 0xaa;

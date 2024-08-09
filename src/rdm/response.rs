@@ -6,7 +6,7 @@ use super::{
         SensorValue, SlotInfo, StatusMessage, StatusType,
     },
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-    DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, SC_RDM, SC_SUB_MESSAGE,
+    DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
 use std::ffi::CStr;
 
@@ -691,7 +691,7 @@ pub enum RdmResponse {
 
 impl RdmResponse {
     pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes[0] == SC_RDM && bytes[1] == SC_SUB_MESSAGE {
+        if bytes[0] == RDM_START_CODE_BYTE && bytes[1] == RDM_SUB_START_CODE_BYTE {
             if bytes.len() < 25 {
                 return Err(RdmError::InvalidFrameLength(bytes.len() as u8));
             }

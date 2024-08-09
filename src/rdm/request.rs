@@ -1,8 +1,10 @@
 use super::{
-    bsd_16_crc, parameter::{
+    bsd_16_crc,
+    parameter::{
         DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, PowerState,
         PresetPlaybackMode, ResetDeviceMode, StatusType,
-    }, CommandClass, DeviceUID, SubDeviceId, SC_RDM, SC_SUB_MESSAGE
+    },
+    CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
 
 #[derive(Clone, Debug, PartialEq)]
@@ -584,8 +586,8 @@ impl<'a> RdmRequest<'a> {
 
         let mut buf = Vec::with_capacity(message_length + 2);
 
-        buf.push(SC_RDM);
-        buf.push(SC_SUB_MESSAGE);
+        buf.push(RDM_START_CODE_BYTE);
+        buf.push(RDM_SUB_START_CODE_BYTE);
         buf.push(message_length as u8);
         buf.extend(self.destination_uid.manufacturer_id.to_be_bytes().iter());
         buf.extend(self.destination_uid.device_id.to_be_bytes().iter());
