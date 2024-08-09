@@ -337,7 +337,7 @@ impl ResponseParameterData {
                 Ok(Self::GetProductDetailIdList(
                     bytes
                         .chunks(2)
-                        .map(|chunk| u16::from_be_bytes(chunk.try_into()?).try_into())
+                        .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?).into()))
                         .collect::<Result<Vec<ProductDetail>, RdmError>>()?,
                 ))
             }
