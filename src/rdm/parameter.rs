@@ -841,10 +841,11 @@ impl TryFrom<u8> for LampState {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LampOnMode {
-    OffMode = 0x00,
-    DmxMode = 0x01,
-    OnMode = 0x02,
-    AfterCal = 0x03,
+    OffMode,
+    DmxMode,
+    OnMode,
+    AfterCal,
+    ManufacturerSpecific(u8),
 }
 
 impl TryFrom<u8> for LampOnMode {
@@ -856,7 +857,20 @@ impl TryFrom<u8> for LampOnMode {
             0x01 => Ok(Self::DmxMode),
             0x02 => Ok(Self::OnMode),
             0x03 => Ok(Self::AfterCal),
+            n if (0x80..=0xdf).contains(&n) => Ok(Self::ManufacturerSpecific(n)),
             _ => Err(RdmError::InvalidLampOnMode(value)),
+        }
+    }
+}
+
+impl From<LampOnMode> for u8 {
+    fn from(value: LampOnMode) -> u8 {
+        match value {
+            LampOnMode::OffMode => 0x00,
+            LampOnMode::DmxMode => 0x01,
+            LampOnMode::OnMode => 0x02,
+            LampOnMode::AfterCal => 0x03,
+            LampOnMode::ManufacturerSpecific(n) => n,
         }
     }
 }
