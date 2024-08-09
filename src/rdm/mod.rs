@@ -12,8 +12,6 @@ pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE: u8 = 0xfe;
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE: u8 = 0xaa;
 
 pub const BROADCAST_ALL_DEVICES_ID: u64 = 0xffffffffffff;
-pub const SUB_DEVICE_ALL_CALL: u16 = 0xffff;
-pub const ROOT_DEVICE: u16 = 0x0000;
 
 #[derive(Clone, Debug, Error, PartialEq)]
 pub enum RdmError {
@@ -170,8 +168,8 @@ pub enum SubDeviceId {
 impl From<u16> for SubDeviceId {
     fn from(value: u16) -> SubDeviceId {
         match value {
-            ROOT_DEVICE => SubDeviceId::RootDevice,
-            SUB_DEVICE_ALL_CALL => SubDeviceId::AllDevices,
+            0x0000 => SubDeviceId::RootDevice,
+            0xffff => SubDeviceId::AllDevices,
             _ => SubDeviceId::Id(value),
         }
     }
@@ -180,8 +178,8 @@ impl From<u16> for SubDeviceId {
 impl From<SubDeviceId> for u16 {
     fn from(sub_device: SubDeviceId) -> u16 {
         match sub_device {
-            SubDeviceId::RootDevice => ROOT_DEVICE,
-            SubDeviceId::AllDevices => SUB_DEVICE_ALL_CALL,
+            SubDeviceId::RootDevice => 0x0000,
+            SubDeviceId::AllDevices => 0xffff,
             SubDeviceId::Id(id) => id,
         }
     }
