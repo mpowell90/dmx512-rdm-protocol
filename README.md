@@ -1,9 +1,9 @@
 <a id="readme-top"></a>
 
 <div align="center">
-  <h1 align="center">RDM-rs</h3>
+  <h1 align="center">dmx512-rdm-protocol</h3>
   <h3 align="center">
-    DMX512 and Remote Device Management (RDM) protocol in Rust
+    DMX512 and Remote Device Management (RDM) protocol written in Rust
   </h3>
 </div>
 
@@ -49,7 +49,23 @@ If you just want to use the basic DMX512 data-types and functionality, RDM has b
 
 ## Usage
 
-### Request
+### DmxUniverse
+
+```rust
+let dmx_universe = DmxUniverse::default();
+// or create a smaller universe
+let mut dmx_universe = DmxUniverse::new(4).unwrap();
+
+dmx_universe.set_channel_value(0, 64).unwrap();
+dmx_universe.set_channel_values(1, &[128, 192, 255]).unwrap();
+
+assert_eq!(dmx_universe.get_channel_value(0).unwrap(), 64);
+assert_eq!(dmx_universe.get_channel_values(1..=2).unwrap(), &[128, 192]);
+assert_eq!(dmx_universe.as_bytes(), &[64, 128, 192, 255]);
+assert_eq!(dmx_universe.encode(), &[0, 64, 128, 192, 255]);
+```
+
+### RdmRequest
 
 ```rust
 let encoded = RdmRequest::new(
@@ -57,7 +73,7 @@ let encoded = RdmRequest::new(
     DeviceUID::new(0x0605, 0x04030201),
     0x00,
     0x01,
-    0x0000,
+    SubDeviceId::RootDevice,
     RequestParameter::GetIdentifyDevice,
 )
 .encode();
@@ -81,7 +97,7 @@ let expected = &[
 assert_eq!(encoded, expected);
 ```
 
-### Response
+### RdmResponse
 
 ```rust
 let decoded = RdmResponse::decode(&[
@@ -107,7 +123,7 @@ let expected = Ok(RdmResponse::RdmFrame(RdmFrameResponse {
     transaction_number: 0x00,
     response_type: ResponseType::Ack,
     message_count: 0x00,
-    sub_device_id: 0x0000,
+    sub_device_id: SubDeviceId::RootDevice,
     command_class: CommandClass::GetCommandResponse,
     parameter_id: ParameterId::IdentifyDevice,
     parameter_data: ResponseData::ParameterData(Some(
