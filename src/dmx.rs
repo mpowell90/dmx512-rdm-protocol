@@ -66,7 +66,7 @@ impl DmxUniverse {
     }
 
     pub fn set_channel_values(&mut self, channel: u16, values: &[u8]) -> Result<(), DmxError> {
-        if channel + (values.len() as u16) < self.channel_count {
+        if channel + (values.len() as u16) <= self.channel_count {
             for (i, &value) in values.iter().enumerate() {
                 self.channels[channel as usize + i] = value;
             }
