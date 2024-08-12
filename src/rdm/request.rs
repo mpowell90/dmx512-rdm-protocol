@@ -1,3 +1,44 @@
+//! Data types and functionality for encoding RDM requests
+//! 
+//! # RdmRequest
+//!
+//! ```rust
+//! use dmx512_rdm_protocol::rdm::{
+//!     request::{RdmRequest, RequestParameter},
+//!     DeviceUID, SubDeviceId,
+//! };
+//!
+//! let encoded = RdmRequest::new(
+//!     DeviceUID::new(0x0102, 0x03040506),
+//!     DeviceUID::new(0x0605, 0x04030201),
+//!     0x00,
+//!     0x01,
+//!     SubDeviceId::RootDevice,
+//!     RequestParameter::GetIdentifyDevice,
+//! )
+//! .encode();
+//!
+//! let expected = &[
+//!     0xcc, // Start Code
+//!     0x01, // Sub Start Code
+//!     0x18, // Message Length
+//!     0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+//!     0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+//!     0x00, // Transaction Number
+//!     0x01, // Port ID
+//!     0x00, // Message Count
+//!     0x00, 0x00, // Sub-Device ID = Root Device
+//!     0x20, // Command Class = GetCommand
+//!     0x10, 0x00, // Parameter ID = Identify Device
+//!     0x00, // PDL
+//!     0x01, 0x40, // Checksum
+//! ];
+//!
+//! assert_eq!(encoded, expected);
+//! ```
+//! 
+//! See tests for more examples.
+
 use super::{
     bsd_16_crc,
     parameter::{

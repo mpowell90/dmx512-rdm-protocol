@@ -1,3 +1,50 @@
+//! Data types and functionality for decoding RDM responses
+//!
+//! ### RdmResponse
+//!
+//! ```rust
+//! use dmx512_rdm_protocol::rdm::{
+//!     parameter::ParameterId,
+//!     response::{
+//!         RdmFrameResponse, RdmResponse, ResponseData, ResponseParameterData, ResponseType,
+//!     },
+//!     CommandClass, DeviceUID, SubDeviceId,
+//! };
+//! 
+//! let decoded = RdmResponse::decode(&[
+//!     0xcc, // Start Code
+//!     0x01, // Sub Start Code
+//!     0x19, // Message Length
+//!     0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+//!     0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+//!     0x00, // Transaction Number
+//!     0x00, // Response Type = Ack
+//!     0x00, // Message Count
+//!     0x00, 0x00, // Sub-Device ID = Root Device
+//!     0x21, // Command Class = GetCommandResponse
+//!     0x10, 0x00, // Parameter ID = Identify Device
+//!     0x01, // PDL
+//!     0x01, // Identifying = true
+//!     0x01, 0x43, // Checksum
+//! ]);
+//!
+//! let expected = Ok(RdmResponse::RdmFrame(RdmFrameResponse {
+//!     destination_uid: DeviceUID::new(0x0102, 0x03040506),
+//!     source_uid: DeviceUID::new(0x0605, 0x04030201),
+//!     transaction_number: 0x00,
+//!     response_type: ResponseType::Ack,
+//!     message_count: 0x00,
+//!     sub_device_id: SubDeviceId::RootDevice,
+//!     command_class: CommandClass::GetCommandResponse,
+//!     parameter_id: ParameterId::IdentifyDevice,
+//!     parameter_data: ResponseData::ParameterData(Some(
+//!         ResponseParameterData::GetIdentifyDevice(true),
+//!     )),
+//! }));
+//!
+//! assert_eq!(decoded, expected);
+//! ```
+
 use super::{
     bsd_16_crc,
     parameter::{

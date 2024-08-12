@@ -1,3 +1,5 @@
+//! Data types and functionality for encoding and decoding RDM packets
+
 pub mod error;
 pub mod parameter;
 pub mod request;
