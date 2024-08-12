@@ -1,5 +1,5 @@
 use super::{RdmError, SubDeviceId};
-use std::{ffi::CStr, fmt::Display};
+use core::{ffi::CStr, fmt::Display, result::Result};
 
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -1338,7 +1338,7 @@ impl From<SlotIdDefinition> for u16 {
 }
 
 impl Display for SlotIdDefinition {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let definition = match self {
             Self::Intensity => "Intensity",
             Self::IntensityMaster => "Intensity Master",

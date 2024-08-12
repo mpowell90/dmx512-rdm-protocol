@@ -8,7 +8,7 @@ use super::{
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
-use std::{ffi::CStr, fmt::Display};
+use core::{ffi::CStr, fmt::Display, result::Result};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResponseNackReasonCode {
@@ -47,7 +47,7 @@ impl TryFrom<u16> for ResponseNackReasonCode {
 }
 
 impl Display for ResponseNackReasonCode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let message = match self {
             Self::UnknownPid => "The responder cannot comply with request because the message is not implemented in responder.",
             Self::FormatError => "The responder cannot interpret request as controller data was not formatted correctly.",
@@ -370,12 +370,12 @@ impl ResponseParameterData {
                 Ok(Self::GetLanguageCapabilities(
                     bytes
                         .chunks(2)
-                        .map(|chunk| Ok(std::str::from_utf8(chunk)?.to_string()))
+                        .map(|chunk| Ok(core::str::from_utf8(chunk)?.to_string()))
                         .collect::<Result<Vec<String>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(
-                std::str::from_utf8(&bytes[0..=1])?.to_string(),
+                core::str::from_utf8(&bytes[0..=1])?.to_string(),
             )),
             (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => {
                 Ok(Self::GetSoftwareVersionLabel(
