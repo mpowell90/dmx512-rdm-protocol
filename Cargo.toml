@@ -2,12 +2,13 @@
 name = "dmx512-rdm-protocol"
 description = "DMX512 and Remote Device Management (RDM) protocol written in Rust"
 version = "0.1.0"
-readme = "README.md"
-keywords = ["dmx", "dmx512", "rdm", "remote device management", "lighting", "protocol"]
 edition = "2021"
 rust-version = "1.65"
+readme = "README.md"
 license-file = "LICENSE.txt"
 repository = "https://github.com/mpowell90/dmx512-rdm-protocol"
+homepage = "https://github.com/mpowell90/dmx512-rdm-protocol"
+keywords = ["dmx", "dmx512", "rdm", "remote device management", "lighting", "protocol"]
 
 [features]
 default = ["rdm"]
