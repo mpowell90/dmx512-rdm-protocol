@@ -33,14 +33,14 @@ Remote Device Management (RDM) is a backward-compatible extension of DMX512, ena
 MSRV: 1.65.0
 
 ```sh
-cargo add rdm-rs
+cargo add dmx512-rdm-protocol
 ```
 
 or add the following to your Cargo.toml file
 
 ```toml
 [dependencies]
-rdm-rs = "1.0.0"
+dmx512-rdm-protocol = "0.1.0"
 ```
 
 If you just want to use the basic DMX512 data-types and functionality, RDM has been conditionally compiled and included by default, but can be disabled by using the `default-features = false` dependency declaration.
