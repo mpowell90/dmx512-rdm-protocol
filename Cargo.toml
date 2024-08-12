@@ -6,7 +6,7 @@ readme = "README.md"
 keywords = ["dmx", "dmx512", "rdm", "remote device management", "lighting", "protocol"]
 edition = "2021"
 rust-version = "1.65"
-license = "MIT"
+license-file = "LICENSE.txt"
 repository = "https://github.com/mpowell90/dmx512-rdm-protocol"
 
 [features]
