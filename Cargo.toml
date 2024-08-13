@@ -8,7 +8,7 @@ readme = "README.md"
 license-file = "LICENSE.txt"
 repository = "https://github.com/mpowell90/dmx512-rdm-protocol"
 homepage = "https://github.com/mpowell90/dmx512-rdm-protocol"
-keywords = ["dmx", "dmx512", "rdm", "remote device management", "lighting", "protocol"]
+keywords = ["dmx", "rdm", "remote device management", "lighting", "protocol"]
 
 [features]
 default = ["rdm"]
