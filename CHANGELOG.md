@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.1.0...v0.1.1) - 2024-08-13
+
+### Other
+- license instead of license-file
+- add reference to crates.io for dependency version
+- added badges and removed dependency installation example from README.md
+
 ## [0.1.0](https://github.com/mpowell90/dmx512-rdm-protocol/releases/tag/v0.1.0) - 2024-08-13
 
 ### Added
