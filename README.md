@@ -1,10 +1,18 @@
 <a id="readme-top"></a>
 
+
 <div align="center">
   <h1 align="center">dmx512-rdm-protocol</h3>
   <h3 align="center">
     DMX512 and Remote Device Management (RDM) protocol written in Rust
   </h3>
+  <div align="center">
+
+[![Crates.io](https://img.shields.io/crates/v/dmx512-rdm-protocol.svg)](https://crates.io/crates/dmx512-rdm-protocol)
+[![Docs](https://img.shields.io/badge/docs-latest-blue)](https://docs.rs/dmx512-rdm-protocol/latest/dmx512_rdm_protocol/)
+[![Docs](https://img.shields.io/badge/msrv-1.65.0-red)](https://docs.rs/dmx512-rdm-protocol/latest/dmx512_rdm_protocol/)
+
+  </div>
 </div>
 
 ## About the project
@@ -30,17 +38,8 @@ Remote Device Management (RDM) is a backward-compatible extension of DMX512, ena
 
 ### Installation
 
-MSRV: 1.65.0
-
 ```sh
 cargo add dmx512-rdm-protocol
-```
-
-or add the following to your Cargo.toml file
-
-```toml
-[dependencies]
-dmx512-rdm-protocol = "0.1.0"
 ```
 
 If you just want to use the basic DMX512 data-types and functionality, RDM has been conditionally compiled and included by default, but can be disabled by using the `default-features = false` dependency declaration.
