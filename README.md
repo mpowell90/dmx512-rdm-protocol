@@ -42,6 +42,8 @@ Remote Device Management (RDM) is a backward-compatible extension of DMX512, ena
 cargo add dmx512-rdm-protocol
 ```
 
+or add to Cargo.toml dependencies, [crates.io](https://crates.io/crates/dmx512-rdm-protocol) for latest version.
+
 If you just want to use the basic DMX512 data-types and functionality, RDM has been conditionally compiled and included by default, but can be disabled by using the `default-features = false` dependency declaration.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
