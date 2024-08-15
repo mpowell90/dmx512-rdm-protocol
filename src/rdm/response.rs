@@ -706,8 +706,8 @@ impl TryFrom<&[u8]> for RdmFrameResponse {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct DiscoveryUniqueBranchFrameResponse(DeviceUID);
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct DiscoveryUniqueBranchFrameResponse(pub DeviceUID);
 
 impl DiscoveryUniqueBranchFrameResponse {
     pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
