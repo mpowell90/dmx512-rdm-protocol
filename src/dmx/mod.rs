@@ -95,6 +95,17 @@ impl DmxUniverse {
         &self.channels
     }
 
+    pub fn extend(&mut self, values: &[u8]) -> Result<(), DmxError> {
+        if self.channel_count as usize + values.len() > MAXIMUM_CHANNEL_COUNT as usize {
+            return Err(DmxError::InvalidChannelCount(self.channels.len() as u16 + values.len() as u16));
+        }
+
+        self.channels.extend(values);
+        self.channel_count += values.len() as u16;
+
+        Ok(())
+    }
+
     pub fn decode(bytes: &[u8]) -> Result<Self, DmxError> {
         if bytes.len() < 2 || bytes.len() > MAXIMUM_CHANNEL_COUNT as usize + 1 {
             return Err(DmxError::InvalidFrameLength(bytes.len() as u16));
@@ -267,5 +278,18 @@ mod tests {
         };
 
         assert_eq!(universe.as_bytes(), &[255, 255, 255, 255]);
+    }
+
+    #[test]
+    fn should_extend_channels_with_byte_slice() {
+        let mut universe = DmxUniverse {
+            channel_count: 4,
+            channels: vec![255; 4],
+        };
+
+        universe.extend(&[0, 0, 0, 0]).unwrap();
+
+        assert_eq!(universe.as_bytes(), &[255, 255, 255, 255, 0, 0, 0, 0]);
+        assert_eq!(universe.channel_count, 8);
     }
 }
