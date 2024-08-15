@@ -91,8 +91,8 @@ impl DmxUniverse {
         self.channels.fill(value)
     }
 
-    pub fn as_bytes(&self) -> &[u8] {
-        &self.channels
+    pub fn as_slice(&self) -> &[u8] {
+        self.channels.as_slice()
     }
 
     pub fn extend(&mut self, values: &[u8]) -> Result<(), DmxError> {
@@ -271,13 +271,13 @@ mod tests {
     }
 
     #[test]
-    fn should_return_all_channels_as_bytes() {
+    fn should_return_all_channels_as_slice() {
         let universe = DmxUniverse {
             channel_count: 4,
             channels: vec![255; 4],
         };
 
-        assert_eq!(universe.as_bytes(), &[255, 255, 255, 255]);
+        assert_eq!(universe.as_slice(), &[255, 255, 255, 255]);
     }
 
     #[test]
