@@ -53,16 +53,23 @@ If you just want to use the basic DMX512 data-types and functionality, RDM has b
 ### DmxUniverse
 
 ```rust
+use dmx512_rdm_protocol::dmx::DmxUniverse;
+
+// Create a 512 channel universe
 let dmx_universe = DmxUniverse::default();
 // or create a smaller universe
-let mut dmx_universe = DmxUniverse::new(4).unwrap();
+let dmx_universe = DmxUniverse::new(4).unwrap();
+// or decode a DMX packet
+let mut dmx_universe = DmxUniverse::decode(&[0, 0, 0, 0, 0]).unwrap();
+
+assert_eq!(dmx_universe.as_slice(), &[0, 0, 0, 0]);
 
 dmx_universe.set_channel_value(0, 64).unwrap();
 dmx_universe.set_channel_values(1, &[128, 192, 255]).unwrap();
 
 assert_eq!(dmx_universe.get_channel_value(0).unwrap(), 64);
 assert_eq!(dmx_universe.get_channel_values(1..=2).unwrap(), &[128, 192]);
-assert_eq!(dmx_universe.as_bytes(), &[64, 128, 192, 255]);
+assert_eq!(dmx_universe.as_slice(), &[64, 128, 192, 255]);
 assert_eq!(dmx_universe.encode(), &[0, 64, 128, 192, 255]);
 ```
 
