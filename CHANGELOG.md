@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.2.0...v0.2.1) - 2024-08-15
+
+### Fixed
+- expose inner DeviceUID, added Copy derive
+
 ## [0.2.0](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.1.1...v0.2.0) - 2024-08-15
 
 ### Added
