@@ -49,7 +49,7 @@ use super::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum RequestParameter<'a> {
+pub enum RequestParameter {
     DiscMute,
     DiscUnMute,
     DiscUniqueBranch {
@@ -205,16 +205,16 @@ pub enum RequestParameter<'a> {
     ManufacturerSpecific {
         command_class: CommandClass,
         parameter_id: u16,
-        parameter_data: &'a [u8],
+        parameter_data: Vec<u8>,
     },
     Unsupported {
         command_class: CommandClass,
         parameter_id: u16,
-        parameter_data: &'a [u8],
+        parameter_data: Vec<u8>,
     },
 }
 
-impl<'a> RequestParameter<'a> {
+impl RequestParameter {
     pub fn command_class(&self) -> CommandClass {
         match self {
             Self::DiscMute | Self::DiscUnMute | Self::DiscUniqueBranch { .. } => {
@@ -579,11 +579,11 @@ impl<'a> RequestParameter<'a> {
             }
             Self::ManufacturerSpecific { parameter_data, .. } => {
                 buf.reserve(parameter_data.len());
-                buf.extend(*parameter_data);
+                buf.extend(parameter_data);
             }
             Self::Unsupported { parameter_data, .. } => {
                 buf.reserve(parameter_data.len());
-                buf.extend(*parameter_data);
+                buf.extend(parameter_data);
             }
         };
 
@@ -592,26 +592,24 @@ impl<'a> RequestParameter<'a> {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct RdmRequest<'a> {
+pub struct RdmRequest {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub port_id: u8,
     pub sub_device_id: SubDeviceId,
-    pub parameter: RequestParameter<'a>,
+    pub parameter: RequestParameter,
 }
 
-impl<'a> RdmRequest<'a> {
-    pub fn new<'b>(
+impl RdmRequest {
+    pub fn new(
         destination_uid: DeviceUID,
         source_uid: DeviceUID,
         transaction_number: u8,
         port_id: u8,
         sub_device_id: SubDeviceId,
-        parameter: RequestParameter<'b>,
+        parameter: RequestParameter,
     ) -> Self
-    where
-        'b: 'a,
     {
         RdmRequest {
             destination_uid,
@@ -631,7 +629,7 @@ impl<'a> RdmRequest<'a> {
         self.parameter.parameter_id()
     }
 
-    pub fn encode(self) -> Vec<u8> {
+    pub fn encode(&self) -> Vec<u8> {
         let parameter_data = self.parameter.encode();
 
         let message_length = 24 + parameter_data.len();
@@ -663,7 +661,7 @@ impl<'a> RdmRequest<'a> {
     }
 }
 
-impl<'a> From<RdmRequest<'a>> for Vec<u8> {
+impl From<RdmRequest> for Vec<u8> {
     fn from(request: RdmRequest) -> Self {
         request.encode()
     }
@@ -751,7 +749,7 @@ mod tests {
             RequestParameter::ManufacturerSpecific {
                 command_class: CommandClass::SetCommand,
                 parameter_id: 0x8080,
-                parameter_data: &[0x01, 0x02, 0x03, 0x04],
+                parameter_data: vec![0x01, 0x02, 0x03, 0x04],
             },
         )
         .encode();

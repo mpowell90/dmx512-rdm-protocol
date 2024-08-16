@@ -48,9 +48,7 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription,
-        ParameterId, PowerState, PresetPlaybackMode, ProductCategory, ProductDetail, SelfTest,
-        SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
+        decode_string_bytes, DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, ProductDetail, SelfTest, SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType
     },
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
@@ -324,7 +322,7 @@ impl ResponseParameterData {
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => Ok(
-                Self::GetStatusIdDescription(Self::decode_string_bytes(bytes)?),
+                Self::GetStatusIdDescription(decode_string_bytes(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::SubDeviceIdStatusReportThreshold) => {
                 Ok(Self::GetSubDeviceIdStatusReportThreshold(
@@ -358,7 +356,7 @@ impl ResponseParameterData {
                     raw_minimum_valid_value: bytes[8..=11].try_into()?,
                     raw_maximum_valid_value: bytes[12..=15].try_into()?,
                     raw_default_value: bytes[16..=19].try_into()?,
-                    description: Self::decode_string_bytes(&bytes[20..])?,
+                    description: decode_string_bytes(&bytes[20..])?,
                 }))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => {
@@ -384,13 +382,13 @@ impl ResponseParameterData {
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => Ok(
-                Self::GetDeviceModelDescription(Self::decode_string_bytes(bytes)?),
+                Self::GetDeviceModelDescription(decode_string_bytes(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => Ok(
-                Self::GetManufacturerLabel(Self::decode_string_bytes(bytes)?),
+                Self::GetManufacturerLabel(decode_string_bytes(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::DeviceLabel) => {
-                Ok(Self::GetDeviceLabel(Self::decode_string_bytes(bytes)?))
+                Ok(Self::GetDeviceLabel(decode_string_bytes(bytes)?))
             }
             (CommandClass::GetCommandResponse, ParameterId::FactoryDefaults) => {
                 Ok(Self::GetFactoryDefaults(bytes[0] == 1))
@@ -407,13 +405,13 @@ impl ResponseParameterData {
                 core::str::from_utf8(&bytes[0..=1])?.to_string(),
             )),
             (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => Ok(
-                Self::GetSoftwareVersionLabel(Self::decode_string_bytes(bytes)?),
+                Self::GetSoftwareVersionLabel(decode_string_bytes(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => Ok(
                 Self::GetBootSoftwareVersionId(u32::from_be_bytes(bytes.try_into()?)),
             ),
             (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionLabel) => Ok(
-                Self::GetBootSoftwareVersionLabel(Self::decode_string_bytes(bytes)?),
+                Self::GetBootSoftwareVersionLabel(decode_string_bytes(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::DmxPersonality) => {
                 Ok(Self::GetDmxPersonality {
@@ -425,7 +423,7 @@ impl ResponseParameterData {
                 Ok(Self::GetDmxPersonalityDescription {
                     id: bytes[0],
                     dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into()?),
-                    description: Self::decode_string_bytes(&bytes[3..])?,
+                    description: decode_string_bytes(&bytes[3..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => Ok(
@@ -446,7 +444,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
                 Ok(Self::GetSlotDescription {
                     slot_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    description: Self::decode_string_bytes(&bytes[2..])?,
+                    description: decode_string_bytes(&bytes[2..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DefaultSlotValue) => {
@@ -474,7 +472,7 @@ impl ResponseParameterData {
                     normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
                     is_lowest_highest_detected_value_supported: bytes[12] >> 1 & 1 == 1,
                     is_recorded_value_supported: bytes[12] & 1 == 1,
-                    description: Self::decode_string_bytes(&bytes[13..])?,
+                    description: decode_string_bytes(&bytes[13..])?,
                 }))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorValue) => {
@@ -550,7 +548,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::SelfTestDescription) => {
                 Ok(Self::GetSelfTestDescription {
                     self_test_id: bytes[0].into(),
-                    description: Self::decode_string_bytes(&bytes[1..])?,
+                    description: decode_string_bytes(&bytes[1..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetPlayback) => {
@@ -566,15 +564,7 @@ impl ResponseParameterData {
         }
     }
 
-    pub fn decode_string_bytes(bytes: &[u8]) -> Result<String, RdmError> {
-        let utf8 = String::from_utf8_lossy(bytes);
 
-        if utf8.contains('\0') {
-            Ok(utf8.split_once(char::from(0)).unwrap().0.to_string())
-        } else {
-            Ok(utf8.to_string())
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq)]

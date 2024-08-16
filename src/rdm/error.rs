@@ -1,4 +1,4 @@
-use core::{array::TryFromSliceError, ffi::FromBytesWithNulError, fmt, str::Utf8Error};
+use core::{array::TryFromSliceError, fmt, str::Utf8Error};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RdmError {
@@ -17,9 +17,6 @@ pub enum RdmError {
     InvalidSensorUnit(u8),
     InvalidSensorUnitPrefix(u8),
     InvalidDiscoveryUniqueBranchPreamble,
-    FromBytesWithNulError {
-        source: core::ffi::FromBytesWithNulError,
-    },
     Utf8Error {
         source: core::str::Utf8Error,
     },
@@ -37,12 +34,6 @@ pub enum RdmError {
 impl From<TryFromSliceError> for RdmError {
     fn from(_: TryFromSliceError) -> Self {
         RdmError::TryFromSliceError
-    }
-}
-
-impl From<FromBytesWithNulError> for RdmError {
-    fn from(source: FromBytesWithNulError) -> Self {
-        RdmError::FromBytesWithNulError { source }
     }
 }
 
@@ -101,9 +92,6 @@ impl fmt::Display for RdmError {
             }
             Self::InvalidDiscoveryUniqueBranchPreamble => {
                 write!(f, "Invalid discovery unique branch preamble")
-            }
-            Self::FromBytesWithNulError { source } => {
-                write!(f, "Failed to convert from bytes with nul: {}", source)
             }
             Self::Utf8Error { source } => write!(f, "Invalid utf-8 sequence: {}", source),
             Self::TryFromSliceError => write!(f, "Could not convert slice to array"),
