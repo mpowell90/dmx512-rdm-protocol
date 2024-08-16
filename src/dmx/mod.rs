@@ -160,13 +160,35 @@ impl TryFrom<&[u8]> for DmxUniverse {
     type Error = DmxError;
 
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        DmxUniverse::decode(bytes)
+        if bytes.len() as u16 > MAXIMUM_CHANNEL_COUNT {
+            return Err(DmxError::InvalidChannelCount(bytes.len() as u16));
+        }
+
+        Ok(DmxUniverse {
+            channel_count: bytes.len() as u16,
+            channels: bytes.to_vec(),
+        })
+    }
+}
+
+impl TryFrom<Vec<u8>> for DmxUniverse {
+    type Error = DmxError;
+
+    fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+        if bytes.len() as u16 > MAXIMUM_CHANNEL_COUNT {
+            return Err(DmxError::InvalidChannelCount(bytes.len() as u16));
+        }
+
+        Ok(DmxUniverse {
+            channel_count: bytes.len() as u16,
+            channels: bytes,
+        })
     }
 }
 
 impl From<DmxUniverse> for Vec<u8> {
     fn from(universe: DmxUniverse) -> Self {
-        universe.encode()
+        universe.channels
     }
 }
 
@@ -182,13 +204,67 @@ mod tests {
     }
 
     #[test]
-    fn should_decode_dmx_frame() {
-        let decoded = DmxUniverse::decode(&[0x00, 0x40, 0x80, 0xc0, 0xff]);
+    fn should_create_new_dmx_universe_from_byte_slice() {
+        let bytes = [0_u8; 513];
 
-        let expected: Result<DmxUniverse, DmxError> = Ok(DmxUniverse {
+        let universe = DmxUniverse::try_from(&bytes[..]);
+        assert_eq!(universe, Err(DmxError::InvalidChannelCount(513)));
+        
+        let bytes = [0x40, 0x80, 0xc0, 0xff];
+
+        let universe = DmxUniverse::try_from(&bytes[..]).unwrap();
+        assert_eq!(universe.channel_count, 4);
+        assert_eq!(universe.channels, vec![0x40, 0x80, 0xc0, 0xff]);
+
+        let universe: DmxUniverse = (&bytes[..]).try_into().unwrap();
+        assert_eq!(universe.channel_count, 4);
+        assert_eq!(universe.channels, vec![0x40, 0x80, 0xc0, 0xff]);
+    }
+
+    #[test]
+    fn should_create_new_dmx_universe_from_byte_vec() {
+        let bytes = vec![0_u8; 513];
+
+        let universe = DmxUniverse::try_from(bytes);
+        assert_eq!(universe, Err(DmxError::InvalidChannelCount(513)));
+
+        let bytes = vec![0x40, 0x80, 0xc0, 0xff];
+        
+        let universe = DmxUniverse::try_from(bytes.clone()).unwrap();
+        assert_eq!(universe.channel_count, 4);
+        assert_eq!(universe.channels, vec![0x40, 0x80, 0xc0, 0xff]);
+
+        let universe: DmxUniverse = bytes.try_into().unwrap();
+        assert_eq!(universe.channel_count, 4);
+        assert_eq!(universe.channels, vec![0x40, 0x80, 0xc0, 0xff]);
+    }
+
+    #[test]
+    fn should_create_byte_vec_from_new_dmx_universe() {
+        let universe = DmxUniverse {
             channel_count: 4,
             channels: vec![0x40, 0x80, 0xc0, 0xff],
-        });
+        };
+        
+        assert_eq!(Vec::from(universe.clone()), vec![0x40, 0x80, 0xc0, 0xff]);
+
+        let bytes: Vec<u8> = universe.into();
+        assert_eq!(bytes, vec![0x40, 0x80, 0xc0, 0xff]);
+    }
+
+    #[test]
+    fn should_decode_dmx_frame() {
+        let bytes = [0_u8; 514];
+
+        let universe = DmxUniverse::decode(&bytes[..]);
+        assert_eq!(universe, Err(DmxError::InvalidFrameLength(514)));
+
+        let decoded = DmxUniverse::decode(&[0x00, 0x40, 0x80, 0xc0, 0xff]).unwrap();
+
+        let expected = DmxUniverse {
+            channel_count: 4,
+            channels: vec![0x40, 0x80, 0xc0, 0xff],
+        };
 
         assert_eq!(decoded, expected);
     }
@@ -222,20 +298,25 @@ mod tests {
     fn should_get_channel_value() {
         let universe = DmxUniverse {
             channel_count: 4,
-            channels: vec![64, 128, 192, 255],
+            channels: vec![0x40, 0x80, 0xc0, 0xff],
         };
 
         assert_eq!(universe.get_channel_value(2).unwrap(), 192);
+
+        assert_eq!(universe.get_channel_value(4), Err(DmxError::ChannelOutOfBounds));
     }
 
     #[test]
     fn should_get_channel_values() {
         let universe = DmxUniverse {
             channel_count: 4,
-            channels: vec![64, 128, 192, 255],
+            channels: vec![0x40, 0x80, 0xc0, 0xff],
         };
 
         assert_eq!(universe.get_channel_values(2..=3).unwrap(), &[192, 255]);
+
+        assert_eq!(universe.get_channel_values(2..=5), Err(DmxError::ChannelOutOfBounds));
+        assert_eq!(universe.get_channel_values(4..=5), Err(DmxError::ChannelOutOfBounds));
     }
 
     #[test]
@@ -245,9 +326,10 @@ mod tests {
             channels: vec![0; 4],
         };
 
-        universe.set_channel_value(2, 255).unwrap();
+        universe.set_channel_value(2, 0xff).unwrap();
 
-        assert_eq!(universe.channels, vec![0, 0, 255, 0]);
+        assert_eq!(universe.channels, vec![0x00, 0x00, 0xff, 0x00]);
+        assert_eq!(universe.set_channel_value(4, 0xff), Err(DmxError::ChannelOutOfBounds));
     }
 
     #[test]
@@ -257,9 +339,12 @@ mod tests {
             channels: vec![0; 4],
         };
 
-        universe.set_channel_values(0, &[64, 128, 192]).unwrap();
+        universe.set_channel_values(0, &[0x40, 0x80, 0xc0]).unwrap();
 
-        assert_eq!(universe.channels, vec![64, 128, 192, 0]);
+        assert_eq!(universe.channels, vec![0x40, 0x80, 0xc0, 0]);
+
+        assert_eq!(universe.set_channel_values(2, &[0xff, 0xff, 0xff]), Err(DmxError::ChannelOutOfBounds));
+        assert_eq!(universe.set_channel_values(4, &[0xff]), Err(DmxError::ChannelOutOfBounds));
     }
 
     #[test]
@@ -269,9 +354,9 @@ mod tests {
             channels: vec![0; 4],
         };
 
-        universe.set_all_channel_values(255);
+        universe.set_all_channel_values(0xff);
 
-        assert_eq!(universe.channels, vec![255, 255, 255, 255]);
+        assert_eq!(universe.channels, vec![0xff, 0xff, 0xff, 0xff]);
     }
 
     #[test]
@@ -281,7 +366,7 @@ mod tests {
             channels: vec![255; 4],
         };
 
-        assert_eq!(universe.as_slice(), &[255, 255, 255, 255]);
+        assert_eq!(universe.as_slice(), &[0xff, 0xff, 0xff, 0xff]);
     }
 
     #[test]
@@ -293,7 +378,9 @@ mod tests {
 
         universe.extend(&[0, 0, 0, 0]).unwrap();
 
-        assert_eq!(universe.channels, vec![255, 255, 255, 255, 0, 0, 0, 0]);
+        assert_eq!(universe.channels, vec![0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00]);
         assert_eq!(universe.channel_count, 8);
+
+        assert_eq!(universe.extend(&[0xff; 512][..]), Err(DmxError::InvalidChannelCount(520)));
     }
 }
