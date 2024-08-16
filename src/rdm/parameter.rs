@@ -1,5 +1,15 @@
 use super::{RdmError, SubDeviceId};
-use core::{ffi::CStr, fmt::Display, result::Result};
+use core::{fmt::Display, result::Result};
+
+pub fn decode_string_bytes(bytes: &[u8]) -> Result<String, RdmError> {
+    let utf8 = String::from_utf8_lossy(bytes);
+
+    if utf8.contains('\0') {
+        Ok(utf8.split_once(char::from(0)).unwrap().0.to_string())
+    } else {
+        Ok(utf8.to_string())
+    }
+}
 
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -533,11 +543,9 @@ impl ParameterDescription {
     ) -> Result<ConvertedParameterValue, RdmError> {
         match parameter_data_type {
             ParameterDataType::BitField => Ok(ConvertedParameterValue::BitField(value[3])),
-            ParameterDataType::Ascii => Ok(ConvertedParameterValue::Ascii(
-                CStr::from_bytes_with_nul(&value)?
-                    .to_string_lossy()
-                    .to_string(),
-            )),
+            ParameterDataType::Ascii => {
+                Ok(ConvertedParameterValue::Ascii(decode_string_bytes(&value)?))
+            }
             ParameterDataType::UnsignedByte => Ok(ConvertedParameterValue::UnsignedByte(value[3])),
             ParameterDataType::SignedByte => {
                 Ok(ConvertedParameterValue::SignedByte(value[3] as i8))
@@ -1727,5 +1735,26 @@ impl SensorValue {
             highest_detected_value,
             recorded_value,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_decode_string_bytes() {
+        assert_eq!(
+            decode_string_bytes(&b"null terminated string\0"[..]).unwrap(),
+            "null terminated string".to_string()
+        );
+        assert_eq!(
+            decode_string_bytes(&b"not null terminated string"[..]).unwrap(),
+            "not null terminated string".to_string()
+        );
+        assert_eq!(
+            decode_string_bytes(&b"early terminated\0string"[..]).unwrap(),
+            "early terminated".to_string()
+        );
     }
 }
