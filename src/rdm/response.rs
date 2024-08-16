@@ -10,7 +10,7 @@
 //!     },
 //!     CommandClass, DeviceUID, SubDeviceId,
 //! };
-//! 
+//!
 //! let decoded = RdmResponse::decode(&[
 //!     0xcc, // Start Code
 //!     0x01, // Sub Start Code
@@ -55,7 +55,7 @@ use super::{
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
-use core::{ffi::CStr, fmt::Display, result::Result};
+use core::{fmt::Display, result::Result};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResponseNackReasonCode {
@@ -323,13 +323,9 @@ impl ResponseParameterData {
                         .collect::<Result<Vec<StatusMessage>, RdmError>>()?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => {
-                Ok(Self::GetStatusIdDescription(
-                    CStr::from_bytes_with_nul(bytes)?
-                        .to_string_lossy()
-                        .to_string(),
-                ))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => Ok(
+                Self::GetStatusIdDescription(Self::decode_string_bytes(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::SubDeviceIdStatusReportThreshold) => {
                 Ok(Self::GetSubDeviceIdStatusReportThreshold(
                     bytes[0].try_into()?,
@@ -362,9 +358,7 @@ impl ResponseParameterData {
                     raw_minimum_valid_value: bytes[8..=11].try_into()?,
                     raw_maximum_valid_value: bytes[12..=15].try_into()?,
                     raw_default_value: bytes[16..=19].try_into()?,
-                    description: CStr::from_bytes_with_nul(&bytes[20..])?
-                        .to_string_lossy()
-                        .to_string(),
+                    description: Self::decode_string_bytes(&bytes[20..])?,
                 }))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => {
@@ -389,26 +383,14 @@ impl ResponseParameterData {
                         .collect::<Result<Vec<ProductDetail>, RdmError>>()?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => {
-                Ok(Self::GetDeviceModelDescription(
-                    CStr::from_bytes_with_nul(bytes)?
-                        .to_string_lossy()
-                        .to_string(),
-                ))
-            }
-            (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => {
-                Ok(Self::GetManufacturerLabel(
-                    CStr::from_bytes_with_nul(bytes)?
-                        .to_string_lossy()
-                        .to_string(),
-                ))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => Ok(
+                Self::GetDeviceModelDescription(Self::decode_string_bytes(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => Ok(
+                Self::GetManufacturerLabel(Self::decode_string_bytes(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::DeviceLabel) => {
-                Ok(Self::GetDeviceLabel(
-                    CStr::from_bytes_with_nul(bytes)?
-                        .to_string_lossy()
-                        .to_string(),
-                ))
+                Ok(Self::GetDeviceLabel(Self::decode_string_bytes(bytes)?))
             }
             (CommandClass::GetCommandResponse, ParameterId::FactoryDefaults) => {
                 Ok(Self::GetFactoryDefaults(bytes[0] == 1))
@@ -424,23 +406,15 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(
                 core::str::from_utf8(&bytes[0..=1])?.to_string(),
             )),
-            (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => {
-                Ok(Self::GetSoftwareVersionLabel(
-                    CStr::from_bytes_with_nul(bytes)?
-                        .to_string_lossy()
-                        .to_string(),
-                ))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => Ok(
+                Self::GetSoftwareVersionLabel(Self::decode_string_bytes(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => Ok(
                 Self::GetBootSoftwareVersionId(u32::from_be_bytes(bytes.try_into()?)),
             ),
-            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionLabel) => {
-                Ok(Self::GetBootSoftwareVersionLabel(
-                    CStr::from_bytes_with_nul(bytes)?
-                        .to_string_lossy()
-                        .to_string(),
-                ))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionLabel) => Ok(
+                Self::GetBootSoftwareVersionLabel(Self::decode_string_bytes(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::DmxPersonality) => {
                 Ok(Self::GetDmxPersonality {
                     current_personality: bytes[0],
@@ -451,9 +425,7 @@ impl ResponseParameterData {
                 Ok(Self::GetDmxPersonalityDescription {
                     id: bytes[0],
                     dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into()?),
-                    description: CStr::from_bytes_with_nul(&bytes[3..])?
-                        .to_string_lossy()
-                        .to_string(),
+                    description: Self::decode_string_bytes(&bytes[3..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => Ok(
@@ -474,9 +446,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
                 Ok(Self::GetSlotDescription {
                     slot_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    description: CStr::from_bytes_with_nul(&bytes[2..])?
-                        .to_string_lossy()
-                        .to_string(),
+                    description: Self::decode_string_bytes(&bytes[2..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DefaultSlotValue) => {
@@ -504,9 +474,7 @@ impl ResponseParameterData {
                     normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
                     is_lowest_highest_detected_value_supported: bytes[12] >> 1 & 1 == 1,
                     is_recorded_value_supported: bytes[12] & 1 == 1,
-                    description: CStr::from_bytes_with_nul(&bytes[13..])?
-                        .to_string_lossy()
-                        .to_string(),
+                    description: Self::decode_string_bytes(&bytes[13..])?,
                 }))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorValue) => {
@@ -582,9 +550,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::SelfTestDescription) => {
                 Ok(Self::GetSelfTestDescription {
                     self_test_id: bytes[0].into(),
-                    description: CStr::from_bytes_with_nul(&bytes[1..])?
-                        .to_string_lossy()
-                        .to_string(),
+                    description: Self::decode_string_bytes(&bytes[1..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetPlayback) => {
@@ -597,6 +563,16 @@ impl ResponseParameterData {
                 Ok(Self::ManufacturerSpecific(bytes.to_vec()))
             }
             (_, _) => Ok(Self::Unsupported(bytes.to_vec())),
+        }
+    }
+
+    pub fn decode_string_bytes(bytes: &[u8]) -> Result<String, RdmError> {
+        let utf8 = String::from_utf8_lossy(bytes);
+
+        if utf8.contains('\0') {
+            Ok(utf8.split_once(char::from(0)).unwrap().0.to_string())
+        } else {
+            Ok(utf8.to_string())
         }
     }
 }
