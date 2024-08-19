@@ -42,8 +42,7 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        DisplayInvertMode, FadeTimes, LampOnMode, LampState, MergeMode, ParameterId, PowerState,
-        PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType, TimeMode,
+        DisplayInvertMode, FadeTimes, LampOnMode, LampState, MergeMode, ParameterId, PinCode, PowerState, PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType, TimeMode
     },
     CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
@@ -269,14 +268,14 @@ pub enum RequestParameter {
     },
     GetLockState,
     SetLockState {
-        pin_code: u16,
+        pin_code: PinCode,
         lock_state: bool,
     },
     GetLockStateDescription,
     GetLockPin,
     SetLockPin {
-        new_pin_code: u16,
-        current_pin_code: u16,
+        new_pin_code: PinCode,
+        current_pin_code: PinCode,
     },
     GetBurnIn,
     SetBurnIn {
@@ -843,7 +842,7 @@ impl RequestParameter {
             Self::GetLockState => {}
             Self::SetLockState { pin_code, lock_state } => {
                 buf.reserve(0x03);
-                buf.extend((*pin_code).to_be_bytes());
+                buf.extend((pin_code.0).to_be_bytes());
                 buf.push(*lock_state as u8);
             }
             Self::GetLockStateDescription => {}
@@ -853,8 +852,8 @@ impl RequestParameter {
                 current_pin_code,
             } => {
                 buf.reserve(0x04);
-                buf.extend((*new_pin_code).to_be_bytes());
-                buf.extend((*current_pin_code).to_be_bytes());
+                buf.extend((new_pin_code.0).to_be_bytes());
+                buf.extend((current_pin_code.0).to_be_bytes());
             }
             Self::GetBurnIn => {}
             Self::SetBurnIn { hours } => {

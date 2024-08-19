@@ -2079,6 +2079,21 @@ impl TryFrom<u8> for MergeMode {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+pub struct PinCode(pub u16);
+
+impl TryFrom<u16> for PinCode {
+    type Error = RdmError;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        if value > 9999 {
+            Err(RdmError::InvalidPinCode(value))
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SupportedTimes {
     NotSupported,
     Time(u16),

@@ -49,9 +49,9 @@ use super::{
     bsd_16_crc,
     parameter::{
         decode_string_bytes, DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, MergeMode,
-        ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, PresetProgrammed,
-        ProductCategory, ProductDetail, SelfTest, SensorDefinition, SensorValue, SlotInfo,
-        StatusMessage, StatusType, SupportedTimes, TimeMode,
+        ParameterDescription, ParameterId, PinCode, PowerState, PresetPlaybackMode,
+        PresetProgrammed, ProductCategory, ProductDetail, SelfTest, SensorDefinition, SensorValue,
+        SlotInfo, StatusMessage, StatusType, SupportedTimes, TimeMode,
     },
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
@@ -331,7 +331,7 @@ pub enum ResponseParameterData {
         #[cfg(not(feature = "alloc"))]
         description: String<32>,
     },
-    GetLockPin(u16),
+    GetLockPin(PinCode),
     GetBurnIn(u8),
     GetDimmerInfo {
         minimum_level_lower_limit: u16,
@@ -839,7 +839,7 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::LockPin) => Ok(Self::GetLockPin(
-                u16::from_be_bytes(bytes[0..=1].try_into()?),
+                PinCode::try_from(u16::from_be_bytes(bytes[0..=1].try_into()?))?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::BurnIn) => {
                 Ok(Self::GetBurnIn(bytes[0]))

@@ -29,6 +29,7 @@ pub enum RdmError {
     InvalidIdentifyMode(u8),
     InvalidMergeMode(u8),
     InvalidPresetProgrammed(u8),
+    InvalidPinCode(u16),
     MalformedPacket,
 }
 
@@ -115,6 +116,9 @@ impl fmt::Display for RdmError {
             }
             Self::InvalidPresetProgrammed(preset_programmed) => {
                 write!(f, "Invalid PresetProgrammed: {}", preset_programmed)
+            }
+            Self::InvalidPinCode(pin_code) => {
+                write!(f, "Invalid PinCode: {}", pin_code)
             }
             Self::MalformedPacket => write!(f, "Malformed packet"),
         }
