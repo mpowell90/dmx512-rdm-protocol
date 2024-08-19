@@ -2019,7 +2019,7 @@ impl SensorValue {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum IdentifyMode {
     Quiet = 0x00,
-    Loud = 0xff
+    Loud = 0xff,
 }
 
 impl TryFrom<u8> for IdentifyMode {
@@ -2074,6 +2074,30 @@ impl TryFrom<u8> for MergeMode {
             0x03 => Ok(Self::DmxOnly),
             0xff => Ok(Self::Other),
             value => Err(RdmError::InvalidMergeMode(value)),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SupportedTimes {
+    NotSupported,
+    Time(u16),
+}
+
+impl From<u16> for SupportedTimes {
+    fn from(value: u16) -> Self {
+        match value {
+            0xffff => Self::NotSupported,
+            value => Self::Time(value),
+        }
+    }
+}
+
+impl From<SupportedTimes> for u16 {
+    fn from(value: SupportedTimes) -> u16 {
+        match value {
+            SupportedTimes::NotSupported => 0xffff,
+            SupportedTimes::Time(value) => value,
         }
     }
 }

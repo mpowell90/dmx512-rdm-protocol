@@ -51,7 +51,7 @@ use super::{
         decode_string_bytes, DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, MergeMode,
         ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, PresetProgrammed,
         ProductCategory, ProductDetail, SelfTest, SensorDefinition, SensorValue, SlotInfo,
-        StatusMessage, StatusType,
+        StatusMessage, StatusType, SupportedTimes,
     },
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
@@ -394,14 +394,14 @@ pub enum ResponseParameterData {
         maximum_preset_fade_time_supported: u16,
         minimum_preset_wait_time_supported: u16,
         maximum_preset_wait_time_supported: u16,
-        minimum_dmx_fail_delay_time_supported: u16,
-        maximum_dmx_fail_delay_time_supported: u16,
-        minimum_dmx_fail_hold_time_supported: u16,
-        maximum_dmx_fail_hold_time_supported: u16,
-        minimum_startup_delay_time_supported: u16,
-        maximum_startup_delay_time_supported: u16,
-        minimum_startup_hold_time_supported: u16,
-        maximum_startup_hold_time_supported: u16,
+        minimum_dmx_fail_delay_time_supported: SupportedTimes,
+        maximum_dmx_fail_delay_time_supported: SupportedTimes,
+        minimum_dmx_fail_hold_time_supported: SupportedTimes,
+        maximum_dmx_fail_hold_time_supported: SupportedTimes,
+        minimum_startup_delay_time_supported: SupportedTimes,
+        maximum_startup_delay_time_supported: SupportedTimes,
+        minimum_startup_hold_time_supported: SupportedTimes,
+        maximum_startup_hold_time_supported: SupportedTimes,
     },
     GetPresetStatus {
         scene_id: u16,
@@ -921,30 +921,30 @@ impl ResponseParameterData {
                     maximum_preset_wait_time_supported: u16::from_be_bytes(
                         bytes[14..=15].try_into()?,
                     ),
-                    minimum_dmx_fail_delay_time_supported: u16::from_be_bytes(
-                        bytes[16..=17].try_into()?,
+                    minimum_dmx_fail_delay_time_supported: SupportedTimes::from(
+                        u16::from_be_bytes(bytes[16..=17].try_into()?),
                     ),
-                    maximum_dmx_fail_delay_time_supported: u16::from_be_bytes(
-                        bytes[18..=19].try_into()?,
+                    maximum_dmx_fail_delay_time_supported: SupportedTimes::from(
+                        u16::from_be_bytes(bytes[18..=19].try_into()?),
                     ),
-                    minimum_dmx_fail_hold_time_supported: u16::from_be_bytes(
+                    minimum_dmx_fail_hold_time_supported: SupportedTimes::from(u16::from_be_bytes(
                         bytes[20..=21].try_into()?,
-                    ),
-                    maximum_dmx_fail_hold_time_supported: u16::from_be_bytes(
+                    )),
+                    maximum_dmx_fail_hold_time_supported: SupportedTimes::from(u16::from_be_bytes(
                         bytes[22..=23].try_into()?,
-                    ),
-                    minimum_startup_delay_time_supported: u16::from_be_bytes(
+                    )),
+                    minimum_startup_delay_time_supported: SupportedTimes::from(u16::from_be_bytes(
                         bytes[24..=25].try_into()?,
-                    ),
-                    maximum_startup_delay_time_supported: u16::from_be_bytes(
+                    )),
+                    maximum_startup_delay_time_supported: SupportedTimes::from(u16::from_be_bytes(
                         bytes[26..=27].try_into()?,
-                    ),
-                    minimum_startup_hold_time_supported: u16::from_be_bytes(
+                    )),
+                    minimum_startup_hold_time_supported: SupportedTimes::from(u16::from_be_bytes(
                         bytes[28..=29].try_into()?,
-                    ),
-                    maximum_startup_hold_time_supported: u16::from_be_bytes(
+                    )),
+                    maximum_startup_hold_time_supported: SupportedTimes::from(u16::from_be_bytes(
                         bytes[30..=31].try_into()?,
-                    ),
+                    )),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetStatus) => {
