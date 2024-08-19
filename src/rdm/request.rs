@@ -43,7 +43,7 @@ use super::{
     bsd_16_crc,
     parameter::{
         DisplayInvertMode, FadeTimes, LampOnMode, LampState, MergeMode, ParameterId, PowerState,
-        PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType,
+        PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType, TimeMode,
     },
     CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
@@ -219,16 +219,16 @@ pub enum RequestParameter {
     },
     GetDmxFailMode,
     SetDmxFailMode {
-        scene_id: u16,
-        loss_of_signal_delay_time: u16,
-        hold_time: u16,
+        scene_id: PresetPlaybackMode,
+        loss_of_signal_delay_time: TimeMode,
+        hold_time: TimeMode,
         level: u8,
     },
     GetDmxStartupMode,
     SetDmxStartupMode {
-        scene_id: u16,
-        startup_delay: u16,
-        hold_time: u16,
+        scene_id: PresetPlaybackMode,
+        startup_delay: TimeMode,
+        hold_time: TimeMode,
         level: u8,
     },
     GetDimmerInfo,
@@ -557,10 +557,10 @@ impl RequestParameter {
                 upper_bound_uid,
             } => {
                 buf.reserve(0x0c);
-                buf.extend(lower_bound_uid.manufacturer_id.to_be_bytes().iter());
-                buf.extend(lower_bound_uid.device_id.to_be_bytes().iter());
-                buf.extend(upper_bound_uid.manufacturer_id.to_be_bytes().iter());
-                buf.extend(upper_bound_uid.device_id.to_be_bytes().iter());
+                buf.extend(lower_bound_uid.manufacturer_id.to_be_bytes());
+                buf.extend(lower_bound_uid.device_id.to_be_bytes());
+                buf.extend(upper_bound_uid.manufacturer_id.to_be_bytes());
+                buf.extend(upper_bound_uid.device_id.to_be_bytes());
             }
             Self::GetCommsStatus => {}
             Self::SetCommsStatus => {}
@@ -574,7 +574,7 @@ impl RequestParameter {
             }
             Self::GetStatusIdDescription { status_id } => {
                 buf.reserve(0x02);
-                buf.extend((*status_id).to_be_bytes().iter());
+                buf.extend((*status_id).to_be_bytes());
             }
             Self::SetClearStatusId => {}
             Self::GetSubDeviceIdStatusReportThreshold => {}
@@ -585,7 +585,7 @@ impl RequestParameter {
             Self::GetSupportedParameters => {}
             Self::GetParameterDescription { parameter_id } => {
                 buf.reserve(0x02);
-                buf.extend((*parameter_id).to_be_bytes().iter());
+                buf.extend((*parameter_id).to_be_bytes());
             }
             Self::GetDeviceInfo => {}
             Self::GetProductDetailIdList => {}
@@ -619,12 +619,12 @@ impl RequestParameter {
             Self::GetDmxStartAddress => {}
             Self::SetDmxStartAddress { dmx_start_address } => {
                 buf.reserve(0x02);
-                buf.extend((*dmx_start_address).to_be_bytes().iter());
+                buf.extend((*dmx_start_address).to_be_bytes());
             }
             Self::GetSlotInfo => {}
             Self::GetSlotDescription { slot_id } => {
                 buf.reserve(0x02);
-                buf.extend((*slot_id).to_be_bytes().iter());
+                buf.extend((*slot_id).to_be_bytes());
             }
             Self::GetDefaultSlotValue => {}
             Self::GetSensorDefinition { sensor_id } => {
@@ -646,17 +646,17 @@ impl RequestParameter {
             Self::GetDeviceHours => {}
             Self::SetDeviceHours { device_hours } => {
                 buf.reserve(0x04);
-                buf.extend((*device_hours).to_be_bytes().iter());
+                buf.extend((*device_hours).to_be_bytes());
             }
             Self::GetLampHours => {}
             Self::SetLampHours { lamp_hours } => {
                 buf.reserve(0x04);
-                buf.extend((*lamp_hours).to_be_bytes().iter());
+                buf.extend((*lamp_hours).to_be_bytes());
             }
             Self::GetLampStrikes => {}
             Self::SetLampStrikes { lamp_strikes } => {
                 buf.reserve(0x04);
-                buf.extend((*lamp_strikes).to_be_bytes().iter());
+                buf.extend((*lamp_strikes).to_be_bytes());
             }
             Self::GetLampState => {}
             Self::SetLampState { lamp_state } => {
@@ -673,7 +673,7 @@ impl RequestParameter {
                 device_power_cycles,
             } => {
                 buf.reserve(0x04);
-                buf.extend((*device_power_cycles).to_be_bytes().iter());
+                buf.extend((*device_power_cycles).to_be_bytes());
             }
             Self::GetDisplayInvert => {}
             Self::SetDisplayInvert { display_invert } => {
@@ -710,7 +710,7 @@ impl RequestParameter {
                 second,
             } => {
                 buf.reserve(0x07);
-                buf.extend((*year).to_be_bytes().iter());
+                buf.extend((*year).to_be_bytes());
                 buf.push(*month);
                 buf.push(*day);
                 buf.push(*hour);
@@ -741,12 +741,12 @@ impl RequestParameter {
                 fade_times,
             } => {
                 buf.reserve(if fade_times.is_some() { 0x08 } else { 0x02 });
-                buf.extend((*scene_id).to_be_bytes().iter());
+                buf.extend((*scene_id).to_be_bytes());
 
                 if let Some(fade_times) = fade_times {
-                    buf.extend((fade_times.up_fade_time).to_be_bytes().iter());
-                    buf.extend((fade_times.down_fade_time).to_be_bytes().iter());
-                    buf.extend((fade_times.wait_time).to_be_bytes().iter());
+                    buf.extend((fade_times.up_fade_time).to_be_bytes());
+                    buf.extend((fade_times.down_fade_time).to_be_bytes());
+                    buf.extend((fade_times.wait_time).to_be_bytes());
                 }
             }
             Self::GetSelfTestDescription { self_test_id } => {
@@ -756,14 +756,14 @@ impl RequestParameter {
             Self::GetPresetPlayback => {}
             Self::SetPresetPlayback { mode, level } => {
                 buf.reserve(0x03);
-                buf.extend(u16::from(*mode).to_be_bytes().iter());
+                buf.extend(u16::from(*mode).to_be_bytes());
                 buf.push(*level);
             }
             // E1.37-1
             Self::GetDmxBlockAddress => {}
             Self::SetDmxBlockAddress { dmx_block_address } => {
                 buf.reserve(0x02);
-                buf.extend((*dmx_block_address).to_be_bytes().iter());
+                buf.extend((*dmx_block_address).to_be_bytes());
             }
             Self::GetDmxFailMode => {}
             Self::SetDmxFailMode {
@@ -773,9 +773,9 @@ impl RequestParameter {
                 level,
             } => {
                 buf.reserve(0x07);
-                buf.extend((*scene_id).to_be_bytes().iter());
-                buf.extend((*loss_of_signal_delay_time).to_be_bytes().iter());
-                buf.extend((*hold_time).to_be_bytes().iter());
+                buf.extend(u16::from(*scene_id).to_be_bytes());
+                buf.extend(u16::from(*loss_of_signal_delay_time).to_be_bytes());
+                buf.extend(u16::from(*hold_time).to_be_bytes());
                 buf.push(*level);
             }
             Self::GetDmxStartupMode => {}
@@ -786,9 +786,9 @@ impl RequestParameter {
                 level,
             } => {
                 buf.reserve(0x07);
-                buf.extend((*scene_id).to_be_bytes().iter());
-                buf.extend((*startup_delay).to_be_bytes().iter());
-                buf.extend((*hold_time).to_be_bytes().iter());
+                buf.extend(u16::from(*scene_id).to_be_bytes());
+                buf.extend(u16::from(*startup_delay).to_be_bytes());
+                buf.extend(u16::from(*hold_time).to_be_bytes());
                 buf.push(*level);
             }
             Self::GetDimmerInfo => {}
@@ -799,14 +799,14 @@ impl RequestParameter {
                 on_below_minimum,
             } => {
                 buf.reserve(0x05);
-                buf.extend((*minimum_level_increasing).to_be_bytes().iter());
-                buf.extend((*minimum_level_decreasing).to_be_bytes().iter());
+                buf.extend((*minimum_level_increasing).to_be_bytes());
+                buf.extend((*minimum_level_decreasing).to_be_bytes());
                 buf.push(*on_below_minimum as u8);
             }
             Self::GetMaximumLevel => {}
             Self::SetMaximumLevel { maximum_level } => {
                 buf.reserve(0x02);
-                buf.extend((*maximum_level).to_be_bytes().iter());
+                buf.extend((*maximum_level).to_be_bytes());
             }
             Self::GetCurve => {}
             Self::SetCurve { curve_id } => {
@@ -843,7 +843,7 @@ impl RequestParameter {
             Self::GetLockState => {}
             Self::SetLockState { pin_code, lock_state } => {
                 buf.reserve(0x03);
-                buf.extend((*pin_code).to_be_bytes().iter());
+                buf.extend((*pin_code).to_be_bytes());
                 buf.push(*lock_state as u8);
             }
             Self::GetLockStateDescription => {}
@@ -853,8 +853,8 @@ impl RequestParameter {
                 current_pin_code,
             } => {
                 buf.reserve(0x04);
-                buf.extend((*new_pin_code).to_be_bytes().iter());
-                buf.extend((*current_pin_code).to_be_bytes().iter());
+                buf.extend((*new_pin_code).to_be_bytes());
+                buf.extend((*current_pin_code).to_be_bytes());
             }
             Self::GetBurnIn => {}
             Self::SetBurnIn { hours } => {
@@ -869,7 +869,7 @@ impl RequestParameter {
             Self::GetPresetInfo => {}
             Self::GetPresetStatus { scene_id } => {
                 buf.reserve(0x02);
-                buf.extend((*scene_id).to_be_bytes().iter());
+                buf.extend((*scene_id).to_be_bytes());
             }
             Self::SetPresetStatus {
                 scene_id,
@@ -879,10 +879,10 @@ impl RequestParameter {
                 clear_preset,
             } => {
                 buf.reserve(0x0a);
-                buf.extend((*scene_id).to_be_bytes().iter());
-                buf.extend((*up_fade_time).to_be_bytes().iter());
-                buf.extend((*down_fade_time).to_be_bytes().iter());
-                buf.extend((*wait_time).to_be_bytes().iter());
+                buf.extend((*scene_id).to_be_bytes());
+                buf.extend((*up_fade_time).to_be_bytes());
+                buf.extend((*down_fade_time).to_be_bytes());
+                buf.extend((*wait_time).to_be_bytes());
                 buf.push(*clear_preset as u8);
             }
             Self::GetPresetMergeMode => {}

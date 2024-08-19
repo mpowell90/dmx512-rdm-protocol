@@ -51,7 +51,7 @@ use super::{
         decode_string_bytes, DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, MergeMode,
         ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, PresetProgrammed,
         ProductCategory, ProductDetail, SelfTest, SensorDefinition, SensorValue, SlotInfo,
-        StatusMessage, StatusType, SupportedTimes,
+        StatusMessage, StatusType, SupportedTimes, TimeMode,
     },
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
@@ -308,15 +308,15 @@ pub enum ResponseParameterData {
         base_dmx_address: u16,
     },
     GetDmxFailMode {
-        scene_id: u16,
-        loss_of_signal_delay: u16,
-        hold_time: u16,
+        scene_id: PresetPlaybackMode,
+        loss_of_signal_delay: TimeMode,
+        hold_time: TimeMode,
         level: u8,
     },
     GetDmxStartupMode {
-        scene_id: u16,
-        startup_delay: u16,
-        hold_time: u16,
+        scene_id: PresetPlaybackMode,
+        startup_delay: TimeMode,
+        hold_time: TimeMode,
         level: u8,
     },
     GetPowerOnSelfTest(bool),
@@ -811,17 +811,17 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxFailMode) => {
                 Ok(Self::GetDmxFailMode {
-                    scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    loss_of_signal_delay: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                    hold_time: u16::from_be_bytes(bytes[4..=5].try_into()?),
+                    scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    loss_of_signal_delay: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
+                    hold_time: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
                     level: bytes[6],
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxStartupMode) => {
                 Ok(Self::GetDmxStartupMode {
-                    scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    startup_delay: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                    hold_time: u16::from_be_bytes(bytes[4..=5].try_into()?),
+                    scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    startup_delay: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
+                    hold_time: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
                     level: bytes[6],
                 })
             }

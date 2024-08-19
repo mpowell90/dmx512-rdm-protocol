@@ -2102,6 +2102,30 @@ impl From<SupportedTimes> for u16 {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum TimeMode {
+    Infinite,
+    TenthOfSeconds(u16),
+}
+
+impl From<u16> for TimeMode {
+    fn from(value: u16) -> Self {
+        match value {
+            0xffff => Self::Infinite,
+            value => Self::TenthOfSeconds(value),
+        }
+    }
+}
+
+impl From<TimeMode> for u16 {
+    fn from(value: TimeMode) -> u16 {
+        match value {
+            TimeMode::Infinite => 0xffff,
+            TimeMode::TenthOfSeconds(value) => value,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
