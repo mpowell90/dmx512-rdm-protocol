@@ -48,10 +48,10 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        decode_string_bytes, DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState,
-        ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory,
-        ProductDetail, SelfTest, SensorDefinition, SensorValue, SlotInfo, StatusMessage,
-        StatusType,
+        decode_string_bytes, DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, MergeMode,
+        ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, PresetProgrammed,
+        ProductCategory, ProductDetail, SelfTest, SensorDefinition, SensorValue, SlotInfo,
+        StatusMessage, StatusType,
     },
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
@@ -153,6 +153,7 @@ pub enum ResponseData {
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum ResponseParameterData {
+    // E1.20
     DiscMute {
         control_field: u16,
         binding_uid: Option<DeviceUID>,
@@ -301,6 +302,115 @@ pub enum ResponseParameterData {
         mode: PresetPlaybackMode,
         level: u8,
     },
+    // E1.37-1
+    GetDmxBlockAddress {
+        total_sub_device_footprint: u16,
+        base_dmx_address: u16,
+    },
+    GetDmxFailMode {
+        scene_id: u16,
+        loss_of_signal_delay: u16,
+        hold_time: u16,
+        level: u8,
+    },
+    GetDmxStartupMode {
+        scene_id: u16,
+        startup_delay: u16,
+        hold_time: u16,
+        level: u8,
+    },
+    GetPowerOnSelfTest(bool),
+    GetLockState {
+        lock_state_id: u8,
+        lock_state_count: u8,
+    },
+    GetLockStateDescription {
+        lock_state_id: u8,
+        #[cfg(feature = "alloc")]
+        description: String,
+        #[cfg(not(feature = "alloc"))]
+        description: String<32>,
+    },
+    GetLockPin(u16),
+    GetBurnIn(u8),
+    GetDimmerInfo {
+        minimum_level_lower_limit: u16,
+        minimum_level_upper_limit: u16,
+        maximum_level_lower_limit: u16,
+        maximum_level_upper_limit: u16,
+        number_of_supported_curves: u8,
+        levels_resolution: u8,
+        minimum_level_split_levels_supported: bool,
+    },
+    GetMinimumLevel {
+        minimum_level_increasing: u16,
+        minimum_level_decreasing: u16,
+        on_below_minimum: bool,
+    },
+    GetMaximumLevel(u16),
+    GetCurve {
+        curve_id: u8,
+        curve_count: u8,
+    },
+    GetCurveDescription {
+        curve_id: u8,
+        #[cfg(feature = "alloc")]
+        description: String,
+        #[cfg(not(feature = "alloc"))]
+        description: String<32>,
+    },
+    GetOutputResponseTime {
+        response_time_id: u8,
+        response_time_count: u8,
+    },
+    GetOutputResponseTimeDescription {
+        response_time_id: u8,
+        #[cfg(feature = "alloc")]
+        description: String,
+        #[cfg(not(feature = "alloc"))]
+        description: String<32>,
+    },
+    GetModulationFrequency {
+        modulation_frequency_id: u8,
+        modulation_frequency_count: u8,
+    },
+    GetModulationFrequencyDescription {
+        modulation_frequency_id: u8,
+        frequency: u32,
+        #[cfg(feature = "alloc")]
+        description: String,
+        #[cfg(not(feature = "alloc"))]
+        description: String<32>,
+    },
+    GetPresetInfo {
+        level_field_supported: bool,
+        preset_sequence_supported: bool,
+        split_times_supported: bool,
+        dmx_fail_infinite_delay_time_supported: bool,
+        dmx_fail_infinite_hold_time_supported: bool,
+        startup_infinite_hold_time_supported: bool,
+        maximum_scene_number: u16,
+        minimum_preset_fade_time_supported: u16,
+        maximum_preset_fade_time_supported: u16,
+        minimum_preset_wait_time_supported: u16,
+        maximum_preset_wait_time_supported: u16,
+        minimum_dmx_fail_delay_time_supported: u16,
+        maximum_dmx_fail_delay_time_supported: u16,
+        minimum_dmx_fail_hold_time_supported: u16,
+        maximum_dmx_fail_hold_time_supported: u16,
+        minimum_startup_delay_time_supported: u16,
+        maximum_startup_delay_time_supported: u16,
+        minimum_startup_hold_time_supported: u16,
+        maximum_startup_hold_time_supported: u16,
+    },
+    GetPresetStatus {
+        scene_id: u16,
+        up_fade_time: u16,
+        down_fade_time: u16,
+        wait_time: u16,
+        programmed: PresetProgrammed,
+    },
+    GetPresetMergeMode(MergeMode),
     ManufacturerSpecific(
         #[cfg(feature = "alloc")] Vec<u8>,
         #[cfg(not(feature = "alloc"))] Vec<u8, 231>,
@@ -691,6 +801,163 @@ impl ResponseParameterData {
                     mode: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     level: bytes[2],
                 })
+            }
+            // E1.37-1
+            (CommandClass::GetCommandResponse, ParameterId::DmxBlockAddress) => {
+                Ok(Self::GetDmxBlockAddress {
+                    total_sub_device_footprint: u16::from_be_bytes(bytes[0..=1].try_into()?),
+                    base_dmx_address: u16::from_be_bytes(bytes[2..=3].try_into()?),
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DmxFailMode) => {
+                Ok(Self::GetDmxFailMode {
+                    scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
+                    loss_of_signal_delay: u16::from_be_bytes(bytes[2..=3].try_into()?),
+                    hold_time: u16::from_be_bytes(bytes[4..=5].try_into()?),
+                    level: bytes[6],
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DmxStartupMode) => {
+                Ok(Self::GetDmxStartupMode {
+                    scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
+                    startup_delay: u16::from_be_bytes(bytes[2..=3].try_into()?),
+                    hold_time: u16::from_be_bytes(bytes[4..=5].try_into()?),
+                    level: bytes[6],
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::PowerOnSelfTest) => {
+                Ok(Self::GetPowerOnSelfTest(bytes[0] == 1))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::LockState) => Ok(Self::GetLockState {
+                lock_state_id: bytes[0],
+                lock_state_count: bytes[1],
+            }),
+            (CommandClass::GetCommandResponse, ParameterId::LockStateDescription) => {
+                Ok(Self::GetLockStateDescription {
+                    lock_state_id: bytes[0],
+                    description: decode_string_bytes(&bytes[1..])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::LockPin) => Ok(Self::GetLockPin(
+                u16::from_be_bytes(bytes[0..=1].try_into()?),
+            )),
+            (CommandClass::GetCommandResponse, ParameterId::BurnIn) => {
+                Ok(Self::GetBurnIn(bytes[0]))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DimmerInfo) => {
+                Ok(Self::GetDimmerInfo {
+                    minimum_level_lower_limit: u16::from_be_bytes(bytes[0..=1].try_into()?),
+                    minimum_level_upper_limit: u16::from_be_bytes(bytes[2..=3].try_into()?),
+                    maximum_level_lower_limit: u16::from_be_bytes(bytes[4..=5].try_into()?),
+                    maximum_level_upper_limit: u16::from_be_bytes(bytes[6..=7].try_into()?),
+                    number_of_supported_curves: bytes[8],
+                    levels_resolution: bytes[9],
+                    minimum_level_split_levels_supported: bytes[10] == 1,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::MinimumLevel) => {
+                Ok(Self::GetMinimumLevel {
+                    minimum_level_increasing: u16::from_be_bytes(bytes[0..=1].try_into()?),
+                    minimum_level_decreasing: u16::from_be_bytes(bytes[2..=3].try_into()?),
+                    on_below_minimum: bytes[4] == 1,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::MaximumLevel) => Ok(
+                Self::GetMaximumLevel(u16::from_be_bytes(bytes[0..=1].try_into()?)),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::Curve) => Ok(Self::GetCurve {
+                curve_id: bytes[0],
+                curve_count: bytes[1],
+            }),
+            (CommandClass::GetCommandResponse, ParameterId::CurveDescription) => {
+                Ok(Self::GetCurveDescription {
+                    curve_id: bytes[0],
+                    description: decode_string_bytes(&bytes[1..])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::OutputResponseTime) => {
+                Ok(Self::GetOutputResponseTime {
+                    response_time_id: bytes[0],
+                    response_time_count: bytes[1],
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::OutputResponseTimeDescription) => {
+                Ok(Self::GetOutputResponseTimeDescription {
+                    response_time_id: bytes[0],
+                    description: decode_string_bytes(&bytes[1..])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::ModulationFrequency) => {
+                Ok(Self::GetModulationFrequency {
+                    modulation_frequency_id: bytes[0],
+                    modulation_frequency_count: bytes[1],
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::ModulationFrequencyDescription) => {
+                Ok(Self::GetModulationFrequencyDescription {
+                    modulation_frequency_id: bytes[0],
+                    frequency: u32::from_be_bytes(bytes[1..=4].try_into()?),
+                    description: decode_string_bytes(&bytes[5..])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::PresetInfo) => {
+                Ok(Self::GetPresetInfo {
+                    level_field_supported: bytes[0] == 1,
+                    preset_sequence_supported: bytes[1] == 1,
+                    split_times_supported: bytes[2] == 1,
+                    dmx_fail_infinite_delay_time_supported: bytes[3] == 1,
+                    dmx_fail_infinite_hold_time_supported: bytes[4] == 1,
+                    startup_infinite_hold_time_supported: bytes[5] == 1,
+                    maximum_scene_number: u16::from_be_bytes(bytes[6..=7].try_into()?),
+                    minimum_preset_fade_time_supported: u16::from_be_bytes(
+                        bytes[8..=9].try_into()?,
+                    ),
+                    maximum_preset_fade_time_supported: u16::from_be_bytes(
+                        bytes[10..=11].try_into()?,
+                    ),
+                    minimum_preset_wait_time_supported: u16::from_be_bytes(
+                        bytes[12..=13].try_into()?,
+                    ),
+                    maximum_preset_wait_time_supported: u16::from_be_bytes(
+                        bytes[14..=15].try_into()?,
+                    ),
+                    minimum_dmx_fail_delay_time_supported: u16::from_be_bytes(
+                        bytes[16..=17].try_into()?,
+                    ),
+                    maximum_dmx_fail_delay_time_supported: u16::from_be_bytes(
+                        bytes[18..=19].try_into()?,
+                    ),
+                    minimum_dmx_fail_hold_time_supported: u16::from_be_bytes(
+                        bytes[20..=21].try_into()?,
+                    ),
+                    maximum_dmx_fail_hold_time_supported: u16::from_be_bytes(
+                        bytes[22..=23].try_into()?,
+                    ),
+                    minimum_startup_delay_time_supported: u16::from_be_bytes(
+                        bytes[24..=25].try_into()?,
+                    ),
+                    maximum_startup_delay_time_supported: u16::from_be_bytes(
+                        bytes[26..=27].try_into()?,
+                    ),
+                    minimum_startup_hold_time_supported: u16::from_be_bytes(
+                        bytes[28..=29].try_into()?,
+                    ),
+                    maximum_startup_hold_time_supported: u16::from_be_bytes(
+                        bytes[30..=31].try_into()?,
+                    ),
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::PresetStatus) => {
+                Ok(Self::GetPresetStatus {
+                    scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
+                    up_fade_time: u16::from_be_bytes(bytes[2..=3].try_into()?),
+                    down_fade_time: u16::from_be_bytes(bytes[4..=5].try_into()?),
+                    wait_time: u16::from_be_bytes(bytes[6..=7].try_into()?),
+                    programmed: PresetProgrammed::try_from(bytes[8])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::PresetMergeMode) => {
+                Ok(Self::GetPresetMergeMode(MergeMode::try_from(bytes[0])?))
             }
             (_, ParameterId::ManufacturerSpecific(_)) => Ok(Self::ManufacturerSpecific(
                 #[cfg(feature = "alloc")]

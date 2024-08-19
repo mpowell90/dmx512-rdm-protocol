@@ -42,7 +42,7 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        DisplayInvertMode, FadeTimes, LampOnMode, LampState, ParameterId, PowerState,
+        DisplayInvertMode, FadeTimes, LampOnMode, LampState, MergeMode, ParameterId, PowerState,
         PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType,
     },
     CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
@@ -53,6 +53,7 @@ use heapless::{String, Vec};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter {
+    // E1.20
     DiscMute,
     DiscUnMute,
     DiscUniqueBranch {
@@ -211,6 +212,95 @@ pub enum RequestParameter {
         mode: PresetPlaybackMode,
         level: u8,
     },
+    // E1.37-1
+    GetDmxBlockAddress,
+    SetDmxBlockAddress {
+        dmx_block_address: u16,
+    },
+    GetDmxFailMode,
+    SetDmxFailMode {
+        scene_id: u16,
+        loss_of_signal_delay_time: u16,
+        hold_time: u16,
+        level: u8,
+    },
+    GetDmxStartupMode,
+    SetDmxStartupMode {
+        scene_id: u16,
+        startup_delay: u16,
+        hold_time: u16,
+        level: u8,
+    },
+    GetDimmerInfo,
+    GetMinimumLevel,
+    SetMinimumLevel {
+        minimum_level_increasing: u16,
+        minimum_level_decreasing: u16,
+        on_below_minimum: bool,
+    },
+    GetMaximumLevel,
+    SetMaximumLevel {
+        maximum_level: u16,
+    },
+    GetCurve,
+    SetCurve {
+        curve_id: u8,
+    },
+    GetCurveDescription {
+        curve_id: u8,
+    },
+    GetOutputResponseTime,
+    SetOutputResponseTime {
+        output_response_time_id: u8,
+    },
+    GetOutputResponseTimeDescription {
+        output_response_time_id: u8,
+    },
+    GetModulationFrequency,
+    SetModulationFrequency {
+        modulation_frequency_id: u8,
+    },
+    GetModulationFrequencyDescription {
+        modulation_frequency_id: u8,
+    },
+    GetPowerOnSelfTest,
+    SetPowerOnSelfTest {
+        self_test_id: SelfTest,
+    },
+    GetLockState,
+    SetLockState {
+        pin_code: u16,
+        lock_state: bool,
+    },
+    GetLockStateDescription,
+    GetLockPin,
+    SetLockPin {
+        new_pin_code: u16,
+        current_pin_code: u16,
+    },
+    GetBurnIn,
+    SetBurnIn {
+        hours: u8,
+    },
+    GetIdentifyMode,
+    SetIdentifyMode {
+        identify_mode: u8,
+    },
+    GetPresetInfo,
+    GetPresetStatus {
+        scene_id: u16,
+    },
+    GetPresetMergeMode,
+    SetPresetMergeMode {
+        merge_mode: MergeMode,
+    },
+    SetPresetStatus {
+        scene_id: u16,
+        up_fade_time: u16,
+        down_fade_time: u16,
+        wait_time: u16,
+        clear_preset: bool,
+    },
     ManufacturerSpecific {
         command_class: CommandClass,
         parameter_id: u16,
@@ -235,6 +325,7 @@ impl RequestParameter {
             Self::DiscMute | Self::DiscUnMute | Self::DiscUniqueBranch { .. } => {
                 CommandClass::DiscoveryCommand
             }
+            // E1.20
             Self::GetCommsStatus
             | Self::GetQueuedMessage { .. }
             | Self::GetStatusMessages { .. }
@@ -277,7 +368,31 @@ impl RequestParameter {
             | Self::GetPowerState
             | Self::GetPerformSelfTest
             | Self::GetSelfTestDescription { .. }
-            | Self::GetPresetPlayback => CommandClass::GetCommand,
+            | Self::GetPresetPlayback
+            // E1.37-1
+            | Self::GetDmxBlockAddress
+            | Self::GetDmxFailMode
+            | Self::GetDmxStartupMode
+            | Self::GetDimmerInfo
+            | Self::GetMinimumLevel
+            | Self::GetMaximumLevel
+            | Self::GetCurve
+            | Self::GetCurveDescription { .. }
+            | Self::GetOutputResponseTime
+            | Self::GetOutputResponseTimeDescription { .. }
+            | Self::GetModulationFrequency
+            | Self::GetModulationFrequencyDescription { .. }
+            | Self::GetPowerOnSelfTest
+            | Self::GetLockState
+            | Self::GetLockStateDescription
+            | Self::GetLockPin
+            | Self::GetBurnIn
+            | Self::GetIdentifyMode
+            | Self::GetPresetInfo
+            | Self::GetPresetStatus { .. }
+            | Self::GetPresetMergeMode
+            => CommandClass::GetCommand,
+            // E1.20
             Self::SetCommsStatus
             | Self::SetClearStatusId
             | Self::SetSubDeviceIdStatusReportThreshold { .. }
@@ -305,7 +420,24 @@ impl RequestParameter {
             | Self::SetPowerState { .. }
             | Self::SetPerformSelfTest { .. }
             | Self::SetCapturePreset { .. }
-            | Self::SetPresetPlayback { .. } => CommandClass::SetCommand,
+            | Self::SetPresetPlayback { .. }
+            // E1.37-1
+            | Self::SetDmxBlockAddress { .. }
+            | Self::SetDmxFailMode { .. }
+            | Self::SetDmxStartupMode { .. }
+            | Self::SetMinimumLevel { .. }
+            | Self::SetMaximumLevel { .. }
+            | Self::SetCurve { .. }
+            | Self::SetOutputResponseTime { .. }
+            | Self::SetModulationFrequency { .. }
+            | Self::SetPowerOnSelfTest { .. }
+            | Self::SetLockState { .. }
+            | Self::SetLockPin { .. }
+            | Self::SetBurnIn { .. }
+            | Self::SetIdentifyMode { .. }
+            | Self::SetPresetMergeMode { .. }
+            | Self::SetPresetStatus { .. }
+            => CommandClass::SetCommand,
             Self::ManufacturerSpecific { command_class, .. } => *command_class,
             Self::Unsupported { command_class, .. } => *command_class,
         }
@@ -313,6 +445,7 @@ impl RequestParameter {
 
     pub fn parameter_id(&self) -> ParameterId {
         match self {
+            // E1.20
             Self::DiscMute => ParameterId::DiscMute,
             Self::DiscUnMute => ParameterId::DiscUnMute,
             Self::DiscUniqueBranch { .. } => ParameterId::DiscUniqueBranch,
@@ -372,6 +505,38 @@ impl RequestParameter {
             Self::SetCapturePreset { .. } => ParameterId::CapturePreset,
             Self::GetSelfTestDescription { .. } => ParameterId::SelfTestDescription,
             Self::GetPresetPlayback | Self::SetPresetPlayback { .. } => ParameterId::PresetPlayback,
+            // E1.37-1
+            Self::GetDmxBlockAddress | Self::SetDmxBlockAddress { .. } => ParameterId::DmxBlockAddress,
+            Self::GetDmxFailMode | Self::SetDmxFailMode { .. } => ParameterId::DmxFailMode,
+            Self::GetDmxStartupMode | Self::SetDmxStartupMode { .. } => ParameterId::DmxStartupMode,
+            Self::GetDimmerInfo => ParameterId::DimmerInfo,
+            Self::GetMinimumLevel | Self::SetMinimumLevel { .. } => ParameterId::MinimumLevel,
+            Self::GetMaximumLevel | Self::SetMaximumLevel { .. } => ParameterId::MaximumLevel,
+            Self::GetCurve | Self::SetCurve { .. } => ParameterId::Curve,
+            Self::GetCurveDescription { .. } => ParameterId::CurveDescription,
+            Self::GetOutputResponseTime | Self::SetOutputResponseTime { .. } => {
+                ParameterId::OutputResponseTime
+            }
+            Self::GetOutputResponseTimeDescription { .. } => {
+                ParameterId::OutputResponseTimeDescription
+            }
+            Self::GetModulationFrequency | Self::SetModulationFrequency { .. } => {
+                ParameterId::ModulationFrequency
+            }
+            Self::GetModulationFrequencyDescription { .. } => {
+                ParameterId::ModulationFrequencyDescription
+            }
+            Self::GetPowerOnSelfTest | Self::SetPowerOnSelfTest { .. } => {
+                ParameterId::PowerOnSelfTest
+            }
+            Self::GetLockState | Self::SetLockState { .. } => ParameterId::LockState,
+            Self::GetLockStateDescription => ParameterId::LockStateDescription,
+            Self::GetLockPin | Self::SetLockPin { .. } => ParameterId::LockPin,
+            Self::GetBurnIn | Self::SetBurnIn { .. } => ParameterId::BurnIn,
+            Self::GetIdentifyMode | Self::SetIdentifyMode { .. } => ParameterId::IdentifyMode,
+            Self::GetPresetInfo => ParameterId::PresetInfo,
+            Self::GetPresetStatus { .. } | Self::SetPresetStatus { .. } => ParameterId::PresetStatus,
+            Self::GetPresetMergeMode | Self::SetPresetMergeMode { .. } => ParameterId::PresetMergeMode,
             Self::ManufacturerSpecific { parameter_id, .. } => {
                 ParameterId::ManufacturerSpecific(*parameter_id)
             }
@@ -384,6 +549,7 @@ impl RequestParameter {
         let mut buf = Vec::new();
 
         match self {
+            // E1.20
             Self::DiscMute => {}
             Self::DiscUnMute => {}
             Self::DiscUniqueBranch {
@@ -593,6 +759,137 @@ impl RequestParameter {
                 buf.extend(u16::from(*mode).to_be_bytes().iter());
                 buf.push(*level);
             }
+            // E1.37-1
+            Self::GetDmxBlockAddress => {}
+            Self::SetDmxBlockAddress { dmx_block_address } => {
+                buf.reserve(0x02);
+                buf.extend((*dmx_block_address).to_be_bytes().iter());
+            }
+            Self::GetDmxFailMode => {}
+            Self::SetDmxFailMode {
+                scene_id,
+                loss_of_signal_delay_time,
+                hold_time,
+                level,
+            } => {
+                buf.reserve(0x07);
+                buf.extend((*scene_id).to_be_bytes().iter());
+                buf.extend((*loss_of_signal_delay_time).to_be_bytes().iter());
+                buf.extend((*hold_time).to_be_bytes().iter());
+                buf.push(*level);
+            }
+            Self::GetDmxStartupMode => {}
+            Self::SetDmxStartupMode {
+                scene_id,
+                startup_delay,
+                hold_time,
+                level,
+            } => {
+                buf.reserve(0x07);
+                buf.extend((*scene_id).to_be_bytes().iter());
+                buf.extend((*startup_delay).to_be_bytes().iter());
+                buf.extend((*hold_time).to_be_bytes().iter());
+                buf.push(*level);
+            }
+            Self::GetDimmerInfo => {}
+            Self::GetMinimumLevel => {}
+            Self::SetMinimumLevel {
+                minimum_level_increasing,
+                minimum_level_decreasing,
+                on_below_minimum,
+            } => {
+                buf.reserve(0x05);
+                buf.extend((*minimum_level_increasing).to_be_bytes().iter());
+                buf.extend((*minimum_level_decreasing).to_be_bytes().iter());
+                buf.push(*on_below_minimum as u8);
+            }
+            Self::GetMaximumLevel => {}
+            Self::SetMaximumLevel { maximum_level } => {
+                buf.reserve(0x02);
+                buf.extend((*maximum_level).to_be_bytes().iter());
+            }
+            Self::GetCurve => {}
+            Self::SetCurve { curve_id } => {
+                buf.reserve(0x01);
+                buf.push(*curve_id)
+            }
+            Self::GetCurveDescription { curve_id } => {
+                buf.reserve(0x01);
+                buf.push(*curve_id)
+            }
+            Self::GetOutputResponseTime => {}
+            Self::SetOutputResponseTime { output_response_time_id } => {
+                buf.reserve(0x01);
+                buf.push(*output_response_time_id)
+            }
+            Self::GetOutputResponseTimeDescription { output_response_time_id } => {
+                buf.reserve(0x01);
+                buf.push(*output_response_time_id)
+            }
+            Self::GetModulationFrequency => {}
+            Self::SetModulationFrequency { modulation_frequency_id } => {
+                buf.reserve(0x01);
+                buf.push(*modulation_frequency_id)
+            }
+            Self::GetModulationFrequencyDescription { modulation_frequency_id } => {
+                buf.reserve(0x01);
+                buf.push(*modulation_frequency_id)
+            }
+            Self::GetPowerOnSelfTest => {}
+            Self::SetPowerOnSelfTest { self_test_id } => {
+                buf.reserve(0x01);
+                buf.push((*self_test_id).into())
+            }
+            Self::GetLockState => {}
+            Self::SetLockState { pin_code, lock_state } => {
+                buf.reserve(0x03);
+                buf.extend((*pin_code).to_be_bytes().iter());
+                buf.push(*lock_state as u8);
+            }
+            Self::GetLockStateDescription => {}
+            Self::GetLockPin => {}
+            Self::SetLockPin {
+                new_pin_code,
+                current_pin_code,
+            } => {
+                buf.reserve(0x04);
+                buf.extend((*new_pin_code).to_be_bytes().iter());
+                buf.extend((*current_pin_code).to_be_bytes().iter());
+            }
+            Self::GetBurnIn => {}
+            Self::SetBurnIn { hours } => {
+                buf.reserve(0x01);
+                buf.push(*hours)
+            }
+            Self::GetIdentifyMode => {}
+            Self::SetIdentifyMode { identify_mode } => {
+                buf.reserve(0x01);
+                buf.push(*identify_mode)
+            }
+            Self::GetPresetInfo => {}
+            Self::GetPresetStatus { scene_id } => {
+                buf.reserve(0x02);
+                buf.extend((*scene_id).to_be_bytes().iter());
+            }
+            Self::SetPresetStatus {
+                scene_id,
+                up_fade_time,
+                down_fade_time,
+                wait_time,
+                clear_preset,
+            } => {
+                buf.reserve(0x0a);
+                buf.extend((*scene_id).to_be_bytes().iter());
+                buf.extend((*up_fade_time).to_be_bytes().iter());
+                buf.extend((*down_fade_time).to_be_bytes().iter());
+                buf.extend((*wait_time).to_be_bytes().iter());
+                buf.push(*clear_preset as u8);
+            }
+            Self::GetPresetMergeMode => {}
+            Self::SetPresetMergeMode { merge_mode } => {
+                buf.reserve(0x01);
+                buf.push(*merge_mode as u8)
+            }
             Self::ManufacturerSpecific { parameter_data, .. } => {
                 buf.reserve(parameter_data.len());
                 buf.extend(parameter_data);
@@ -611,6 +908,7 @@ impl RequestParameter {
         let mut buf: Vec<u8, 231> = Vec::new();
 
         match self {
+            // E1.20
             Self::DiscMute => {}
             Self::DiscUnMute => {}
             Self::DiscUniqueBranch {
@@ -742,6 +1040,118 @@ impl RequestParameter {
             Self::SetPresetPlayback { mode, level } => {
                 buf.extend(u16::from(*mode).to_be_bytes());
                 buf.push(*level).unwrap();
+            }
+            // E1.37-1
+            Self::GetDmxBlockAddress => {}
+            Self::SetDmxBlockAddress { dmx_block_address } => {
+                buf.extend((*dmx_block_address).to_be_bytes());
+            }
+            Self::GetDmxFailMode => {}
+            Self::SetDmxFailMode {
+                scene_id,
+                loss_of_signal_delay_time,
+                hold_time,
+                level,
+            } => {
+                buf.extend((*scene_id).to_be_bytes());
+                buf.extend((*loss_of_signal_delay_time).to_be_bytes());
+                buf.extend((*hold_time).to_be_bytes());
+                buf.push(*level).unwrap();
+            }
+            Self::GetDmxStartupMode => {}
+            Self::SetDmxStartupMode {
+                scene_id,
+                startup_delay,
+                hold_time,
+                level,
+            } => {
+                buf.extend((*scene_id).to_be_bytes());
+                buf.extend((*startup_delay).to_be_bytes());
+                buf.extend((*hold_time).to_be_bytes());
+                buf.push(*level).unwrap();
+            }
+            Self::GetDimmerInfo => {}
+            Self::GetMinimumLevel => {}
+            Self::SetMinimumLevel {
+                minimum_level_increasing,
+                minimum_level_decreasing,
+                on_below_minimum,
+            } => {
+                buf.extend((*minimum_level_increasing).to_be_bytes());
+                buf.extend((*minimum_level_decreasing).to_be_bytes());
+                buf.push(*on_below_minimum as u8).unwrap();
+            }
+            Self::GetMaximumLevel => {}
+            Self::SetMaximumLevel { maximum_level } => {
+                buf.extend((*maximum_level).to_be_bytes());
+            }
+            Self::GetCurve => {}
+            Self::SetCurve { curve_id } => {
+                buf.push(*curve_id).unwrap();
+            }
+            Self::GetCurveDescription { curve_id } => {
+                buf.push(*curve_id).unwrap();
+            }
+            Self::GetOutputResponseTime => {}
+            Self::SetOutputResponseTime { output_response_time_id } => {
+                buf.push(*output_response_time_id).unwrap();
+            }
+            Self::GetOutputResponseTimeDescription { output_response_time_id } => {
+                buf.push(*output_response_time_id).unwrap();
+            }
+            Self::GetModulationFrequency => {}
+            Self::SetModulationFrequency { modulation_frequency_id } => {
+                buf.push(*modulation_frequency_id).unwrap();
+            }
+            Self::GetModulationFrequencyDescription { modulation_frequency_id } => {
+                buf.push(*modulation_frequency_id).unwrap();
+            }
+            Self::GetPowerOnSelfTest => {}
+            Self::SetPowerOnSelfTest { self_test_id } => {
+                buf.push((*self_test_id).into()).unwrap();
+            }
+            Self::GetLockState => {}
+            Self::SetLockState { pin_code, lock_state } => {
+                buf.extend((*pin_code).to_be_bytes());
+                buf.push(*lock_state as u8).unwrap();
+            }
+            Self::GetLockStateDescription => {}
+            Self::GetLockPin => {}
+            Self::SetLockPin {
+                new_pin_code,
+                current_pin_code,
+            } => {
+                buf.extend((*new_pin_code).to_be_bytes());
+                buf.extend((*current_pin_code).to_be_bytes());
+            }
+            Self::GetBurnIn => {}
+            Self::SetBurnIn { hours } => {
+                buf.push(*hours).unwrap();
+            }
+            Self::GetIdentifyMode => {}
+            Self::SetIdentifyMode { identify_mode } => {
+                buf.push(*identify_mode).unwrap();
+            }
+            Self::GetPresetInfo => {}
+            Self::GetPresetStatus { scene_id } => {
+                buf.extend((*scene_id).to_be_bytes());
+            }
+            Self::SetPresetStatus {
+                scene_id,
+                up_fade_time,
+                down_fade_time,
+                wait_time,
+                clear_preset,
+            } => {
+                buf.extend((*scene_id).to_be_bytes());
+                buf.extend((*up_fade_time).to_be_bytes());
+                buf.extend((*down_fade_time).to_be_bytes());
+                buf.extend((*wait_time).to_be_bytes());
+                buf.push(*clear_preset as u8).unwrap();
+            }
+            Self::GetPresetMergeMode => {}
+            Self::SetPresetMergeMode { merge_mode } => {
+                buf.push(*merge_mode as u8).unwrap();
             }
             Self::ManufacturerSpecific { parameter_data, .. } => {
                 buf.extend_from_slice(parameter_data).unwrap();

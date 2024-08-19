@@ -26,6 +26,9 @@ pub enum RdmError {
     InvalidDisplayInvertMode(u8),
     InvalidResetDeviceMode(u8),
     InvalidSensorType(u8),
+    InvalidIdentifyMode(u8),
+    InvalidMergeMode(u8),
+    InvalidPresetProgrammed(u8),
     MalformedPacket,
 }
 
@@ -103,6 +106,15 @@ impl fmt::Display for RdmError {
             Self::InvalidResetDeviceMode(mode) => write!(f, "Invalid ResetDeviceMode: {}", mode),
             Self::InvalidSensorType(sensor_type) => {
                 write!(f, "Invalid SensorType: {}", sensor_type)
+            }
+            Self::InvalidIdentifyMode(identify_mode) => {
+                write!(f, "Invalid IdentifyMode: {}", identify_mode)
+            }
+            Self::InvalidMergeMode(merge_mode) => {
+                write!(f, "Invalid MergeMode: {}", merge_mode)
+            }
+            Self::InvalidPresetProgrammed(preset_programmed) => {
+                write!(f, "Invalid PresetProgrammed: {}", preset_programmed)
             }
             Self::MalformedPacket => write!(f, "Malformed packet"),
         }
