@@ -6,6 +6,7 @@ pub enum DmxError {
     InvalidStartCode(u8),
     InvalidChannelCount(u16),
     ChannelOutOfBounds,
+    FailedToAllocate
 }
 
 impl fmt::Display for DmxError {
@@ -17,6 +18,7 @@ impl fmt::Display for DmxError {
                 write!(f, "Invalid channel count: {}", channel_count)
             }
             Self::ChannelOutOfBounds => write!(f, "Channel out of bounds"),
+            Self::FailedToAllocate => write!(f, "Failed to allocate memory"),
         }
     }
 }

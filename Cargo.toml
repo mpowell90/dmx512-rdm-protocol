@@ -11,5 +11,9 @@ homepage = "https://github.com/mpowell90/dmx512-rdm-protocol"
 keywords = ["dmx", "rdm", "lighting", "protocol", "control"]
 
 [features]
-default = ["rdm"]
+default = ["rdm", "alloc"]
 rdm = []
+alloc = []
+
+[dependencies]
+heapless = "0.8.0"

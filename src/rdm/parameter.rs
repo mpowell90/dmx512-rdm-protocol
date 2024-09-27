@@ -1,13 +1,30 @@
 use super::{RdmError, SubDeviceId};
-use core::{fmt::Display, result::Result};
+use core::result::Result;
 
+#[cfg(not(feature = "alloc"))]
+use heapless::{String, Vec};
+#[cfg(not(feature = "alloc"))]
+use core::str::FromStr;
+
+#[cfg(feature = "alloc")]
 pub fn decode_string_bytes(bytes: &[u8]) -> Result<String, RdmError> {
     let utf8 = String::from_utf8_lossy(bytes);
 
-    if utf8.contains('\0') {
+    if utf8.contains(char::from(0)) {
         Ok(utf8.split_once(char::from(0)).unwrap().0.to_string())
     } else {
         Ok(utf8.to_string())
+    }
+}
+
+#[cfg(not(feature = "alloc"))]
+pub fn decode_string_bytes<const N: usize>(bytes: &[u8]) -> Result<String<N>, RdmError> {
+    let utf8 = String::<N>::from_utf8(Vec::<u8, N>::from_slice(bytes).unwrap())?;
+
+    if utf8.contains(char::from(0)) {
+        Ok(String::<N>::from_str(utf8.split_once(char::from(0)).unwrap().0).unwrap())
+    } else {
+        Ok(utf8)
     }
 }
 
@@ -512,7 +529,12 @@ impl TryFrom<u8> for ParameterDataType {
 
 pub enum ConvertedParameterValue {
     BitField(u8),
-    Ascii(String),
+    Ascii(
+        #[cfg(feature = "alloc")]
+        String,
+        #[cfg(not(feature = "alloc"))]
+        String<4>
+    ),
     UnsignedByte(u8),
     SignedByte(i8),
     UnsignedWord(u16),
@@ -533,7 +555,10 @@ pub struct ParameterDescription {
     pub raw_minimum_valid_value: [u8; 4],
     pub raw_maximum_valid_value: [u8; 4],
     pub raw_default_value: [u8; 4],
+    #[cfg(feature = "alloc")]
     pub description: String,
+    #[cfg(not(feature = "alloc"))]
+    pub description: String<32>,
 }
 
 impl ParameterDescription {
@@ -1074,10 +1099,14 @@ pub struct StatusMessage {
     pub status_message_id: u16,
     pub data_value1: u16,
     pub data_value2: u16,
+    #[cfg(feature = "alloc")]
     pub description: Option<String>,
+    #[cfg(not(feature = "alloc"))]
+    pub description: Option<String<32>>,
 }
 
 impl StatusMessage {
+    #[cfg(feature = "alloc")]
     pub fn new(
         sub_device_id: SubDeviceId,
         status_type: StatusType,
@@ -1141,6 +1170,176 @@ impl StatusMessage {
                 0x0050 => Some(format!("{} ready", SlotIdDefinition::from(data_value1))),
                 0x0051 => Some(format!("{} not ready", SlotIdDefinition::from(data_value1))),
                 0x0052 => Some(format!("{} low fluid", SlotIdDefinition::from(data_value1))),
+                _ => None,
+            }
+        } else {
+            None
+        };
+
+        StatusMessage {
+            sub_device_id,
+            status_type,
+            status_message_id,
+            data_value1,
+            data_value2,
+            description,
+        }
+    }
+
+    #[cfg(not(feature = "alloc"))]
+    pub fn new(
+        sub_device_id: SubDeviceId,
+        status_type: StatusType,
+        status_message_id: u16,
+        data_value1: u16,
+        data_value2: u16,
+    ) -> Self {
+        let description = if status_message_id < 0x8000 {
+            match status_message_id {
+                0x0001 => Some(
+                    String::<32>::from_str(
+                        format_args!("{} failed calibration", SlotIdDefinition::from(data_value1))
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0002 => Some(
+                    String::<32>::from_str(
+                        format_args!("{} sensor not found", SlotIdDefinition::from(data_value1))
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0003 => Some(
+                    String::<32>::from_str(
+                        format_args!("{} sensor always on", SlotIdDefinition::from(data_value1))
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0011 => Some(String::<32>::from_str("Lamp Doused").unwrap()),
+                0x0012 => Some(String::<32>::from_str("Lamp Strike").unwrap()),
+                0x0021 => Some(
+                    String::<32>::from_str(
+                        format_args!(
+                            "Sensor {} over temp at {} degrees C",
+                            data_value1, data_value2
+                        )
+                        .as_str()
+                        .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0022 => Some(
+                    String::<32>::from_str(
+                        format_args!(
+                            "Sensor {} under temp at {} degrees C",
+                            data_value1, data_value2
+                        )
+                        .as_str()
+                        .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0023 => Some(
+                    String::<32>::from_str(
+                        format_args!("Sensor {} out of range", data_value1)
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0031 => Some(
+                    String::<32>::from_str(
+                        format_args!("Phase {} over voltage at {} V", data_value1, data_value2)
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0032 => Some(
+                    String::<32>::from_str(
+                        format_args!("Phase {} under voltage at {} V", data_value1, data_value2)
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0033 => Some(
+                    String::<32>::from_str(
+                        format_args!("Phase {} over current at {} A", data_value1, data_value2)
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0034 => Some(
+                    String::<32>::from_str(
+                        format_args!("Phase {} under current at {} A", data_value1, data_value2)
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0035 => Some(
+                    String::<32>::from_str(
+                        format_args!("Phase {} is at {} degrees", data_value1, data_value2)
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0036 => Some(
+                    String::<32>::from_str(
+                        format_args!("Phase {} Error", data_value1)
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0037 => Some(
+                    String::<32>::from_str(format_args!("{} Amps", data_value1).as_str().unwrap())
+                        .unwrap(),
+                ),
+                0x0038 => Some(
+                    String::<32>::from_str(format_args!("{} Volts", data_value1).as_str().unwrap())
+                        .unwrap(),
+                ),
+                0x0041 => Some(String::<32>::from_str("No Dimmer").unwrap()),
+                0x0042 => Some(String::<32>::from_str("Tripped Breaker").unwrap()),
+                0x0043 => Some(
+                    String::<32>::from_str(format_args!("{} Watts", data_value1).as_str().unwrap())
+                        .unwrap(),
+                ),
+                0x0044 => Some(String::<32>::from_str("Dimmer Failure").unwrap()),
+                0x0045 => Some(String::<32>::from_str("Panic Mode").unwrap()),
+                0x0050 => Some(
+                    String::<32>::from_str(
+                        format_args!("{} ready", SlotIdDefinition::from(data_value1))
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0051 => Some(
+                    String::<32>::from_str(
+                        format_args!("{} not ready", SlotIdDefinition::from(data_value1))
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0052 => Some(
+                    String::<32>::from_str(
+                        format_args!("{} low fluid", SlotIdDefinition::from(data_value1))
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
                 _ => None,
             }
         } else {
@@ -1345,7 +1544,7 @@ impl From<SlotIdDefinition> for u16 {
     }
 }
 
-impl Display for SlotIdDefinition {
+impl core::fmt::Display for SlotIdDefinition {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let definition = match self {
             Self::Intensity => "Intensity",
@@ -1708,7 +1907,10 @@ pub struct SensorDefinition {
     pub normal_maximum_value: i16,
     pub is_lowest_highest_detected_value_supported: bool,
     pub is_recorded_value_supported: bool,
+    #[cfg(feature = "alloc")]
     pub description: String,
+    #[cfg(not(feature = "alloc"))]
+    pub description: String<32>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -1743,6 +1945,7 @@ mod tests {
     use super::*;
 
     #[test]
+    #[cfg(feature = "alloc")]
     fn should_decode_string_bytes() {
         assert_eq!(
             decode_string_bytes(&b"null terminated string\0"[..]).unwrap(),
@@ -1755,6 +1958,25 @@ mod tests {
         assert_eq!(
             decode_string_bytes(&b"early terminated\0string"[..]).unwrap(),
             "early terminated".to_string()
+        );
+    }
+
+    #[test]
+    #[cfg(not(feature = "alloc"))]
+    fn should_decode_string_bytes() {
+        assert_eq!(
+            decode_string_bytes::<32>(&b"null terminated string\0"[..]).unwrap(),
+            String::from_utf8(Vec::<u8, 32>::from_slice(b"null terminated string").unwrap())
+                .unwrap()
+        );
+        assert_eq!(
+            decode_string_bytes::<32>(&b"not null terminated string"[..]).unwrap(),
+            String::from_utf8(Vec::<u8, 32>::from_slice(b"not null terminated string").unwrap())
+                .unwrap()
+        );
+        assert_eq!(
+            decode_string_bytes::<32>(&b"early terminated\0string"[..]).unwrap(),
+            String::from_utf8(Vec::<u8, 32>::from_slice(b"early terminated").unwrap()).unwrap()
         );
     }
 }

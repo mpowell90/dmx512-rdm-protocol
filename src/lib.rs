@@ -23,6 +23,11 @@
 //!
 //! See module documentation or test suite for examples.
 
+#![cfg_attr(not(feature = "alloc"), no_std)]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 pub mod dmx;
 
 #[cfg(feature = "rdm")]

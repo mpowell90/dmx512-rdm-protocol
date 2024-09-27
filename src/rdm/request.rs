@@ -1,5 +1,5 @@
 //! Data types and functionality for encoding RDM requests
-//! 
+//!
 //! # RdmRequest
 //!
 //! ```rust
@@ -36,7 +36,7 @@
 //!
 //! assert_eq!(encoded, expected);
 //! ```
-//! 
+//!
 //! See tests for more examples.
 
 use super::{
@@ -47,6 +47,9 @@ use super::{
     },
     CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
+
+#[cfg(not(feature = "alloc"))]
+use heapless::{String, Vec};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter {
@@ -82,14 +85,20 @@ pub enum RequestParameter {
     GetManufacturerLabel,
     GetDeviceLabel,
     SetDeviceLabel {
+        #[cfg(feature = "alloc")]
         device_label: String,
+        #[cfg(not(feature = "alloc"))]
+        device_label: String<32>,
     },
     GetFactoryDefaults,
     SetFactoryDefaults,
     GetLanguageCapabilities,
     GetLanguage,
     SetLanguage {
+        #[cfg(feature = "alloc")]
         language: String,
+        #[cfg(not(feature = "alloc"))]
+        language: String<32>,
     },
     GetSoftwareVersionLabel,
     GetBootSoftwareVersionId,
@@ -205,12 +214,18 @@ pub enum RequestParameter {
     ManufacturerSpecific {
         command_class: CommandClass,
         parameter_id: u16,
+        #[cfg(feature = "alloc")]
         parameter_data: Vec<u8>,
+        #[cfg(not(feature = "alloc"))]
+        parameter_data: Vec<u8, 231>,
     },
     Unsupported {
         command_class: CommandClass,
         parameter_id: u16,
+        #[cfg(feature = "alloc")]
         parameter_data: Vec<u8>,
+        #[cfg(not(feature = "alloc"))]
+        parameter_data: Vec<u8, 231>,
     },
 }
 
@@ -364,6 +379,7 @@ impl RequestParameter {
         }
     }
 
+    #[cfg(feature = "alloc")]
     pub fn encode(&self) -> Vec<u8> {
         let mut buf = Vec::new();
 
@@ -589,6 +605,154 @@ impl RequestParameter {
 
         buf
     }
+
+    #[cfg(not(feature = "alloc"))]
+    pub fn encode(&self) -> Vec<u8, 231> {
+        let mut buf: Vec<u8, 231> = Vec::new();
+
+        match self {
+            Self::DiscMute => {}
+            Self::DiscUnMute => {}
+            Self::DiscUniqueBranch {
+                lower_bound_uid,
+                upper_bound_uid,
+            } => {
+                buf.extend(lower_bound_uid.manufacturer_id.to_be_bytes());
+                buf.extend(lower_bound_uid.device_id.to_be_bytes());
+                buf.extend(upper_bound_uid.manufacturer_id.to_be_bytes());
+                buf.extend(upper_bound_uid.device_id.to_be_bytes());
+            }
+            Self::GetCommsStatus => {}
+            Self::SetCommsStatus => {}
+            Self::GetQueuedMessage { status_type } => buf.push(*status_type as u8).unwrap(),
+            Self::GetStatusMessages { status_type } => buf.push(*status_type as u8).unwrap(),
+            Self::GetStatusIdDescription { status_id } => {
+                buf.extend((*status_id).to_be_bytes());
+            }
+            Self::SetClearStatusId => {}
+            Self::GetSubDeviceIdStatusReportThreshold => {}
+            Self::SetSubDeviceIdStatusReportThreshold { status_type } => {
+                buf.push(*status_type as u8).unwrap()
+            }
+            Self::GetSupportedParameters => {}
+            Self::GetParameterDescription { parameter_id } => {
+                buf.extend((*parameter_id).to_be_bytes());
+            }
+            Self::GetDeviceInfo => {}
+            Self::GetProductDetailIdList => {}
+            Self::GetDeviceModelDescription => {}
+            Self::GetManufacturerLabel => {}
+            Self::GetDeviceLabel => {}
+            Self::SetDeviceLabel { device_label } => buf.extend(device_label.bytes()),
+            Self::GetFactoryDefaults => {}
+            Self::SetFactoryDefaults => {}
+            Self::GetLanguageCapabilities => {}
+            Self::GetLanguage => {}
+            Self::SetLanguage { language } => buf.extend(language.bytes()),
+            Self::GetSoftwareVersionLabel => {}
+            Self::GetBootSoftwareVersionId => {}
+            Self::GetBootSoftwareVersionLabel => {}
+            Self::GetDmxPersonality => {}
+            Self::SetDmxPersonality { personality_id } => buf.push(*personality_id).unwrap(),
+            Self::GetDmxPersonalityDescription { personality } => buf.push(*personality).unwrap(),
+            Self::GetDmxStartAddress => {}
+            Self::SetDmxStartAddress { dmx_start_address } => {
+                buf.extend((*dmx_start_address).to_be_bytes());
+            }
+            Self::GetSlotInfo => {}
+            Self::GetSlotDescription { slot_id } => {
+                buf.extend((*slot_id).to_be_bytes());
+            }
+            Self::GetDefaultSlotValue => {}
+            Self::GetSensorDefinition { sensor_id } => buf.push(*sensor_id).unwrap(),
+            Self::GetSensorValue { sensor_id } => buf.push(*sensor_id).unwrap(),
+            Self::SetSensorValue { sensor_id } => buf.push(*sensor_id).unwrap(),
+            Self::SetRecordSensors { sensor_id } => buf.push(*sensor_id).unwrap(),
+            Self::GetDeviceHours => {}
+            Self::SetDeviceHours { device_hours } => {
+                buf.extend((*device_hours).to_be_bytes());
+            }
+            Self::GetLampHours => {}
+            Self::SetLampHours { lamp_hours } => {
+                buf.extend((*lamp_hours).to_be_bytes());
+            }
+            Self::GetLampStrikes => {}
+            Self::SetLampStrikes { lamp_strikes } => {
+                buf.extend((*lamp_strikes).to_be_bytes());
+            }
+            Self::GetLampState => {}
+            Self::SetLampState { lamp_state } => buf.push(u8::from(*lamp_state)).unwrap(),
+            Self::GetLampOnMode => {}
+            Self::SetLampOnMode { lamp_on_mode } => buf.push(u8::from(*lamp_on_mode)).unwrap(),
+            Self::GetDevicePowerCycles => {}
+            Self::SetDevicePowerCycles {
+                device_power_cycles,
+            } => {
+                buf.extend((*device_power_cycles).to_be_bytes());
+            }
+            Self::GetDisplayInvert => {}
+            Self::SetDisplayInvert { display_invert } => buf.push(*display_invert as u8).unwrap(),
+            Self::GetDisplayLevel => {}
+            Self::SetDisplayLevel { display_level } => buf.push(*display_level).unwrap(),
+            Self::GetPanInvert => {}
+            Self::SetPanInvert { pan_invert } => buf.push(*pan_invert as u8).unwrap(),
+            Self::GetTiltInvert => {}
+            Self::SetTiltInvert { tilt_invert } => buf.push(*tilt_invert as u8).unwrap(),
+            Self::GetPanTiltSwap => {}
+            Self::SetPanTiltSwap { pan_tilt_swap } => buf.push(*pan_tilt_swap as u8).unwrap(),
+            Self::GetRealTimeClock => {}
+            Self::SetRealTimeClock {
+                year,
+                month,
+                day,
+                hour,
+                minute,
+                second,
+            } => {
+                buf.extend((*year).to_be_bytes());
+                buf.push(*month).unwrap();
+                buf.push(*day).unwrap();
+                buf.push(*hour).unwrap();
+                buf.push(*minute).unwrap();
+                buf.push(*second).unwrap();
+            }
+            Self::GetIdentifyDevice => {}
+            Self::SetIdentifyDevice { identify } => buf.push(*identify as u8).unwrap(),
+            Self::SetResetDevice { reset_device } => buf.push(*reset_device as u8).unwrap(),
+            Self::GetPowerState => {}
+            Self::SetPowerState { power_state } => buf.push(*power_state as u8).unwrap(),
+            Self::GetPerformSelfTest => {}
+            Self::SetPerformSelfTest { self_test_id } => buf.push((*self_test_id).into()).unwrap(),
+            Self::SetCapturePreset {
+                scene_id,
+                fade_times,
+            } => {
+                buf.extend((*scene_id).to_be_bytes());
+
+                if let Some(fade_times) = fade_times {
+                    buf.extend((fade_times.up_fade_time).to_be_bytes());
+                    buf.extend((fade_times.down_fade_time).to_be_bytes());
+                    buf.extend((fade_times.wait_time).to_be_bytes());
+                }
+            }
+            Self::GetSelfTestDescription { self_test_id } => {
+                buf.push((*self_test_id).into()).unwrap()
+            }
+            Self::GetPresetPlayback => {}
+            Self::SetPresetPlayback { mode, level } => {
+                buf.extend(u16::from(*mode).to_be_bytes());
+                buf.push(*level).unwrap();
+            }
+            Self::ManufacturerSpecific { parameter_data, .. } => {
+                buf.extend_from_slice(parameter_data).unwrap();
+            }
+            Self::Unsupported { parameter_data, .. } => {
+                buf.extend_from_slice(parameter_data).unwrap();
+            }
+        };
+
+        buf
+    }
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -609,8 +773,7 @@ impl RdmRequest {
         port_id: u8,
         sub_device_id: SubDeviceId,
         parameter: RequestParameter,
-    ) -> Self
-    {
+    ) -> Self {
         RdmRequest {
             destination_uid,
             source_uid,
@@ -629,6 +792,7 @@ impl RdmRequest {
         self.parameter.parameter_id()
     }
 
+    #[cfg(feature = "alloc")]
     pub fn encode(&self) -> Vec<u8> {
         let parameter_data = self.parameter.encode();
 
@@ -659,9 +823,45 @@ impl RdmRequest {
 
         buf
     }
+
+    #[cfg(not(feature = "alloc"))]
+    pub fn encode(&self) -> Vec<u8, 257> {
+        let parameter_data = self.parameter.encode();
+
+        let message_length = 24 + parameter_data.len();
+
+        let mut buf = Vec::new();
+
+        buf.push(RDM_START_CODE_BYTE).unwrap();
+        buf.push(RDM_SUB_START_CODE_BYTE).unwrap();
+        buf.push(message_length as u8).unwrap();
+        buf.extend(self.destination_uid.manufacturer_id.to_be_bytes());
+        buf.extend(self.destination_uid.device_id.to_be_bytes());
+        buf.extend(self.source_uid.manufacturer_id.to_be_bytes());
+        buf.extend(self.source_uid.device_id.to_be_bytes());
+        buf.push(self.transaction_number).unwrap();
+        buf.push(self.port_id).unwrap();
+        buf.push(0x00).unwrap(); // Message Count shall be set to 0x00 in all controller generated requests
+        buf.extend(u16::from(self.sub_device_id).to_be_bytes());
+        buf.push(self.parameter.command_class() as u8).unwrap();
+        buf.extend(u16::from(self.parameter.parameter_id()).to_be_bytes());
+        buf.push(parameter_data.len() as u8).unwrap();
+        buf.extend(parameter_data);
+        buf.extend(bsd_16_crc(&buf[..]).to_be_bytes());
+
+        buf
+    }
 }
 
+#[cfg(feature = "alloc")]
 impl From<RdmRequest> for Vec<u8> {
+    fn from(request: RdmRequest) -> Self {
+        request.encode()
+    }
+}
+
+#[cfg(not(feature = "alloc"))]
+impl From<RdmRequest> for Vec<u8, 257> {
     fn from(request: RdmRequest) -> Self {
         request.encode()
     }
@@ -749,7 +949,10 @@ mod tests {
             RequestParameter::ManufacturerSpecific {
                 command_class: CommandClass::SetCommand,
                 parameter_id: 0x8080,
+                #[cfg(feature = "alloc")]
                 parameter_data: vec![0x01, 0x02, 0x03, 0x04],
+                #[cfg(not(feature = "alloc"))]
+                parameter_data: Vec::<u8, 231>::from_slice(&[0x01, 0x02, 0x03, 0x04]).unwrap(),
             },
         )
         .encode();
