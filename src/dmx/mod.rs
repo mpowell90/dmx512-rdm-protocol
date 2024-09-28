@@ -5,46 +5,26 @@
 //! ```rust
 //! use dmx512_rdm_protocol::dmx::DmxUniverse;
 //! 
+//! // Create a 512 channel universe
+//! let dmx_universe = DmxUniverse::default();
+//! // or create a smaller universe
+//! 
 //! #[cfg(feature = "alloc")]
-//! fn with_alloc() {
-//!     // Create a 512 channel universe
-//!     let dmx_universe = DmxUniverse::default();
-//!     // or create a smaller universe
-//!     let dmx_universe = DmxUniverse::new(4).unwrap();
-//!     // or decode a dmx packet
-//!     let mut dmx_universe = DmxUniverse::decode(&[0, 255, 255, 0, 0]).unwrap();
+//! let dmx_universe = DmxUniverse::new(4).unwrap();
+//! // or decode a dmx packet
+//! let mut dmx_universe = DmxUniverse::decode(&[0, 255, 255, 0, 0]).unwrap();
 //!
-//!     assert_eq!(dmx_universe.as_slice(), &[255, 255, 0, 0]);
+//! assert_eq!(dmx_universe.as_slice(), &[255, 255, 0, 0]);
 //!
-//!     dmx_universe.set_channel_value(0, 64).unwrap();
-//!     dmx_universe.set_channel_values(1, &[128, 192, 255]).unwrap();
+//! dmx_universe.set_channel_value(0, 64).unwrap();
+//! dmx_universe.set_channel_values(1, &[128, 192, 255]).unwrap();
 //! 
-//!     assert_eq!(dmx_universe.get_channel_value(0).unwrap(), 64);
-//!     assert_eq!(dmx_universe.get_channel_values(1..=2).unwrap(), &[128, 192]);
-//!     assert_eq!(dmx_universe.as_slice(), &[64, 128, 192, 255]);
-//!     assert_eq!(dmx_universe.encode(), &[0, 64, 128, 192, 255]);
-//! }
-//! 
-//! #[cfg(not(feature = "alloc"))]
-//! fn without_alloc() {
-//!     // Create a 512 channel universe on the stack
-//!     let dmx_universe = DmxUniverse::default();
-//! 
-//!     // or decode a dmx packet
-//!     let mut dmx_universe = DmxUniverse::decode(&[0, 255, 255, 0, 0]).unwrap();
-//!
-//!     assert_eq!(dmx_universe.get_channel_values(0..=1).unwrap(), &[255, 255]);
-//!
-//!     dmx_universe.set_channel_value(0, 64).unwrap();
-//!     dmx_universe.set_channel_values(1, &[128, 192, 255]).unwrap();
-//! 
-//!     assert_eq!(dmx_universe.get_channel_value(0).unwrap(), 64);
-//!     assert_eq!(dmx_universe.get_channel_values(1..=2).unwrap(), &[128, 192]);
-//!     assert_eq!(dmx_universe.as_slice(), &[64, 128, 192, 255]);
-//!     assert_eq!(dmx_universe.encode(), &[0, 64, 128, 192, 255]);
-//! }
+//! assert_eq!(dmx_universe.get_channel_value(0).unwrap(), 64);
+//! assert_eq!(dmx_universe.get_channel_values(1..=2).unwrap(), &[128, 192]);
+//! assert_eq!(dmx_universe.as_slice(), &[64, 128, 192, 255]);
+//! assert_eq!(dmx_universe.encode(), &[0, 64, 128, 192, 255]);
 //! ```
-//!
+
 pub mod error;
 pub const DMX_START_CODE: u8 = 0;
 #[cfg(feature = "alloc")]
