@@ -2,9 +2,9 @@ use super::{RdmError, SubDeviceId};
 use core::result::Result;
 
 #[cfg(not(feature = "alloc"))]
-use heapless::{String, Vec};
-#[cfg(not(feature = "alloc"))]
 use core::str::FromStr;
+#[cfg(not(feature = "alloc"))]
+use heapless::{String, Vec};
 
 #[cfg(feature = "alloc")]
 pub fn decode_string_bytes(bytes: &[u8]) -> Result<String, RdmError> {
@@ -530,10 +530,8 @@ impl TryFrom<u8> for ParameterDataType {
 pub enum ConvertedParameterValue {
     BitField(u8),
     Ascii(
-        #[cfg(feature = "alloc")]
-        String,
-        #[cfg(not(feature = "alloc"))]
-        String<4>
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<4>,
     ),
     UnsignedByte(u8),
     SignedByte(i8),

@@ -1,4 +1,4 @@
-use core::{fmt, error::Error};
+use core::{error::Error, fmt};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DmxError {
@@ -6,7 +6,7 @@ pub enum DmxError {
     InvalidStartCode(u8),
     InvalidChannelCount(u16),
     ChannelOutOfBounds,
-    FailedToAllocate
+    FailedToAllocate,
 }
 
 impl fmt::Display for DmxError {
