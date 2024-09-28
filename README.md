@@ -10,7 +10,7 @@
 
 [![Crates.io](https://img.shields.io/crates/v/dmx512-rdm-protocol.svg)](https://crates.io/crates/dmx512-rdm-protocol)
 [![Docs](https://img.shields.io/badge/docs-latest-blue)](https://docs.rs/dmx512-rdm-protocol/latest/dmx512_rdm_protocol/)
-[![Docs](https://img.shields.io/badge/msrv-1.65.0-red)](https://docs.rs/dmx512-rdm-protocol/latest/dmx512_rdm_protocol/)
+[![Docs](https://img.shields.io/badge/msrv-1.81.0-red)](https://docs.rs/dmx512-rdm-protocol/latest/dmx512_rdm_protocol/)
 
   </div>
 </div>
