@@ -1104,87 +1104,6 @@ pub struct StatusMessage {
 }
 
 impl StatusMessage {
-    #[cfg(feature = "alloc")]
-    pub fn new(
-        sub_device_id: SubDeviceId,
-        status_type: StatusType,
-        status_message_id: u16,
-        data_value1: u16,
-        data_value2: u16,
-    ) -> Self {
-        let description = if status_message_id < 0x8000 {
-            match status_message_id {
-                0x0001 => Some(format!(
-                    "{} failed calibration",
-                    SlotIdDefinition::from(data_value1)
-                )),
-                0x0002 => Some(format!(
-                    "{} sensor not found",
-                    SlotIdDefinition::from(data_value1)
-                )),
-                0x0003 => Some(format!(
-                    "{} sensor always on",
-                    SlotIdDefinition::from(data_value1)
-                )),
-                0x0011 => Some("Lamp Doused".to_string()),
-                0x0012 => Some("Lamp Strike".to_string()),
-                0x0021 => Some(format!(
-                    "Sensor {} over temp at {} degrees C",
-                    data_value1, data_value2
-                )),
-                0x0022 => Some(format!(
-                    "Sensor {} under temp at {} degrees C",
-                    data_value1, data_value2
-                )),
-                0x0023 => Some(format!("Sensor {} out of range", data_value1)),
-                0x0031 => Some(format!(
-                    "Phase {} over voltage at {} V",
-                    data_value1, data_value2
-                )),
-                0x0032 => Some(format!(
-                    "Phase {} under voltage at {} V",
-                    data_value1, data_value2
-                )),
-                0x0033 => Some(format!(
-                    "Phase {} over current at {} A",
-                    data_value1, data_value2
-                )),
-                0x0034 => Some(format!(
-                    "Phase {} under current at {} A",
-                    data_value1, data_value2
-                )),
-                0x0035 => Some(format!(
-                    "Phase {} is at {} degrees",
-                    data_value1, data_value2
-                )),
-                0x0036 => Some(format!("Phase {} Error", data_value1)),
-                0x0037 => Some(format!("{} Amps", data_value1)),
-                0x0038 => Some(format!("{} Volts", data_value1)),
-                0x0041 => Some("No Dimmer".to_string()),
-                0x0042 => Some("Tripped Breaker".to_string()),
-                0x0043 => Some(format!("{} Watts", data_value1)),
-                0x0044 => Some("Dimmer Failure".to_string()),
-                0x0045 => Some("Panic Mode".to_string()),
-                0x0050 => Some(format!("{} ready", SlotIdDefinition::from(data_value1))),
-                0x0051 => Some(format!("{} not ready", SlotIdDefinition::from(data_value1))),
-                0x0052 => Some(format!("{} low fluid", SlotIdDefinition::from(data_value1))),
-                _ => None,
-            }
-        } else {
-            None
-        };
-
-        StatusMessage {
-            sub_device_id,
-            status_type,
-            status_message_id,
-            data_value1,
-            data_value2,
-            description,
-        }
-    }
-
-    #[cfg(not(feature = "alloc"))]
     pub fn new(
         sub_device_id: SubDeviceId,
         status_type: StatusType,
@@ -1195,6 +1114,9 @@ impl StatusMessage {
         let description = if status_message_id < 0x8000 {
             match status_message_id {
                 0x0001 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("{} failed calibration", SlotIdDefinition::from(data_value1)),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("{} failed calibration", SlotIdDefinition::from(data_value1))
                             .as_str()
@@ -1203,6 +1125,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0002 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("{} sensor not found", SlotIdDefinition::from(data_value1)),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("{} sensor not found", SlotIdDefinition::from(data_value1))
                             .as_str()
@@ -1211,6 +1136,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0003 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("{} sensor always on", SlotIdDefinition::from(data_value1)),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("{} sensor always on", SlotIdDefinition::from(data_value1))
                             .as_str()
@@ -1218,9 +1146,25 @@ impl StatusMessage {
                     )
                     .unwrap(),
                 ),
-                0x0011 => Some(String::<32>::from_str("Lamp Doused").unwrap()),
-                0x0012 => Some(String::<32>::from_str("Lamp Strike").unwrap()),
+                0x0011 => Some(
+                    #[cfg(feature = "alloc")]
+                    "Lamp Doused".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<32>::from_str("Lamp Doused").unwrap(),
+                ),
+                0x0012 => Some(
+                    #[cfg(feature = "alloc")]
+                    "Lamp Strike".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<32>::from_str("Lamp Strike").unwrap(),
+                ),
                 0x0021 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!(
+                        "Sensor {} over temp at {} degrees C",
+                        data_value1, data_value2
+                    ),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!(
                             "Sensor {} over temp at {} degrees C",
@@ -1232,6 +1176,12 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0022 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!(
+                        "Sensor {} under temp at {} degrees C",
+                        data_value1, data_value2
+                    ),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!(
                             "Sensor {} under temp at {} degrees C",
@@ -1243,6 +1193,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0023 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("Sensor {} out of range", data_value1),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Sensor {} out of range", data_value1)
                             .as_str()
@@ -1251,6 +1204,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0031 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("Phase {} over voltage at {} V", data_value1, data_value2),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} over voltage at {} V", data_value1, data_value2)
                             .as_str()
@@ -1259,6 +1215,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0032 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("Phase {} under voltage at {} V", data_value1, data_value2),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} under voltage at {} V", data_value1, data_value2)
                             .as_str()
@@ -1267,6 +1226,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0033 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("Phase {} over current at {} A", data_value1, data_value2),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} over current at {} A", data_value1, data_value2)
                             .as_str()
@@ -1275,6 +1237,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0034 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("Phase {} under current at {} A", data_value1, data_value2),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} under current at {} A", data_value1, data_value2)
                             .as_str()
@@ -1283,6 +1248,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0035 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("Phase {} is at {} degrees", data_value1, data_value2),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} is at {} degrees", data_value1, data_value2)
                             .as_str()
@@ -1291,6 +1259,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0036 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("Phase {} Error", data_value1),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} Error", data_value1)
                             .as_str()
@@ -1299,22 +1270,54 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0037 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("{} Amps", data_value1),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(format_args!("{} Amps", data_value1).as_str().unwrap())
                         .unwrap(),
                 ),
                 0x0038 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("{} Volts", data_value1),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(format_args!("{} Volts", data_value1).as_str().unwrap())
                         .unwrap(),
                 ),
-                0x0041 => Some(String::<32>::from_str("No Dimmer").unwrap()),
-                0x0042 => Some(String::<32>::from_str("Tripped Breaker").unwrap()),
+                0x0041 => Some(
+                    #[cfg(feature = "alloc")]
+                    "No Dimmer".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<32>::from_str("No Dimmer").unwrap(),
+                ),
+                0x0042 => Some(
+                    #[cfg(feature = "alloc")]
+                    "Tripped Breaker".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<32>::from_str("Tripped Breaker").unwrap(),
+                ),
                 0x0043 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("{} Watts", data_value1),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(format_args!("{} Watts", data_value1).as_str().unwrap())
                         .unwrap(),
                 ),
-                0x0044 => Some(String::<32>::from_str("Dimmer Failure").unwrap()),
-                0x0045 => Some(String::<32>::from_str("Panic Mode").unwrap()),
+                0x0044 => Some(
+                    #[cfg(feature = "alloc")]
+                    "Dimmer Failure".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<32>::from_str("Dimmer Failure").unwrap(),
+                ),
+                0x0045 => Some(
+                    #[cfg(feature = "alloc")]
+                    "Panic Mode".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<32>::from_str("Panic Mode").unwrap(),
+                ),
                 0x0050 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("{} ready", SlotIdDefinition::from(data_value1)),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("{} ready", SlotIdDefinition::from(data_value1))
                             .as_str()
@@ -1323,6 +1326,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0051 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("{} not ready", SlotIdDefinition::from(data_value1)),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("{} not ready", SlotIdDefinition::from(data_value1))
                             .as_str()
@@ -1331,6 +1337,9 @@ impl StatusMessage {
                     .unwrap(),
                 ),
                 0x0052 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("{} low fluid", SlotIdDefinition::from(data_value1)),
+                    #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("{} low fluid", SlotIdDefinition::from(data_value1))
                             .as_str()
