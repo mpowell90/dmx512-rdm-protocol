@@ -23,7 +23,7 @@ Remote Device Management (RDM) is a backward-compatible extension of DMX512, ena
 ### Included
 
 - Data-types and functionality for encoding and decoding DMX512 and RDM packets.
-- `no_std` implementations using feature flag
+- `no_std` implementations by disabling `alloc` feature flag
 
 ### Not included
 
