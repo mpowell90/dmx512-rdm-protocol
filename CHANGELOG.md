@@ -6,6 +6,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.3.1...v0.4.0) - 2024-09-28
+
+### Added
+
+- no_std support
+
+### Other
+
+- fix doc test bug
+- use interleaving cfg flag implementation for StatusMessage
+- rust fmt fixes
+- clearer no_std messaging in README
+- better doc examples
+
 ## [0.3.1](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.3.0...v0.3.1) - 2024-09-28
 
 ### Added

@@ -1,7 +1,7 @@
 [package]
 name = "dmx512-rdm-protocol"
 description = "DMX512 and Remote Device Management (RDM) protocol written in Rust"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 rust-version = "1.81.0"
 readme = "README.md"
