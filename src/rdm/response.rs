@@ -48,12 +48,20 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        decode_string_bytes, DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory, ProductDetail, SelfTest, SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType
+        decode_string_bytes, DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState,
+        ParameterDescription, ParameterId, PowerState, PresetPlaybackMode, ProductCategory,
+        ProductDetail, SelfTest, SensorDefinition, SensorValue, SlotInfo, StatusMessage,
+        StatusType,
     },
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
 use core::{fmt::Display, result::Result};
+
+#[cfg(not(feature = "alloc"))]
+use core::str::FromStr;
+#[cfg(not(feature = "alloc"))]
+use heapless::{String, Vec};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResponseNackReasonCode {
@@ -133,6 +141,7 @@ impl TryFrom<u8> for ResponseType {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum ResponseData {
     ParameterData(Option<ResponseParameterData>),
@@ -140,6 +149,7 @@ pub enum ResponseData {
     NackReason(ResponseNackReasonCode),
 }
 
+#[allow(clippy::large_enum_variant)]
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
 pub enum ResponseParameterData {
@@ -155,22 +165,34 @@ pub enum ResponseParameterData {
         device_count: u16,
         list_change: bool,
     },
-    GetProxiedDevices(Vec<DeviceUID>),
+    GetProxiedDevices(
+        #[cfg(feature = "alloc")] Vec<DeviceUID>,
+        #[cfg(not(feature = "alloc"))] Vec<DeviceUID, 38>,
+    ),
     GetCommsStatus {
         short_message: u16,
         length_mismatch: u16,
         checksum_fail: u16,
     },
-    GetStatusMessages(Vec<StatusMessage>),
-    GetStatusIdDescription(String),
+    GetStatusMessages(
+        #[cfg(feature = "alloc")] Vec<StatusMessage>,
+        #[cfg(not(feature = "alloc"))] Vec<StatusMessage, 25>,
+    ),
+    GetStatusIdDescription(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<32>,
+    ),
     GetSubDeviceIdStatusReportThreshold(StatusType),
-    GetSupportedParameters {
-        standard_parameters: Vec<u16>,
-        manufacturer_specific_parameters: Vec<u16>,
-    },
+    GetSupportedParameters(
+        #[cfg(feature = "alloc")] Vec<u16>,
+        #[cfg(not(feature = "alloc"))] Vec<u16, 115>,
+    ),
     GetParameterDescription(ParameterDescription),
     GetDeviceInfo {
+        #[cfg(feature = "alloc")]
         protocol_version: String,
+        #[cfg(not(feature = "alloc"))]
+        protocol_version: String<32>,
         model_id: u16,
         product_category: ProductCategory,
         software_version_id: u32,
@@ -181,16 +203,40 @@ pub enum ResponseParameterData {
         sub_device_count: u16,
         sensor_count: u8,
     },
-    GetProductDetailIdList(Vec<ProductDetail>),
-    GetDeviceModelDescription(String),
-    GetManufacturerLabel(String),
-    GetDeviceLabel(String),
+    GetProductDetailIdList(
+        #[cfg(feature = "alloc")] Vec<ProductDetail>,
+        #[cfg(not(feature = "alloc"))] Vec<ProductDetail, 115>,
+    ),
+    GetDeviceModelDescription(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<32>,
+    ),
+    GetManufacturerLabel(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<32>,
+    ),
+    GetDeviceLabel(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<32>,
+    ),
     GetFactoryDefaults(bool),
-    GetLanguageCapabilities(Vec<String>),
-    GetLanguage(String),
-    GetSoftwareVersionLabel(String),
+    GetLanguageCapabilities(
+        #[cfg(feature = "alloc")] Vec<String>,
+        #[cfg(not(feature = "alloc"))] Vec<String<2>, 115>,
+    ),
+    GetLanguage(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<2>,
+    ),
+    GetSoftwareVersionLabel(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<32>,
+    ),
     GetBootSoftwareVersionId(u32),
-    GetBootSoftwareVersionLabel(String),
+    GetBootSoftwareVersionLabel(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<32>,
+    ),
     GetDmxPersonality {
         current_personality: u8,
         personality_count: u8,
@@ -198,15 +244,27 @@ pub enum ResponseParameterData {
     GetDmxPersonalityDescription {
         id: u8,
         dmx_slots_required: u16,
+        #[cfg(feature = "alloc")]
         description: String,
+        #[cfg(not(feature = "alloc"))]
+        description: String<32>,
     },
     GetDmxStartAddress(u16),
-    GetSlotInfo(Vec<SlotInfo>),
+    GetSlotInfo(
+        #[cfg(feature = "alloc")] Vec<SlotInfo>,
+        #[cfg(not(feature = "alloc"))] Vec<SlotInfo, 46>,
+    ),
     GetSlotDescription {
         slot_id: u16,
+        #[cfg(feature = "alloc")]
         description: String,
+        #[cfg(not(feature = "alloc"))]
+        description: String<32>,
     },
-    GetDefaultSlotValue(Vec<DefaultSlotValue>),
+    GetDefaultSlotValue(
+        #[cfg(feature = "alloc")] Vec<DefaultSlotValue>,
+        #[cfg(not(feature = "alloc"))] Vec<DefaultSlotValue, 77>,
+    ),
     GetSensorDefinition(SensorDefinition),
     GetSensorValue(SensorValue),
     SetSensorValue(SensorValue),
@@ -234,14 +292,23 @@ pub enum ResponseParameterData {
     GetPerformSelfTest(bool),
     GetSelfTestDescription {
         self_test_id: SelfTest,
+        #[cfg(feature = "alloc")]
         description: String,
+        #[cfg(not(feature = "alloc"))]
+        description: String<32>,
     },
     GetPresetPlayback {
         mode: PresetPlaybackMode,
         level: u8,
     },
-    ManufacturerSpecific(Vec<u8>),
-    Unsupported(Vec<u8>),
+    ManufacturerSpecific(
+        #[cfg(feature = "alloc")] Vec<u8>,
+        #[cfg(not(feature = "alloc"))] Vec<u8, 231>,
+    ),
+    Unsupported(
+        #[cfg(feature = "alloc")] Vec<u8>,
+        #[cfg(not(feature = "alloc"))] Vec<u8, 231>,
+    ),
 }
 
 impl ResponseParameterData {
@@ -287,6 +354,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::ProxiedDevices) => {
                 Ok(Self::GetProxiedDevices(
+                    #[cfg(feature = "alloc")]
                     bytes
                         .chunks(6)
                         .map(|chunk| {
@@ -296,6 +364,16 @@ impl ResponseParameterData {
                             ))
                         })
                         .collect::<Result<Vec<DeviceUID>, RdmError>>()?,
+                    #[cfg(not(feature = "alloc"))]
+                    bytes
+                        .chunks(6)
+                        .map(|chunk| {
+                            Ok(DeviceUID::new(
+                                u16::from_be_bytes(chunk[0..=1].try_into()?),
+                                u32::from_be_bytes(chunk[2..=5].try_into()?),
+                            ))
+                        })
+                        .collect::<Result<Vec<DeviceUID, 38>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::CommsStatus) => {
@@ -307,6 +385,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::StatusMessages) => {
                 Ok(Self::GetStatusMessages(
+                    #[cfg(feature = "alloc")]
                     bytes
                         .chunks(9)
                         .map(|chunk| {
@@ -319,11 +398,24 @@ impl ResponseParameterData {
                             ))
                         })
                         .collect::<Result<Vec<StatusMessage>, RdmError>>()?,
+                    #[cfg(not(feature = "alloc"))]
+                    bytes
+                        .chunks(9)
+                        .map(|chunk| {
+                            Ok(StatusMessage::new(
+                                u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
+                                chunk[2].try_into()?,
+                                u16::from_be_bytes(chunk[3..=4].try_into()?),
+                                u16::from_be_bytes(chunk[5..=6].try_into()?),
+                                u16::from_be_bytes(chunk[7..=8].try_into()?),
+                            ))
+                        })
+                        .collect::<Result<Vec<StatusMessage, 25>, RdmError>>()?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => Ok(
-                Self::GetStatusIdDescription(decode_string_bytes(bytes)?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => {
+                Ok(Self::GetStatusIdDescription(decode_string_bytes(bytes)?))
+            }
             (CommandClass::GetCommandResponse, ParameterId::SubDeviceIdStatusReportThreshold) => {
                 Ok(Self::GetSubDeviceIdStatusReportThreshold(
                     bytes[0].try_into()?,
@@ -335,15 +427,12 @@ impl ResponseParameterData {
                     .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?)))
                     .filter_map(|parameter_id: Result<u16, RdmError>| parameter_id.ok());
 
-                Ok(Self::GetSupportedParameters {
-                    standard_parameters: parameters
-                        .clone()
-                        .filter(|&parameter_id| (0x0060_u16..0x8000_u16).contains(&parameter_id))
-                        .collect(),
-                    manufacturer_specific_parameters: parameters
-                        .filter(|parameter_id| *parameter_id >= 0x8000_u16)
-                        .collect(),
-                })
+                Ok(Self::GetSupportedParameters(
+                    #[cfg(feature = "alloc")]
+                    parameters.collect::<Vec<u16>>(),
+                    #[cfg(not(feature = "alloc"))]
+                    parameters.collect::<Vec<u16, 115>>(),
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::ParameterDescription) => {
                 Ok(Self::GetParameterDescription(ParameterDescription {
@@ -361,7 +450,13 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => {
                 Ok(Self::GetDeviceInfo {
+                    #[cfg(feature = "alloc")]
                     protocol_version: format!("{}.{}", bytes[0], bytes[1]),
+                    #[cfg(not(feature = "alloc"))]
+                    protocol_version: String::<32>::from_str(
+                        format_args!("{}.{}", bytes[0], bytes[1]).as_str().unwrap(),
+                    )
+                    .unwrap(),
                     model_id: u16::from_be_bytes(bytes[2..=3].try_into()?),
                     product_category: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
                     software_version_id: u32::from_be_bytes(bytes[6..=9].try_into()?),
@@ -375,18 +470,24 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::ProductDetailIdList) => {
                 Ok(Self::GetProductDetailIdList(
+                    #[cfg(feature = "alloc")]
                     bytes
                         .chunks(2)
                         .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?).into()))
                         .collect::<Result<Vec<ProductDetail>, RdmError>>()?,
+                    #[cfg(not(feature = "alloc"))]
+                    bytes
+                        .chunks(2)
+                        .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?).into()))
+                        .collect::<Result<Vec<ProductDetail, 115>, RdmError>>()?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => Ok(
-                Self::GetDeviceModelDescription(decode_string_bytes(bytes)?),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => Ok(
-                Self::GetManufacturerLabel(decode_string_bytes(bytes)?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => {
+                Ok(Self::GetDeviceModelDescription(decode_string_bytes(bytes)?))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => {
+                Ok(Self::GetManufacturerLabel(decode_string_bytes(bytes)?))
+            }
             (CommandClass::GetCommandResponse, ParameterId::DeviceLabel) => {
                 Ok(Self::GetDeviceLabel(decode_string_bytes(bytes)?))
             }
@@ -395,18 +496,29 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::LanguageCapabilities) => {
                 Ok(Self::GetLanguageCapabilities(
+                    #[cfg(feature = "alloc")]
                     bytes
                         .chunks(2)
                         .map(|chunk| Ok(core::str::from_utf8(chunk)?.to_string()))
                         .collect::<Result<Vec<String>, RdmError>>()?,
+                    #[cfg(not(feature = "alloc"))]
+                    bytes
+                        .chunks(2)
+                        .map(|chunk| {
+                            Ok(String::from_utf8(Vec::<u8, 2>::from_slice(chunk).unwrap())?)
+                        })
+                        .collect::<Result<Vec<String<2>, 115>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(
+                #[cfg(feature = "alloc")]
                 core::str::from_utf8(&bytes[0..=1])?.to_string(),
+                #[cfg(not(feature = "alloc"))]
+                String::from_utf8(Vec::<u8, 2>::from_slice(&bytes[0..=1]).unwrap())?,
             )),
-            (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => Ok(
-                Self::GetSoftwareVersionLabel(decode_string_bytes(bytes)?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => {
+                Ok(Self::GetSoftwareVersionLabel(decode_string_bytes(bytes)?))
+            }
             (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => Ok(
                 Self::GetBootSoftwareVersionId(u32::from_be_bytes(bytes.try_into()?)),
             ),
@@ -430,6 +542,7 @@ impl ResponseParameterData {
                 Self::GetDmxStartAddress(u16::from_be_bytes(bytes[0..=1].try_into()?)),
             ),
             (CommandClass::GetCommandResponse, ParameterId::SlotInfo) => Ok(Self::GetSlotInfo(
+                #[cfg(feature = "alloc")]
                 bytes
                     .chunks(5)
                     .map(|chunk| {
@@ -440,6 +553,17 @@ impl ResponseParameterData {
                         ))
                     })
                     .collect::<Result<Vec<SlotInfo>, RdmError>>()?,
+                #[cfg(not(feature = "alloc"))]
+                bytes
+                    .chunks(5)
+                    .map(|chunk| {
+                        Ok(SlotInfo::new(
+                            u16::from_be_bytes(chunk[0..=1].try_into()?),
+                            chunk[2].into(),
+                            u16::from_be_bytes(chunk[3..=4].try_into()?),
+                        ))
+                    })
+                    .collect::<Result<Vec<SlotInfo, 46>, RdmError>>()?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
                 Ok(Self::GetSlotDescription {
@@ -449,6 +573,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::DefaultSlotValue) => {
                 Ok(Self::GetDefaultSlotValue(
+                    #[cfg(feature = "alloc")]
                     bytes
                         .chunks(3)
                         .map(|chunk| {
@@ -458,6 +583,16 @@ impl ResponseParameterData {
                             ))
                         })
                         .collect::<Result<Vec<DefaultSlotValue>, RdmError>>()?,
+                    #[cfg(not(feature = "alloc"))]
+                    bytes
+                        .chunks(3)
+                        .map(|chunk| {
+                            Ok(DefaultSlotValue::new(
+                                u16::from_be_bytes(chunk[0..=1].try_into()?),
+                                chunk[2],
+                            ))
+                        })
+                        .collect::<Result<Vec<DefaultSlotValue, 77>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorDefinition) => {
@@ -557,14 +692,20 @@ impl ResponseParameterData {
                     level: bytes[2],
                 })
             }
-            (_, ParameterId::ManufacturerSpecific(_)) => {
-                Ok(Self::ManufacturerSpecific(bytes.to_vec()))
-            }
-            (_, _) => Ok(Self::Unsupported(bytes.to_vec())),
+            (_, ParameterId::ManufacturerSpecific(_)) => Ok(Self::ManufacturerSpecific(
+                #[cfg(feature = "alloc")]
+                bytes.to_vec(),
+                #[cfg(not(feature = "alloc"))]
+                Vec::<u8, 231>::from_slice(bytes).unwrap(),
+            )),
+            (_, _) => Ok(Self::Unsupported(
+                #[cfg(feature = "alloc")]
+                bytes.to_vec(),
+                #[cfg(not(feature = "alloc"))]
+                Vec::<u8, 231>::from_slice(bytes).unwrap(),
+            )),
         }
     }
-
-
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -714,6 +855,7 @@ impl TryFrom<&[u8]> for DiscoveryUniqueBranchFrameResponse {
     }
 }
 
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum RdmResponse {
     RdmFrame(RdmFrameResponse),
@@ -821,8 +963,15 @@ mod tests {
             sub_device_id: SubDeviceId::RootDevice,
             command_class: CommandClass::SetCommandResponse,
             parameter_id: ParameterId::ManufacturerSpecific(0x8080),
+            #[cfg(feature = "alloc")]
             parameter_data: ResponseData::ParameterData(Some(
                 ResponseParameterData::ManufacturerSpecific(vec![0x04, 0x03, 0x02, 0x01]),
+            )),
+            #[cfg(not(feature = "alloc"))]
+            parameter_data: ResponseData::ParameterData(Some(
+                ResponseParameterData::ManufacturerSpecific(
+                    Vec::<u8, 231>::from_slice(&[0x04, 0x03, 0x02, 0x01]).unwrap(),
+                ),
             )),
         }));
 

@@ -17,9 +17,7 @@ pub enum RdmError {
     InvalidSensorUnit(u8),
     InvalidSensorUnitPrefix(u8),
     InvalidDiscoveryUniqueBranchPreamble,
-    Utf8Error {
-        source: core::str::Utf8Error,
-    },
+    Utf8Error { source: core::str::Utf8Error },
     TryFromSliceError,
     InvalidLampState(u8),
     InvalidLampOnMode(u8),

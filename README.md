@@ -1,6 +1,5 @@
 <a id="readme-top"></a>
 
-
 <div align="center">
   <h1 align="center">dmx512-rdm-protocol</h3>
   <h3 align="center">
@@ -24,6 +23,7 @@ Remote Device Management (RDM) is a backward-compatible extension of DMX512, ena
 ### Included
 
 - Data-types and functionality for encoding and decoding DMX512 and RDM packets.
+- `no_std` implementations by disabling `alloc` feature flag
 
 ### Not included
 
@@ -44,7 +44,16 @@ cargo add dmx512-rdm-protocol
 
 or add to Cargo.toml dependencies, [crates.io](https://crates.io/crates/dmx512-rdm-protocol) for latest version.
 
-If you just want to use the basic DMX512 data-types and functionality, RDM has been conditionally compiled and included by default, but can be disabled by using the `default-features = false` dependency declaration.
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+### Feature flags
+
+The default-features for this project are heap allocation implementations and rdm features included, however if you just want to use the basic DMX512 data-types and functionality and it be `no_std` compatible, you can set `default-features = false` in the Cargo.toml dependency.
+
+Otherwise the following flags can be toggled to find subset of the functionality.
+
+- Add `rdm` flag to conditionally compile rdm features. The `rdm` features have `no_std` compatible implementations.
+- Add `alloc` flag for heap allocation implementation, i.e not `no_std` compatible.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -58,19 +67,23 @@ use dmx512_rdm_protocol::dmx::DmxUniverse;
 // Create a 512 channel universe
 let dmx_universe = DmxUniverse::default();
 // or create a smaller universe
-let dmx_universe = DmxUniverse::new(4).unwrap();
-// or decode a DMX packet
-let mut dmx_universe = DmxUniverse::decode(&[0, 0, 0, 0, 0]).unwrap();
 
-assert_eq!(dmx_universe.as_slice(), &[0, 0, 0, 0]);
+// If you use the heap allocation implementations, you can create smaller universes
+#[cfg(feature = "alloc")]
+let dmx_universe = DmxUniverse::new(4).unwrap();
+
+// or decode a dmx packet
+let mut dmx_universe = DmxUniverse::decode(&[0, 255, 255, 0, 0]).unwrap();
+
+assert_eq!(&dmx_universe.as_slice()[..4], &[255, 255, 0, 0]);
 
 dmx_universe.set_channel_value(0, 64).unwrap();
 dmx_universe.set_channel_values(1, &[128, 192, 255]).unwrap();
 
 assert_eq!(dmx_universe.get_channel_value(0).unwrap(), 64);
 assert_eq!(dmx_universe.get_channel_values(1..=2).unwrap(), &[128, 192]);
-assert_eq!(dmx_universe.as_slice(), &[64, 128, 192, 255]);
-assert_eq!(dmx_universe.encode(), &[0, 64, 128, 192, 255]);
+assert_eq!(&dmx_universe.as_slice()[..4], &[64, 128, 192, 255]);
+assert_eq!(&dmx_universe.encode()[..5], &[0, 64, 128, 192, 255]);
 ```
 
 ### RdmRequest
