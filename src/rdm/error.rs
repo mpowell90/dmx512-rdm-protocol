@@ -1,4 +1,4 @@
-use core::{array::TryFromSliceError, fmt, str::Utf8Error};
+use core::{array::TryFromSliceError, error::Error, fmt, str::Utf8Error};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RdmError {
@@ -110,3 +110,5 @@ impl fmt::Display for RdmError {
         }
     }
 }
+
+impl Error for RdmError {}
