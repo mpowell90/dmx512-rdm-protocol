@@ -1,4 +1,4 @@
-use core::fmt;
+use core::{fmt, error::Error};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DmxError {
@@ -20,3 +20,5 @@ impl fmt::Display for DmxError {
         }
     }
 }
+
+impl Error for DmxError {}
