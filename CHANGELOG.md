@@ -6,6 +6,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.4.1...v0.5.0) - 2024-09-29
+
+### Added
+
+- added E1.37-1 parameters to request and response
+
+### Fixed
+
+- request parameter encoding issues
+
+### Other
+
+- added references to E1.37-1 spec
+- added PinCode struct, used in request and response
+- Added TimeMode enum and replaced current u16 impl
+- added SupportedTimes enum for preset info
+
 ## [0.4.1](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.4.0...v0.4.1) - 2024-09-29
 
 ### Added
