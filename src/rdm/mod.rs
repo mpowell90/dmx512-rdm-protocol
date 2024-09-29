@@ -71,6 +71,34 @@ impl DeviceUID {
     }
 }
 
+impl From<[u8; 6]> for DeviceUID {
+    fn from(bytes: [u8; 6]) -> Self {
+        let manufacturer_id = u16::from_be_bytes([bytes[0], bytes[1]]);
+        let device_id = u32::from_be_bytes([bytes[2], bytes[3], bytes[4], bytes[5]]);
+
+        DeviceUID {
+            manufacturer_id,
+            device_id,
+        }
+    }
+}
+
+impl From<DeviceUID> for [u8; 6] {
+    fn from(uid: DeviceUID) -> Self {
+        let manufacturer_id_bytes = uid.manufacturer_id.to_be_bytes();
+        let device_id_bytes = uid.device_id.to_be_bytes();
+
+        [
+            manufacturer_id_bytes[0],
+            manufacturer_id_bytes[1],
+            device_id_bytes[0],
+            device_id_bytes[1],
+            device_id_bytes[2],
+            device_id_bytes[3],
+        ]
+    }
+}
+
 pub fn bsd_16_crc(packet: &[u8]) -> u16 {
     packet
         .iter()
@@ -101,5 +129,26 @@ impl From<SubDeviceId> for u16 {
             SubDeviceId::AllDevices => 0xffff,
             SubDeviceId::Id(id) => id,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_array_to_convert_device_uid() {
+        assert_eq!(
+            Into::<DeviceUID>::into([0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]),
+            DeviceUID::new(0x1234, 0x56789abc)
+        );
+    }
+
+    #[test]
+    fn should_convert_device_uid_to_array() {
+        assert_eq!(
+            Into::<[u8; 6]>::into(DeviceUID::new(0x1234, 0x56789abc)),
+            [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]
+        );
     }
 }
