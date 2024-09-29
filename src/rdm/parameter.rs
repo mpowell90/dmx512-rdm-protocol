@@ -31,6 +31,7 @@ pub fn decode_string_bytes<const N: usize>(bytes: &[u8]) -> Result<String<N>, Rd
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterId {
+    // E1.20
     DiscUniqueBranch,
     DiscMute,
     DiscUnMute,
@@ -83,6 +84,28 @@ pub enum ParameterId {
     SelfTestDescription,
     CapturePreset,
     PresetPlayback,
+    // E1.37-1
+    DmxBlockAddress,
+    DmxFailMode,
+    DmxStartupMode,
+    DimmerInfo,
+    MinimumLevel,
+    MaximumLevel,
+    Curve,
+    CurveDescription,
+    OutputResponseTime,
+    OutputResponseTimeDescription,
+    ModulationFrequency,
+    ModulationFrequencyDescription,
+    BurnIn,
+    LockPin,
+    LockState,
+    LockStateDescription,
+    IdentifyMode,
+    PresetInfo,
+    PresetStatus,
+    PresetMergeMode,
+    PowerOnSelfTest,
     ManufacturerSpecific(u16),
     Unsupported(u16),
 }
@@ -90,6 +113,7 @@ pub enum ParameterId {
 impl From<u16> for ParameterId {
     fn from(value: u16) -> Self {
         match value {
+            // E1.20
             0x0001 => Self::DiscUniqueBranch,
             0x0002 => Self::DiscMute,
             0x0003 => Self::DiscUnMute,
@@ -142,6 +166,28 @@ impl From<u16> for ParameterId {
             0x1021 => Self::SelfTestDescription,
             0x1030 => Self::CapturePreset,
             0x1031 => Self::PresetPlayback,
+            // E1.37-1
+            0x0140 => Self::DmxBlockAddress,
+            0x0141 => Self::DmxFailMode,
+            0x0142 => Self::DmxStartupMode,
+            0x0340 => Self::DimmerInfo,
+            0x0341 => Self::MinimumLevel,
+            0x0342 => Self::MaximumLevel,
+            0x0343 => Self::Curve,
+            0x0344 => Self::CurveDescription,
+            0x0345 => Self::OutputResponseTime,
+            0x0346 => Self::OutputResponseTimeDescription,
+            0x0347 => Self::ModulationFrequency,
+            0x0348 => Self::ModulationFrequencyDescription,
+            0x0440 => Self::BurnIn,
+            0x0640 => Self::LockPin,
+            0x0641 => Self::LockState,
+            0x0642 => Self::LockStateDescription,
+            0x1040 => Self::IdentifyMode,
+            0x1041 => Self::PresetInfo,
+            0x1042 => Self::PresetStatus,
+            0x1043 => Self::PresetMergeMode,
+            0x1044 => Self::PowerOnSelfTest,
             n if (0x8000..=0xffdf).contains(&n) => Self::ManufacturerSpecific(n),
             n => Self::Unsupported(n),
         }
@@ -151,6 +197,7 @@ impl From<u16> for ParameterId {
 impl From<ParameterId> for u16 {
     fn from(value: ParameterId) -> Self {
         match value {
+            // E1.20
             ParameterId::DiscUniqueBranch => 0x0001,
             ParameterId::DiscMute => 0x0002,
             ParameterId::DiscUnMute => 0x0003,
@@ -203,6 +250,28 @@ impl From<ParameterId> for u16 {
             ParameterId::SelfTestDescription => 0x1021,
             ParameterId::CapturePreset => 0x1030,
             ParameterId::PresetPlayback => 0x1031,
+            // E1.37-1
+            ParameterId::DmxBlockAddress => 0x0140,
+            ParameterId::DmxFailMode => 0x0141,
+            ParameterId::DmxStartupMode => 0x0142,
+            ParameterId::DimmerInfo => 0x0340,
+            ParameterId::MinimumLevel => 0x0341,
+            ParameterId::MaximumLevel => 0x0342,
+            ParameterId::Curve => 0x0343,
+            ParameterId::CurveDescription => 0x0344,
+            ParameterId::OutputResponseTime => 0x0345,
+            ParameterId::OutputResponseTimeDescription => 0x0346,
+            ParameterId::ModulationFrequency => 0x0347,
+            ParameterId::ModulationFrequencyDescription => 0x0348,
+            ParameterId::BurnIn => 0x0440,
+            ParameterId::LockPin => 0x0640,
+            ParameterId::LockState => 0x0641,
+            ParameterId::LockStateDescription => 0x0642,
+            ParameterId::IdentifyMode => 0x1040,
+            ParameterId::PresetInfo => 0x1041,
+            ParameterId::PresetStatus => 0x1042,
+            ParameterId::PresetMergeMode => 0x1043,
+            ParameterId::PowerOnSelfTest => 0x1044,
             ParameterId::ManufacturerSpecific(pid) => pid,
             ParameterId::Unsupported(pid) => pid,
         }
@@ -1943,6 +2012,131 @@ impl SensorValue {
             lowest_detected_value,
             highest_detected_value,
             recorded_value,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum IdentifyMode {
+    Quiet = 0x00,
+    Loud = 0xff,
+}
+
+impl TryFrom<u8> for IdentifyMode {
+    type Error = RdmError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::Quiet),
+            0xff => Ok(Self::Loud),
+            value => Err(RdmError::InvalidIdentifyMode(value)),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum PresetProgrammed {
+    NotProgrammed = 0x00,
+    Programmed = 0x01,
+    ReadOnly = 0x02,
+}
+
+impl TryFrom<u8> for PresetProgrammed {
+    type Error = RdmError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::NotProgrammed),
+            0x01 => Ok(Self::Programmed),
+            0x02 => Ok(Self::ReadOnly),
+            value => Err(RdmError::InvalidPresetProgrammed(value)),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum MergeMode {
+    Default = 0x00,
+    Htp = 0x01,
+    Ltp = 0x02,
+    DmxOnly = 0x03,
+    Other = 0xff,
+}
+
+impl TryFrom<u8> for MergeMode {
+    type Error = RdmError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::Default),
+            0x01 => Ok(Self::Htp),
+            0x02 => Ok(Self::Ltp),
+            0x03 => Ok(Self::DmxOnly),
+            0xff => Ok(Self::Other),
+            value => Err(RdmError::InvalidMergeMode(value)),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct PinCode(pub u16);
+
+impl TryFrom<u16> for PinCode {
+    type Error = RdmError;
+
+    fn try_from(value: u16) -> Result<Self, Self::Error> {
+        if value > 9999 {
+            Err(RdmError::InvalidPinCode(value))
+        } else {
+            Ok(Self(value))
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum SupportedTimes {
+    NotSupported,
+    Time(u16),
+}
+
+impl From<u16> for SupportedTimes {
+    fn from(value: u16) -> Self {
+        match value {
+            0xffff => Self::NotSupported,
+            value => Self::Time(value),
+        }
+    }
+}
+
+impl From<SupportedTimes> for u16 {
+    fn from(value: SupportedTimes) -> u16 {
+        match value {
+            SupportedTimes::NotSupported => 0xffff,
+            SupportedTimes::Time(value) => value,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum TimeMode {
+    Infinite,
+    TenthOfSeconds(u16),
+}
+
+impl From<u16> for TimeMode {
+    fn from(value: u16) -> Self {
+        match value {
+            0xffff => Self::Infinite,
+            value => Self::TenthOfSeconds(value),
+        }
+    }
+}
+
+impl From<TimeMode> for u16 {
+    fn from(value: TimeMode) -> u16 {
+        match value {
+            TimeMode::Infinite => 0xffff,
+            TimeMode::TenthOfSeconds(value) => value,
         }
     }
 }
