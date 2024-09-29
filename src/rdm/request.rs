@@ -1052,9 +1052,9 @@ impl RequestParameter {
                 hold_time,
                 level,
             } => {
-                buf.extend((*scene_id).to_be_bytes());
-                buf.extend((*loss_of_signal_delay_time).to_be_bytes());
-                buf.extend((*hold_time).to_be_bytes());
+                buf.extend(u16::from(*scene_id).to_be_bytes());
+                buf.extend(u16::from(*loss_of_signal_delay_time).to_be_bytes());
+                buf.extend(u16::from(*hold_time).to_be_bytes());
                 buf.push(*level).unwrap();
             }
             Self::GetDmxStartupMode => {}
@@ -1064,9 +1064,9 @@ impl RequestParameter {
                 hold_time,
                 level,
             } => {
-                buf.extend((*scene_id).to_be_bytes());
-                buf.extend((*startup_delay).to_be_bytes());
-                buf.extend((*hold_time).to_be_bytes());
+                buf.extend(u16::from(*scene_id).to_be_bytes());
+                buf.extend(u16::from(*startup_delay).to_be_bytes());
+                buf.extend(u16::from(*hold_time).to_be_bytes());
                 buf.push(*level).unwrap();
             }
             Self::GetDimmerInfo => {}
@@ -1111,7 +1111,7 @@ impl RequestParameter {
             }
             Self::GetLockState => {}
             Self::SetLockState { pin_code, lock_state } => {
-                buf.extend((*pin_code).to_be_bytes());
+                buf.extend(pin_code.0.to_be_bytes());
                 buf.push(*lock_state as u8).unwrap();
             }
             Self::GetLockStateDescription => {}
@@ -1120,8 +1120,8 @@ impl RequestParameter {
                 new_pin_code,
                 current_pin_code,
             } => {
-                buf.extend((*new_pin_code).to_be_bytes());
-                buf.extend((*current_pin_code).to_be_bytes());
+                buf.extend(new_pin_code.0.to_be_bytes());
+                buf.extend(current_pin_code.0.to_be_bytes());
             }
             Self::GetBurnIn => {}
             Self::SetBurnIn { hours } => {
