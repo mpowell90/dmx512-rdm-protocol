@@ -1557,8 +1557,12 @@ impl ResponseParameterData {
                 buf.reserve(13);
 
                 buf.extend(interface_id.to_be_bytes());
-                buf.extend(u32::from(*address).to_be_bytes());
-                buf.extend(u32::from(*netmask).to_be_bytes());
+                buf.extend::<[u8; 4]>((*address).into());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*netmask);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*netmask).unwrap();
 
                 #[cfg(feature = "alloc")]
                 buf.push(*dhcp_status as u8);
@@ -1574,8 +1578,13 @@ impl ResponseParameterData {
                 buf.reserve(10);
 
                 buf.extend(interface_id.to_be_bytes());
-                buf.extend(u32::from(*address).to_be_bytes());
-                buf.extend(u32::from(*netmask).to_be_bytes());
+                buf.extend::<[u8; 4]>((*address).into());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*netmask);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*netmask).unwrap();
+
             }
             Self::GetIpV4DefaultRoute {
                 interface_id,
@@ -1585,7 +1594,7 @@ impl ResponseParameterData {
                 buf.reserve(6);
 
                 buf.extend(interface_id.to_be_bytes());
-                buf.extend(u32::from(*address).to_be_bytes());
+                buf.extend::<[u8; 4]>((*address).into());
             }
             Self::GetDnsIpV4NameServer {
                 name_server_index,
@@ -1595,7 +1604,7 @@ impl ResponseParameterData {
                 buf.reserve(5);
 
                 buf.extend(name_server_index.to_be_bytes());
-                buf.extend(u32::from(*address).to_be_bytes());
+                buf.extend::<[u8; 4]>((*address).into());
             }
             Self::GetDnsHostName(host_name) => {
                 #[cfg(feature = "alloc")]
