@@ -628,9 +628,6 @@ impl RequestParameter {
                 #[cfg(feature = "alloc")]
                 buf.reserve(device_label.len());
 
-                #[cfg(feature = "alloc")]
-                buf.extend(device_label.as_bytes());
-                #[cfg(not(feature = "alloc"))]
                 buf.extend(device_label.bytes());
             }
             Self::GetFactoryDefaults => {}
@@ -641,9 +638,6 @@ impl RequestParameter {
                 #[cfg(feature = "alloc")]
                 buf.reserve(language.len());
 
-                #[cfg(feature = "alloc")]
-                buf.extend(language.as_bytes());
-                #[cfg(not(feature = "alloc"))]
                 buf.extend(language.bytes());
             }
             Self::GetSoftwareVersionLabel => {}
@@ -1166,7 +1160,7 @@ impl RequestParameter {
                 #[cfg(feature = "alloc")]
                 buf.extend(parameter_data);
                 #[cfg(not(feature = "alloc"))]
-                buf.extend(*parameter_data);
+                buf.extend_from_slice(parameter_data).unwrap();
             }
             Self::Unsupported { parameter_data, .. } => {
                 #[cfg(feature = "alloc")]
@@ -1175,7 +1169,7 @@ impl RequestParameter {
                 #[cfg(feature = "alloc")]
                 buf.extend(parameter_data);
                 #[cfg(not(feature = "alloc"))]
-                buf.extend(*parameter_data);
+                buf.extend_from_slice(parameter_data).unwrap();
             }
         };
 

@@ -13,6 +13,9 @@ pub const RDM_SUB_START_CODE_BYTE: u8 = 0x01;
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE: u8 = 0xfe;
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE: u8 = 0xaa;
 
+#[cfg(not(feature = "alloc"))]
+use heapless::Vec;
+
 #[cfg(feature = "alloc")]
 pub type Encoded = Vec<u8>;
 #[cfg(not(feature = "alloc"))]

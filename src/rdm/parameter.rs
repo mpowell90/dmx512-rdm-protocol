@@ -596,6 +596,23 @@ impl TryFrom<u8> for ParameterDataType {
     }
 }
 
+impl From<ParameterDataType> for u8 {
+    fn from(value: ParameterDataType) -> Self {
+        match value {
+            ParameterDataType::NotDefined => 0x00,
+            ParameterDataType::BitField => 0x01,
+            ParameterDataType::Ascii => 0x02,
+            ParameterDataType::UnsignedByte => 0x03,
+            ParameterDataType::SignedByte => 0x04,
+            ParameterDataType::UnsignedWord => 0x05,
+            ParameterDataType::SignedWord => 0x06,
+            ParameterDataType::UnsignedDWord => 0x07,
+            ParameterDataType::SignedDWord => 0x08,
+            ParameterDataType::ManufacturerSpecific(n) => n,
+        }
+    }
+}
+
 pub enum ConvertedParameterValue {
     BitField(u8),
     Ascii(
