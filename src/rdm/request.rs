@@ -53,6 +53,11 @@ use super::{
 #[cfg(not(feature = "alloc"))]
 use heapless::{String, Vec};
 
+#[cfg(feature = "alloc")]
+type EncodedRequest = Vec<u8>;
+#[cfg(not(feature = "alloc"))]
+type EncodedRequest = Vec<u8, 257>;
+
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter {
     // E1.20
@@ -1805,39 +1810,75 @@ impl RdmRequest {
         self.parameter.parameter_id()
     }
 
-    #[cfg(feature = "alloc")]
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> EncodedRequest {
         let parameter_data = self.parameter.encode();
-
+        
         let message_length = 24 + parameter_data.len();
-
+        
+        #[cfg(feature = "alloc")]
         let mut buf = Vec::with_capacity(message_length + 2);
-
+        #[cfg(not(feature = "alloc"))]
+        let mut buf = Vec::new();
+        
+        #[cfg(feature = "alloc")]
         buf.push(RDM_START_CODE_BYTE);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(RDM_START_CODE_BYTE).unwrap();
+
+        #[cfg(feature = "alloc")]
         buf.push(RDM_SUB_START_CODE_BYTE);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(RDM_SUB_START_CODE_BYTE).unwrap();
+
+        #[cfg(feature = "alloc")]
         buf.push(message_length as u8);
-        buf.extend(self.destination_uid.manufacturer_id.to_be_bytes().iter());
-        buf.extend(self.destination_uid.device_id.to_be_bytes().iter());
-        buf.extend(self.source_uid.manufacturer_id.to_be_bytes().iter());
-        buf.extend(self.source_uid.device_id.to_be_bytes().iter());
+        #[cfg(not(feature = "alloc"))]
+        buf.push(message_length as u8).unwrap();
+
+        buf.extend(self.destination_uid.manufacturer_id.to_be_bytes());
+        buf.extend(self.destination_uid.device_id.to_be_bytes());
+        buf.extend(self.source_uid.manufacturer_id.to_be_bytes());
+        buf.extend(self.source_uid.device_id.to_be_bytes());
+
+        #[cfg(feature = "alloc")]
         buf.push(self.transaction_number);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(self.transaction_number).unwrap();
+        
+        #[cfg(feature = "alloc")]
         buf.push(self.port_id);
-        buf.push(0x00); // Message Count shall be set to 0x00 in all controller generated requests
-        buf.extend(u16::from(self.sub_device_id).to_be_bytes().iter());
+        #[cfg(not(feature = "alloc"))]
+        buf.push(self.port_id).unwrap();
+
+        // Message Count shall be set to 0x00 in all controller generated requests
+        #[cfg(feature = "alloc")]
+        buf.push(0x00);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(0x00).unwrap();
+
+        buf.extend(u16::from(self.sub_device_id).to_be_bytes());
+
+        #[cfg(feature = "alloc")]
         buf.push(self.parameter.command_class() as u8);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(self.parameter.command_class() as u8).unwrap();
+
         buf.extend(
             u16::from(self.parameter.parameter_id())
                 .to_be_bytes()
-                .iter(),
         );
+
+        #[cfg(feature = "alloc")]
         buf.push(parameter_data.len() as u8);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(parameter_data.len() as u8).unwrap();
+
         buf.extend(parameter_data);
-        buf.extend(bsd_16_crc(&buf[..]).to_be_bytes().iter());
+        buf.extend(bsd_16_crc(&buf[..]).to_be_bytes());
 
         buf
     }
 
-    #[cfg(feature = "alloc")]
     pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes.len() < 24 {
             return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
@@ -1876,34 +1917,6 @@ impl RdmRequest {
             sub_device_id,
             parameter,
         ))
-    }
-
-    #[cfg(not(feature = "alloc"))]
-    pub fn encode(&self) -> Vec<u8, 257> {
-        let parameter_data = self.parameter.encode();
-
-        let message_length = 24 + parameter_data.len();
-
-        let mut buf = Vec::new();
-
-        buf.push(RDM_START_CODE_BYTE).unwrap();
-        buf.push(RDM_SUB_START_CODE_BYTE).unwrap();
-        buf.push(message_length as u8).unwrap();
-        buf.extend(self.destination_uid.manufacturer_id.to_be_bytes());
-        buf.extend(self.destination_uid.device_id.to_be_bytes());
-        buf.extend(self.source_uid.manufacturer_id.to_be_bytes());
-        buf.extend(self.source_uid.device_id.to_be_bytes());
-        buf.push(self.transaction_number).unwrap();
-        buf.push(self.port_id).unwrap();
-        buf.push(0x00).unwrap(); // Message Count shall be set to 0x00 in all controller generated requests
-        buf.extend(u16::from(self.sub_device_id).to_be_bytes());
-        buf.push(self.parameter.command_class() as u8).unwrap();
-        buf.extend(u16::from(self.parameter.parameter_id()).to_be_bytes());
-        buf.push(parameter_data.len() as u8).unwrap();
-        buf.extend(parameter_data);
-        buf.extend(bsd_16_crc(&buf[..]).to_be_bytes());
-
-        buf
     }
 }
 
