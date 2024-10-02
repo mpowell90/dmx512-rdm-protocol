@@ -1597,8 +1597,18 @@ impl ResponseParameterData {
                 buf.extend(name_server_index.to_be_bytes());
                 buf.extend(u32::from(*address).to_be_bytes());
             }
-            Self::GetDnsHostName(_) => todo!(),
-            Self::GetDnsDomainName(_) => todo!(),
+            Self::GetDnsHostName(host_name) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(host_name.len());
+
+                buf.extend(host_name.bytes());
+            },
+            Self::GetDnsDomainName(domain_name) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(domain_name.len());
+
+                buf.extend(domain_name.bytes());
+            },
             Self::ManufacturerSpecific(data) => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(data.len());
