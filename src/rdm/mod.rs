@@ -66,25 +66,50 @@ impl DeviceUID {
     pub const ALL_MANUFACTURERS_ID: u16 = 0xffff;
     pub const ALL_DEVICES_ID: u32 = 0xffffffff;
 
-    pub fn new(manufacturer_id: u16, device_id: u32) -> Self {
-        DeviceUID {
+    pub const fn new(manufacturer_id: u16, device_id: u32) -> Self {
+        Self {
             manufacturer_id,
             device_id,
         }
     }
 
-    pub fn broadcast_to_all_devices() -> Self {
-        DeviceUID {
+    pub const fn new_dynamic(mut manufacturer_id: u16, device_id: u32) -> Self {
+        manufacturer_id |= 0x8000;
+
+        Self {
+            manufacturer_id,
+            device_id,
+        }
+    }
+
+    pub const fn broadcast_to_devices_with_manufacturer_id(manufacturer_id: u16) -> Self {
+        Self {
+            manufacturer_id,
+            device_id: Self::ALL_DEVICES_ID,
+        }
+    }
+
+    pub const fn broadcast_to_devices_with_manufacturer_id_dynamic(
+        mut manufacturer_id: u16,
+        device_id: u32,
+    ) -> Self {
+        manufacturer_id |= 0x8000;
+
+        Self {
+            manufacturer_id,
+            device_id,
+        }
+    }
+
+    pub const fn broadcast_to_all_devices() -> Self {
+        Self {
             manufacturer_id: Self::ALL_MANUFACTURERS_ID,
             device_id: Self::ALL_DEVICES_ID,
         }
     }
 
-    pub fn broadcast_to_devices_with_manufacturer_id(manufacturer_id: u16) -> Self {
-        DeviceUID {
-            manufacturer_id,
-            device_id: Self::ALL_DEVICES_ID,
-        }
+    pub fn is_dynamic(&self) -> bool {
+        self.manufacturer_id & 0x8000 != 0
     }
 }
 
@@ -152,6 +177,34 @@ impl From<SubDeviceId> for u16 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn should_create_static_device_uid() {
+        let device_uid = DeviceUID::new(0x1234, 0x56789abc);
+
+        assert_eq!(
+            device_uid,
+            DeviceUID {
+                manufacturer_id: 0x1234,
+                device_id: 0x56789abc
+            }
+        );
+        assert!(!device_uid.is_dynamic());
+    }
+
+    #[test]
+    fn should_create_dynamic_device_uid() {
+        let device_uid = DeviceUID::new_dynamic(0x1234, 0x56789abc);
+
+        assert_eq!(
+            device_uid,
+            DeviceUID {
+                manufacturer_id: 0x9234,
+                device_id: 0x56789abc
+            }
+        );
+        assert!(device_uid.is_dynamic());
+    }
 
     #[test]
     fn should_array_to_convert_device_uid() {

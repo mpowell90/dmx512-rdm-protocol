@@ -43,9 +43,9 @@ use super::{
     bsd_16_crc,
     error::RdmError,
     parameter::{
-        decode_string_bytes, DisplayInvertMode, FadeTimes, Ipv4Address, Ipv4Route, LampOnMode,
-        LampState, MergeMode, ParameterId, PinCode, PowerState, PresetPlaybackMode,
-        ResetDeviceMode, SelfTest, StatusType, TimeMode,
+        decode_string_bytes, BrokerState, DisplayInvertMode, FadeTimes, Ipv4Address, Ipv4Route,
+        Ipv6Address, LampOnMode, LampState, MergeMode, ParameterId, PinCode, PowerState,
+        PresetPlaybackMode, ResetDeviceMode, SelfTest, StaticConfigType, StatusType, TimeMode,
     },
     CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, SubDeviceId, RDM_START_CODE_BYTE,
     RDM_SUB_START_CODE_BYTE,
@@ -372,6 +372,37 @@ pub enum RequestParameter {
         #[cfg(not(feature = "alloc"))]
         domain_name: String<231>,
     },
+    // E1.33
+    GetSearchDomain,
+    SetSearchDomain(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<231>,
+    ),
+    GetComponentScope {
+        scope_slot: u16,
+    },
+    SetComponentScope {
+        scope_slot: u16,
+        #[cfg(feature = "alloc")]
+        scope_string: String,
+        #[cfg(not(feature = "alloc"))]
+        scope_string: String<63>,
+        static_config_type: StaticConfigType,
+        static_broker_ipv4_address: Ipv4Address,
+        static_broker_ipv6_address: Ipv6Address,
+        static_broker_port: u16,
+    },
+    GetTcpCommsStatus,
+    SetTcpCommsStatus {
+        #[cfg(feature = "alloc")]
+        scope_string: String,
+        #[cfg(not(feature = "alloc"))]
+        scope_string: String<63>,
+    },
+    GetBrokerStatus,
+    SetBrokerStatus {
+        broker_state: BrokerState,
+    },
     ManufacturerSpecific {
         command_class: CommandClass,
         parameter_id: u16,
@@ -474,6 +505,11 @@ impl RequestParameter {
             | Self::GetDnsIpV4NameServer { .. }
             | Self::GetDnsHostName
             | Self::GetDnsDomainName
+            // E1.33
+            | Self::GetComponentScope { .. }
+            | Self::GetSearchDomain
+            | Self::GetTcpCommsStatus
+            | Self::GetBrokerStatus
             => CommandClass::GetCommand,
             // E1.20
             Self::SetCommsStatus
@@ -531,6 +567,11 @@ impl RequestParameter {
             | Self::SetDnsIpV4NameServer { .. }
             | Self::SetDnsHostName { .. }
             | Self::SetDnsDomainName { .. }
+            // E1.33
+            | Self::SetComponentScope { .. }
+            | Self::SetSearchDomain(..)
+            | Self::SetTcpCommsStatus { .. }
+            | Self::SetBrokerStatus { .. }
             => CommandClass::SetCommand,
             Self::ManufacturerSpecific { command_class, .. } => *command_class,
             Self::Unsupported { command_class, .. } => *command_class,
@@ -664,6 +705,13 @@ impl RequestParameter {
             }
             Self::GetDnsHostName | Self::SetDnsHostName { .. } => ParameterId::DnsHostName,
             Self::GetDnsDomainName | Self::SetDnsDomainName { .. } => ParameterId::DnsDomainName,
+            // E1.33
+            Self::GetComponentScope { .. } | Self::SetComponentScope { .. } => {
+                ParameterId::ComponentScope
+            }
+            Self::GetSearchDomain | Self::SetSearchDomain(..) => ParameterId::SearchDomain,
+            Self::GetTcpCommsStatus | Self::SetTcpCommsStatus { .. } => ParameterId::TcpCommsStatus,
+            Self::GetBrokerStatus | Self::SetBrokerStatus { .. } => ParameterId::BrokerStatus,
             Self::ManufacturerSpecific { parameter_id, .. } => {
                 ParameterId::ManufacturerSpecific(*parameter_id)
             }
@@ -1420,6 +1468,60 @@ impl RequestParameter {
 
                 buf.extend(domain_name.bytes())
             }
+            // E1.33
+            Self::GetComponentScope { scope_slot } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend((*scope_slot).to_be_bytes());
+            }
+            Self::SetComponentScope {
+                scope_slot,
+                scope_string,
+                static_config_type,
+                static_broker_ipv4_address,
+                static_broker_ipv6_address,
+                static_broker_port,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(scope_string.len() + 25);
+
+                buf.extend((*scope_slot).to_be_bytes());
+                buf.extend(scope_string.bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*static_config_type as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*static_config_type as u8).unwrap();
+
+                buf.extend::<[u8; 4]>((*static_broker_ipv4_address).into());
+                buf.extend::<[u8; 16]>((*static_broker_ipv6_address).into());
+                buf.extend((*static_broker_port).to_be_bytes());
+            }
+            Self::GetSearchDomain => {}
+            Self::SetSearchDomain(search_domain) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(search_domain.len());
+
+                buf.extend(search_domain.bytes());
+            }
+            Self::GetTcpCommsStatus => {}
+            Self::SetTcpCommsStatus { scope_string } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(scope_string.len());
+
+                buf.extend(scope_string.bytes());
+            }
+            Self::GetBrokerStatus => {}
+            Self::SetBrokerStatus { broker_state } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*broker_state as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*broker_state as u8).unwrap();
+            }
             Self::ManufacturerSpecific { parameter_data, .. } => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(parameter_data.len());
@@ -2149,6 +2251,49 @@ impl RequestParameter {
             (CommandClass::SetCommand, ParameterId::DnsDomainName) => Ok(Self::SetDnsDomainName {
                 domain_name: decode_string_bytes(bytes)?,
             }),
+            (CommandClass::GetCommand, ParameterId::ComponentScope) => {
+                Ok(Self::GetComponentScope {
+                    scope_slot: u16::from_be_bytes([bytes[0], bytes[1]]),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::ComponentScope) => {
+                Ok(Self::SetComponentScope {
+                    scope_slot: u16::from_be_bytes([bytes[0], bytes[1]]),
+                    scope_string: decode_string_bytes(&bytes[2..=65])?,
+                    static_config_type: bytes[66].try_into()?,
+                    static_broker_ipv4_address: Ipv4Address::from([
+                        bytes[67], bytes[68], bytes[69], bytes[70],
+                    ]),
+                    static_broker_ipv6_address: Ipv6Address::from([
+                        bytes[71], bytes[72], bytes[73], bytes[74], bytes[75], bytes[76],
+                        bytes[77], bytes[78], bytes[79], bytes[80], bytes[81], bytes[82],
+                        bytes[83], bytes[84], bytes[85], bytes[86],
+                    ]),
+                    static_broker_port: u16::from_be_bytes([bytes[87], bytes[88]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::SearchDomain) => Ok(Self::GetSearchDomain),
+            (CommandClass::SetCommand, ParameterId::SearchDomain) => {
+                Ok(Self::SetSearchDomain(decode_string_bytes(bytes)?))
+            }
+            (CommandClass::GetCommand, ParameterId::TcpCommsStatus) => Ok(Self::GetTcpCommsStatus),
+            (CommandClass::SetCommand, ParameterId::TcpCommsStatus) => {
+                if bytes.len() < 2 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetTcpCommsStatus {
+                    scope_string: decode_string_bytes(bytes)?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::BrokerStatus) => Ok(Self::GetBrokerStatus),
+            (CommandClass::SetCommand, ParameterId::BrokerStatus) => {
+                if bytes.len() < 2 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetBrokerStatus {
+                    broker_state: bytes[0].try_into()?,
+                })
+            }
             (command_class, parameter_id) => {
                 #[cfg(feature = "alloc")]
                 let parameter_data = bytes.to_vec();
