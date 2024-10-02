@@ -53,10 +53,11 @@ use super::{
         PresetProgrammed, ProductCategory, ProductDetail, SelfTest, SensorDefinition, SensorValue,
         SlotInfo, StatusMessage, StatusType, SupportedTimes, TimeMode,
     },
-    CommandClass, DeviceUID, Encoded, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-    DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
+    CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, RdmError, SubDeviceId,
+    DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
+    RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
-use core::{fmt::Display, result::Result};
+use core::{fmt::Display, iter, result::Result};
 
 #[cfg(not(feature = "alloc"))]
 use core::str::FromStr;
@@ -147,6 +148,76 @@ pub enum ResponseData {
     ParameterData(Option<ResponseParameterData>),
     EstimateResponseTime(u16),
     NackReason(ResponseNackReasonCode),
+}
+
+impl ResponseData {
+    pub fn encode(&self) -> EncodedParameterData {
+        #[cfg(feature = "alloc")]
+        let mut buf = Vec::new();
+
+        #[cfg(not(feature = "alloc"))]
+        let mut buf = Vec::new();
+
+        match self {
+            Self::ParameterData(Some(data)) => {
+                let data = data.encode();
+
+                #[cfg(feature = "alloc")]
+                buf.reserve(data.len());
+
+                buf.extend(data);
+            }
+            Self::ParameterData(None) => {}
+            Self::EstimateResponseTime(time) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(2);
+
+                buf.extend(time.to_be_bytes());
+            }
+            Self::NackReason(reason) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(2);
+
+                buf.extend((*reason as u16).to_be_bytes());
+            }
+        }
+
+        buf
+    }
+
+    pub fn decode(
+        response_type: ResponseType,
+        command_class: CommandClass,
+        parameter_data_length: u8,
+        parameter_id: ParameterId,
+        bytes: &[u8],
+    ) -> Result<Self, RdmError> {
+        match response_type {
+            ResponseType::Ack | ResponseType::AckOverflow => {
+                let parameter_data = if parameter_data_length > 0 {
+                    Some(ResponseParameterData::decode(
+                        command_class,
+                        parameter_id,
+                        bytes,
+                    )?)
+                } else {
+                    None
+                };
+
+                Ok(ResponseData::ParameterData(parameter_data))
+            }
+            ResponseType::AckTimer => {
+                let estimated_response_time = u16::from_be_bytes(bytes[0..=1].try_into()?);
+
+                Ok(ResponseData::EstimateResponseTime(estimated_response_time))
+            }
+            ResponseType::NackReason => {
+                let nack_reason = u16::from_be_bytes(bytes[0..=1].try_into()?).try_into()?;
+
+                Ok(ResponseData::NackReason(nack_reason))
+            }
+        }
+    }
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -422,12 +493,12 @@ pub enum ResponseParameterData {
 }
 
 impl ResponseParameterData {
-    pub fn encode(&self) -> Encoded {
+    pub fn encode(&self) -> EncodedParameterData {
         #[cfg(feature = "alloc")]
         let mut buf = Vec::new();
 
         #[cfg(not(feature = "alloc"))]
-        let mut buf: Vec<u8, 231> = Vec::new();
+        let mut buf = Vec::new();
 
         match self {
             Self::DiscMute {
@@ -997,7 +1068,7 @@ impl ResponseParameterData {
                 buf.push((*self_test_id).into());
                 #[cfg(not(feature = "alloc"))]
                 buf.push((*self_test_id).into()).unwrap();
-                
+
                 buf.extend(description.bytes());
             }
             Self::GetPresetPlayback { mode, level } => {
@@ -1953,6 +2024,72 @@ pub struct RdmFrameResponse {
 }
 
 impl RdmFrameResponse {
+    pub fn encode(&self) -> EncodedFrame {
+        let parameter_data = self.parameter_data.encode();
+
+        let message_length = 24 + parameter_data.len();
+
+        #[cfg(feature = "alloc")]
+        let mut buf = Vec::with_capacity(message_length + 2);
+        #[cfg(not(feature = "alloc"))]
+        let mut buf = Vec::new();
+
+        #[cfg(feature = "alloc")]
+        buf.push(RDM_START_CODE_BYTE);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(RDM_START_CODE_BYTE).unwrap();
+
+        #[cfg(feature = "alloc")]
+        buf.push(RDM_SUB_START_CODE_BYTE);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(RDM_SUB_START_CODE_BYTE).unwrap();
+
+        #[cfg(feature = "alloc")]
+        buf.push(message_length as u8);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(message_length as u8).unwrap();
+
+        buf.extend(self.destination_uid.manufacturer_id.to_be_bytes());
+        buf.extend(self.destination_uid.device_id.to_be_bytes());
+        buf.extend(self.source_uid.manufacturer_id.to_be_bytes());
+        buf.extend(self.source_uid.device_id.to_be_bytes());
+
+        #[cfg(feature = "alloc")]
+        buf.push(self.transaction_number);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(self.transaction_number).unwrap();
+
+        #[cfg(feature = "alloc")]
+        buf.push(self.response_type as u8);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(self.response_type as u8).unwrap();
+
+        // Message Count shall be set to 0x00 in all controller generated requests
+        #[cfg(feature = "alloc")]
+        buf.push(self.message_count);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(self.message_count).unwrap();
+
+        buf.extend(u16::from(self.sub_device_id).to_be_bytes());
+
+        #[cfg(feature = "alloc")]
+        buf.push(self.command_class as u8);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(self.command_class as u8).unwrap();
+
+        buf.extend(u16::from(self.parameter_id).to_be_bytes());
+
+        #[cfg(feature = "alloc")]
+        buf.push(parameter_data.len() as u8);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(parameter_data.len() as u8).unwrap();
+
+        buf.extend(parameter_data);
+        buf.extend(bsd_16_crc(&buf[..]).to_be_bytes());
+
+        buf
+    }
+
     pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         let message_length = bytes[2];
 
@@ -1996,31 +2133,13 @@ impl RdmFrameResponse {
             return Err(RdmError::InvalidParameterDataLength(parameter_data_length));
         }
 
-        let parameter_data = match response_type {
-            ResponseType::Ack | ResponseType::AckOverflow => {
-                let parameter_data = if parameter_data_length > 0 {
-                    Some(ResponseParameterData::decode(
-                        command_class,
-                        parameter_id,
-                        &bytes[24..=(24 + parameter_data_length as usize - 1)],
-                    )?)
-                } else {
-                    None
-                };
-
-                ResponseData::ParameterData(parameter_data)
-            }
-            ResponseType::AckTimer => {
-                let estimated_response_time = u16::from_be_bytes(bytes[24..=25].try_into()?);
-
-                ResponseData::EstimateResponseTime(estimated_response_time)
-            }
-            ResponseType::NackReason => {
-                let nack_reason = u16::from_be_bytes(bytes[24..=25].try_into()?).try_into()?;
-
-                ResponseData::NackReason(nack_reason)
-            }
-        };
+        let parameter_data = ResponseData::decode(
+            response_type,
+            command_class,
+            parameter_data_length,
+            parameter_id,
+            &bytes[24..=(24 + parameter_data_length as usize - 1)],
+        )?;
 
         Ok(Self {
             destination_uid,
@@ -2048,6 +2167,54 @@ impl TryFrom<&[u8]> for RdmFrameResponse {
 pub struct DiscoveryUniqueBranchFrameResponse(pub DeviceUID);
 
 impl DiscoveryUniqueBranchFrameResponse {
+    pub fn encode(&self) -> EncodedFrame {
+        #[cfg(feature = "alloc")]
+        let mut buf = Vec::with_capacity(24);
+        #[cfg(not(feature = "alloc"))]
+        let mut buf = Vec::new();
+
+        buf.extend(iter::repeat(DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE).take(7));
+
+        #[cfg(feature = "alloc")]
+        buf.push(DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE)
+            .unwrap();
+
+        let [manufacturer_id1, manufacturer_id0] = self.0.manufacturer_id.to_be_bytes();
+
+        buf.extend([
+            manufacturer_id1 | 0xaa,
+            manufacturer_id1 | 0x55,
+            manufacturer_id0 | 0xaa,
+            manufacturer_id0 | 0x55,
+        ]);
+
+        let [device_id3, device_id2, device_id1, device_id0] = self.0.device_id.to_be_bytes();
+
+        buf.extend([
+            device_id3 | 0xaa,
+            device_id3 | 0x55,
+            device_id2 | 0xaa,
+            device_id2 | 0x55,
+            device_id1 | 0xaa,
+            device_id1 | 0x55,
+            device_id0 | 0xaa,
+            device_id0 | 0x55,
+        ]);
+
+        let [checksum1, checksum0] = bsd_16_crc(&buf[8..]).to_be_bytes();
+
+        buf.extend([
+            checksum1 | 0xaa,
+            checksum1 | 0x55,
+            checksum0 | 0xaa,
+            checksum0 | 0x55,
+        ]);
+
+        buf
+    }
+
     pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         let Some(frame_start_index) = bytes.iter().position(|&x| x == 0xaa) else {
             return Err(RdmError::InvalidDiscoveryUniqueBranchPreamble);
@@ -2094,6 +2261,13 @@ pub enum RdmResponse {
 }
 
 impl RdmResponse {
+    pub fn encode(&self) -> EncodedFrame {
+        match self {
+            RdmResponse::RdmFrame(frame) => frame.encode(),
+            RdmResponse::DiscoveryUniqueBranchFrame(frame) => frame.encode(),
+        }
+    }
+
     pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes[0] == RDM_START_CODE_BYTE && bytes[1] == RDM_SUB_START_CODE_BYTE {
             if bytes.len() < 25 {

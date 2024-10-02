@@ -40,23 +40,15 @@
 //! See tests for more examples.
 
 use super::{
-    bsd_16_crc,
-    error::RdmError,
-    parameter::{
+    bsd_16_crc, error::RdmError, parameter::{
         decode_string_bytes, DisplayInvertMode, FadeTimes, LampOnMode, LampState, MergeMode,
         ParameterId, PinCode, PowerState, PresetPlaybackMode, ResetDeviceMode, SelfTest,
         StatusType, TimeMode,
-    },
-    CommandClass, DeviceUID, Encoded, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
+    }, CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE
 };
 
 #[cfg(not(feature = "alloc"))]
 use heapless::{String, Vec};
-
-#[cfg(feature = "alloc")]
-type EncodedRequest = Vec<u8>;
-#[cfg(not(feature = "alloc"))]
-type EncodedRequest = Vec<u8, 257>;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter {
@@ -557,7 +549,7 @@ impl RequestParameter {
         }
     }
 
-    pub fn encode(&self) -> Encoded {
+    pub fn encode(&self) -> EncodedParameterData {
         #[cfg(feature = "alloc")]
         let mut buf = Vec::new();
         
@@ -1810,7 +1802,7 @@ impl RdmRequest {
         self.parameter.parameter_id()
     }
 
-    pub fn encode(&self) -> EncodedRequest {
+    pub fn encode(&self) -> EncodedFrame {
         let parameter_data = self.parameter.encode();
         
         let message_length = 24 + parameter_data.len();
