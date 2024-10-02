@@ -47,7 +47,7 @@ use super::{
         ParameterId, PinCode, PowerState, PresetPlaybackMode, ResetDeviceMode, SelfTest,
         StatusType, TimeMode,
     },
-    CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
+    CommandClass, DeviceUID, Encoded, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
 
 #[cfg(not(feature = "alloc"))]
@@ -552,378 +552,11 @@ impl RequestParameter {
         }
     }
 
-    #[cfg(feature = "alloc")]
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Encoded {
+        #[cfg(feature = "alloc")]
         let mut buf = Vec::new();
-
-        match self {
-            // E1.20
-            Self::DiscMute => {}
-            Self::DiscUnMute => {}
-            Self::DiscUniqueBranch {
-                lower_bound_uid,
-                upper_bound_uid,
-            } => {
-                buf.reserve(0x0c);
-                buf.extend(lower_bound_uid.manufacturer_id.to_be_bytes());
-                buf.extend(lower_bound_uid.device_id.to_be_bytes());
-                buf.extend(upper_bound_uid.manufacturer_id.to_be_bytes());
-                buf.extend(upper_bound_uid.device_id.to_be_bytes());
-            }
-            Self::GetCommsStatus => {}
-            Self::SetCommsStatus => {}
-            Self::GetQueuedMessage { status_type } => {
-                buf.reserve(0x01);
-                buf.push(*status_type as u8)
-            }
-            Self::GetStatusMessages { status_type } => {
-                buf.reserve(0x01);
-                buf.push(*status_type as u8)
-            }
-            Self::GetStatusIdDescription { status_id } => {
-                buf.reserve(0x02);
-                buf.extend((*status_id).to_be_bytes());
-            }
-            Self::SetClearStatusId => {}
-            Self::GetSubDeviceIdStatusReportThreshold => {}
-            Self::SetSubDeviceIdStatusReportThreshold { status_type } => {
-                buf.reserve(0x01);
-                buf.push(*status_type as u8)
-            }
-            Self::GetSupportedParameters => {}
-            Self::GetParameterDescription { parameter_id } => {
-                buf.reserve(0x02);
-                buf.extend((*parameter_id).to_be_bytes());
-            }
-            Self::GetDeviceInfo => {}
-            Self::GetProductDetailIdList => {}
-            Self::GetDeviceModelDescription => {}
-            Self::GetManufacturerLabel => {}
-            Self::GetDeviceLabel => {}
-            Self::SetDeviceLabel { device_label } => {
-                buf.reserve(device_label.len());
-                buf.extend(device_label.as_bytes())
-            }
-            Self::GetFactoryDefaults => {}
-            Self::SetFactoryDefaults => {}
-            Self::GetLanguageCapabilities => {}
-            Self::GetLanguage => {}
-            Self::SetLanguage { language } => {
-                buf.reserve(language.len());
-                buf.extend(language.as_bytes())
-            }
-            Self::GetSoftwareVersionLabel => {}
-            Self::GetBootSoftwareVersionId => {}
-            Self::GetBootSoftwareVersionLabel => {}
-            Self::GetDmxPersonality => {}
-            Self::SetDmxPersonality { personality_id } => {
-                buf.reserve(0x01);
-                buf.push(*personality_id)
-            }
-            Self::GetDmxPersonalityDescription { personality } => {
-                buf.reserve(0x01);
-                buf.push(*personality)
-            }
-            Self::GetDmxStartAddress => {}
-            Self::SetDmxStartAddress { dmx_start_address } => {
-                buf.reserve(0x02);
-                buf.extend((*dmx_start_address).to_be_bytes());
-            }
-            Self::GetSlotInfo => {}
-            Self::GetSlotDescription { slot_id } => {
-                buf.reserve(0x02);
-                buf.extend((*slot_id).to_be_bytes());
-            }
-            Self::GetDefaultSlotValue => {}
-            Self::GetSensorDefinition { sensor_id } => {
-                buf.reserve(0x01);
-                buf.push(*sensor_id)
-            }
-            Self::GetSensorValue { sensor_id } => {
-                buf.reserve(0x01);
-                buf.push(*sensor_id)
-            }
-            Self::SetSensorValue { sensor_id } => {
-                buf.reserve(0x01);
-                buf.push(*sensor_id)
-            }
-            Self::SetRecordSensors { sensor_id } => {
-                buf.reserve(0x01);
-                buf.push(*sensor_id)
-            }
-            Self::GetDeviceHours => {}
-            Self::SetDeviceHours { device_hours } => {
-                buf.reserve(0x04);
-                buf.extend((*device_hours).to_be_bytes());
-            }
-            Self::GetLampHours => {}
-            Self::SetLampHours { lamp_hours } => {
-                buf.reserve(0x04);
-                buf.extend((*lamp_hours).to_be_bytes());
-            }
-            Self::GetLampStrikes => {}
-            Self::SetLampStrikes { lamp_strikes } => {
-                buf.reserve(0x04);
-                buf.extend((*lamp_strikes).to_be_bytes());
-            }
-            Self::GetLampState => {}
-            Self::SetLampState { lamp_state } => {
-                buf.reserve(0x01);
-                buf.push(u8::from(*lamp_state))
-            }
-            Self::GetLampOnMode => {}
-            Self::SetLampOnMode { lamp_on_mode } => {
-                buf.reserve(0x01);
-                buf.push(u8::from(*lamp_on_mode))
-            }
-            Self::GetDevicePowerCycles => {}
-            Self::SetDevicePowerCycles {
-                device_power_cycles,
-            } => {
-                buf.reserve(0x04);
-                buf.extend((*device_power_cycles).to_be_bytes());
-            }
-            Self::GetDisplayInvert => {}
-            Self::SetDisplayInvert { display_invert } => {
-                buf.reserve(0x01);
-                buf.push(*display_invert as u8)
-            }
-            Self::GetDisplayLevel => {}
-            Self::SetDisplayLevel { display_level } => {
-                buf.reserve(0x01);
-                buf.push(*display_level)
-            }
-            Self::GetPanInvert => {}
-            Self::SetPanInvert { pan_invert } => {
-                buf.reserve(0x01);
-                buf.push(*pan_invert as u8)
-            }
-            Self::GetTiltInvert => {}
-            Self::SetTiltInvert { tilt_invert } => {
-                buf.reserve(0x01);
-                buf.push(*tilt_invert as u8)
-            }
-            Self::GetPanTiltSwap => {}
-            Self::SetPanTiltSwap { pan_tilt_swap } => {
-                buf.reserve(0x01);
-                buf.push(*pan_tilt_swap as u8)
-            }
-            Self::GetRealTimeClock => {}
-            Self::SetRealTimeClock {
-                year,
-                month,
-                day,
-                hour,
-                minute,
-                second,
-            } => {
-                buf.reserve(0x07);
-                buf.extend((*year).to_be_bytes());
-                buf.push(*month);
-                buf.push(*day);
-                buf.push(*hour);
-                buf.push(*minute);
-                buf.push(*second);
-            }
-            Self::GetIdentifyDevice => {}
-            Self::SetIdentifyDevice { identify } => {
-                buf.reserve(0x01);
-                buf.push(*identify as u8)
-            }
-            Self::SetResetDevice { reset_device } => {
-                buf.reserve(0x01);
-                buf.push(*reset_device as u8)
-            }
-            Self::GetPowerState => {}
-            Self::SetPowerState { power_state } => {
-                buf.reserve(0x01);
-                buf.push(*power_state as u8)
-            }
-            Self::GetPerformSelfTest => {}
-            Self::SetPerformSelfTest { self_test_id } => {
-                buf.reserve(0x01);
-                buf.push((*self_test_id).into())
-            }
-            Self::SetCapturePreset {
-                scene_id,
-                fade_times,
-            } => {
-                buf.reserve(if fade_times.is_some() { 0x08 } else { 0x02 });
-                buf.extend((*scene_id).to_be_bytes());
-
-                if let Some(fade_times) = fade_times {
-                    buf.extend((fade_times.up_fade_time).to_be_bytes());
-                    buf.extend((fade_times.down_fade_time).to_be_bytes());
-                    buf.extend((fade_times.wait_time).to_be_bytes());
-                }
-            }
-            Self::GetSelfTestDescription { self_test_id } => {
-                buf.reserve(0x01);
-                buf.push((*self_test_id).into())
-            }
-            Self::GetPresetPlayback => {}
-            Self::SetPresetPlayback { mode, level } => {
-                buf.reserve(0x03);
-                buf.extend(u16::from(*mode).to_be_bytes());
-                buf.push(*level);
-            }
-            // E1.37-1
-            Self::GetDmxBlockAddress => {}
-            Self::SetDmxBlockAddress { dmx_block_address } => {
-                buf.reserve(0x02);
-                buf.extend((*dmx_block_address).to_be_bytes());
-            }
-            Self::GetDmxFailMode => {}
-            Self::SetDmxFailMode {
-                scene_id,
-                loss_of_signal_delay_time,
-                hold_time,
-                level,
-            } => {
-                buf.reserve(0x07);
-                buf.extend(u16::from(*scene_id).to_be_bytes());
-                buf.extend(u16::from(*loss_of_signal_delay_time).to_be_bytes());
-                buf.extend(u16::from(*hold_time).to_be_bytes());
-                buf.push(*level);
-            }
-            Self::GetDmxStartupMode => {}
-            Self::SetDmxStartupMode {
-                scene_id,
-                startup_delay,
-                hold_time,
-                level,
-            } => {
-                buf.reserve(0x07);
-                buf.extend(u16::from(*scene_id).to_be_bytes());
-                buf.extend(u16::from(*startup_delay).to_be_bytes());
-                buf.extend(u16::from(*hold_time).to_be_bytes());
-                buf.push(*level);
-            }
-            Self::GetDimmerInfo => {}
-            Self::GetMinimumLevel => {}
-            Self::SetMinimumLevel {
-                minimum_level_increasing,
-                minimum_level_decreasing,
-                on_below_minimum,
-            } => {
-                buf.reserve(0x05);
-                buf.extend((*minimum_level_increasing).to_be_bytes());
-                buf.extend((*minimum_level_decreasing).to_be_bytes());
-                buf.push(*on_below_minimum as u8);
-            }
-            Self::GetMaximumLevel => {}
-            Self::SetMaximumLevel { maximum_level } => {
-                buf.reserve(0x02);
-                buf.extend((*maximum_level).to_be_bytes());
-            }
-            Self::GetCurve => {}
-            Self::SetCurve { curve_id } => {
-                buf.reserve(0x01);
-                buf.push(*curve_id)
-            }
-            Self::GetCurveDescription { curve_id } => {
-                buf.reserve(0x01);
-                buf.push(*curve_id)
-            }
-            Self::GetOutputResponseTime => {}
-            Self::SetOutputResponseTime {
-                output_response_time_id,
-            } => {
-                buf.reserve(0x01);
-                buf.push(*output_response_time_id)
-            }
-            Self::GetOutputResponseTimeDescription {
-                output_response_time_id,
-            } => {
-                buf.reserve(0x01);
-                buf.push(*output_response_time_id)
-            }
-            Self::GetModulationFrequency => {}
-            Self::SetModulationFrequency {
-                modulation_frequency_id,
-            } => {
-                buf.reserve(0x01);
-                buf.push(*modulation_frequency_id)
-            }
-            Self::GetModulationFrequencyDescription {
-                modulation_frequency_id,
-            } => {
-                buf.reserve(0x01);
-                buf.push(*modulation_frequency_id)
-            }
-            Self::GetPowerOnSelfTest => {}
-            Self::SetPowerOnSelfTest { self_test_id } => {
-                buf.reserve(0x01);
-                buf.push((*self_test_id).into())
-            }
-            Self::GetLockState => {}
-            Self::SetLockState {
-                pin_code,
-                lock_state,
-            } => {
-                buf.reserve(0x03);
-                buf.extend((pin_code.0).to_be_bytes());
-                buf.push(*lock_state as u8);
-            }
-            Self::GetLockStateDescription => {}
-            Self::GetLockPin => {}
-            Self::SetLockPin {
-                new_pin_code,
-                current_pin_code,
-            } => {
-                buf.reserve(0x04);
-                buf.extend((new_pin_code.0).to_be_bytes());
-                buf.extend((current_pin_code.0).to_be_bytes());
-            }
-            Self::GetBurnIn => {}
-            Self::SetBurnIn { hours } => {
-                buf.reserve(0x01);
-                buf.push(*hours)
-            }
-            Self::GetIdentifyMode => {}
-            Self::SetIdentifyMode { identify_mode } => {
-                buf.reserve(0x01);
-                buf.push(*identify_mode)
-            }
-            Self::GetPresetInfo => {}
-            Self::GetPresetStatus { scene_id } => {
-                buf.reserve(0x02);
-                buf.extend((*scene_id).to_be_bytes());
-            }
-            Self::SetPresetStatus {
-                scene_id,
-                up_fade_time,
-                down_fade_time,
-                wait_time,
-                clear_preset,
-            } => {
-                buf.reserve(0x0a);
-                buf.extend((*scene_id).to_be_bytes());
-                buf.extend((*up_fade_time).to_be_bytes());
-                buf.extend((*down_fade_time).to_be_bytes());
-                buf.extend((*wait_time).to_be_bytes());
-                buf.push(*clear_preset as u8);
-            }
-            Self::GetPresetMergeMode => {}
-            Self::SetPresetMergeMode { merge_mode } => {
-                buf.reserve(0x01);
-                buf.push(*merge_mode as u8)
-            }
-            Self::ManufacturerSpecific { parameter_data, .. } => {
-                buf.reserve(parameter_data.len());
-                buf.extend(parameter_data);
-            }
-            Self::Unsupported { parameter_data, .. } => {
-                buf.reserve(parameter_data.len());
-                buf.extend(parameter_data);
-            }
-        };
-
-        buf
-    }
-
-    #[cfg(not(feature = "alloc"))]
-    pub fn encode(&self) -> Vec<u8, 231> {
+        
+        #[cfg(not(feature = "alloc"))]
         let mut buf: Vec<u8, 231> = Vec::new();
 
         match self {
@@ -934,6 +567,9 @@ impl RequestParameter {
                 lower_bound_uid,
                 upper_bound_uid,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x0c);
+
                 buf.extend(lower_bound_uid.manufacturer_id.to_be_bytes());
                 buf.extend(lower_bound_uid.device_id.to_be_bytes());
                 buf.extend(upper_bound_uid.manufacturer_id.to_be_bytes());
@@ -941,18 +577,46 @@ impl RequestParameter {
             }
             Self::GetCommsStatus => {}
             Self::SetCommsStatus => {}
-            Self::GetQueuedMessage { status_type } => buf.push(*status_type as u8).unwrap(),
-            Self::GetStatusMessages { status_type } => buf.push(*status_type as u8).unwrap(),
+            Self::GetQueuedMessage { status_type } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*status_type as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*status_type as u8).unwrap();
+            }
+            Self::GetStatusMessages { status_type } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*status_type as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*status_type as u8).unwrap();
+            }
             Self::GetStatusIdDescription { status_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*status_id).to_be_bytes());
             }
             Self::SetClearStatusId => {}
             Self::GetSubDeviceIdStatusReportThreshold => {}
             Self::SetSubDeviceIdStatusReportThreshold { status_type } => {
-                buf.push(*status_type as u8).unwrap()
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*status_type as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*status_type as u8).unwrap();
             }
             Self::GetSupportedParameters => {}
             Self::GetParameterDescription { parameter_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*parameter_id).to_be_bytes());
             }
             Self::GetDeviceInfo => {}
@@ -960,63 +624,201 @@ impl RequestParameter {
             Self::GetDeviceModelDescription => {}
             Self::GetManufacturerLabel => {}
             Self::GetDeviceLabel => {}
-            Self::SetDeviceLabel { device_label } => buf.extend(device_label.bytes()),
+            Self::SetDeviceLabel { device_label } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(device_label.len());
+
+                #[cfg(feature = "alloc")]
+                buf.extend(device_label.as_bytes());
+                #[cfg(not(feature = "alloc"))]
+                buf.extend(device_label.bytes());
+            }
             Self::GetFactoryDefaults => {}
             Self::SetFactoryDefaults => {}
             Self::GetLanguageCapabilities => {}
             Self::GetLanguage => {}
-            Self::SetLanguage { language } => buf.extend(language.bytes()),
+            Self::SetLanguage { language } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(language.len());
+
+                #[cfg(feature = "alloc")]
+                buf.extend(language.as_bytes());
+                #[cfg(not(feature = "alloc"))]
+                buf.extend(language.bytes());
+            }
             Self::GetSoftwareVersionLabel => {}
             Self::GetBootSoftwareVersionId => {}
             Self::GetBootSoftwareVersionLabel => {}
             Self::GetDmxPersonality => {}
-            Self::SetDmxPersonality { personality_id } => buf.push(*personality_id).unwrap(),
-            Self::GetDmxPersonalityDescription { personality } => buf.push(*personality).unwrap(),
+            Self::SetDmxPersonality { personality_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*personality_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*personality_id).unwrap();
+            }
+            Self::GetDmxPersonalityDescription { personality } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*personality);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*personality).unwrap();
+            }
             Self::GetDmxStartAddress => {}
             Self::SetDmxStartAddress { dmx_start_address } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*dmx_start_address).to_be_bytes());
             }
             Self::GetSlotInfo => {}
             Self::GetSlotDescription { slot_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*slot_id).to_be_bytes());
             }
             Self::GetDefaultSlotValue => {}
-            Self::GetSensorDefinition { sensor_id } => buf.push(*sensor_id).unwrap(),
-            Self::GetSensorValue { sensor_id } => buf.push(*sensor_id).unwrap(),
-            Self::SetSensorValue { sensor_id } => buf.push(*sensor_id).unwrap(),
-            Self::SetRecordSensors { sensor_id } => buf.push(*sensor_id).unwrap(),
+            Self::GetSensorDefinition { sensor_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*sensor_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*sensor_id).unwrap();
+            }
+            Self::GetSensorValue { sensor_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*sensor_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*sensor_id).unwrap();
+            }
+            Self::SetSensorValue { sensor_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*sensor_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*sensor_id).unwrap();
+            }
+            Self::SetRecordSensors { sensor_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*sensor_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*sensor_id).unwrap();
+            }
             Self::GetDeviceHours => {}
             Self::SetDeviceHours { device_hours } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
                 buf.extend((*device_hours).to_be_bytes());
             }
             Self::GetLampHours => {}
             Self::SetLampHours { lamp_hours } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
                 buf.extend((*lamp_hours).to_be_bytes());
             }
             Self::GetLampStrikes => {}
             Self::SetLampStrikes { lamp_strikes } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
                 buf.extend((*lamp_strikes).to_be_bytes());
             }
             Self::GetLampState => {}
-            Self::SetLampState { lamp_state } => buf.push(u8::from(*lamp_state)).unwrap(),
+            Self::SetLampState { lamp_state } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(u8::from(*lamp_state));
+                #[cfg(not(feature = "alloc"))]
+                buf.push(u8::from(*lamp_state)).unwrap();
+            }
             Self::GetLampOnMode => {}
-            Self::SetLampOnMode { lamp_on_mode } => buf.push(u8::from(*lamp_on_mode)).unwrap(),
+            Self::SetLampOnMode { lamp_on_mode } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(u8::from(*lamp_on_mode));
+                #[cfg(not(feature = "alloc"))]
+                buf.push(u8::from(*lamp_on_mode)).unwrap();
+            }
             Self::GetDevicePowerCycles => {}
             Self::SetDevicePowerCycles {
                 device_power_cycles,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
                 buf.extend((*device_power_cycles).to_be_bytes());
             }
             Self::GetDisplayInvert => {}
-            Self::SetDisplayInvert { display_invert } => buf.push(*display_invert as u8).unwrap(),
+            Self::SetDisplayInvert { display_invert } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*display_invert as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*display_invert as u8).unwrap();
+            }
             Self::GetDisplayLevel => {}
-            Self::SetDisplayLevel { display_level } => buf.push(*display_level).unwrap(),
+            Self::SetDisplayLevel { display_level } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*display_level);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*display_level).unwrap();
+            }
             Self::GetPanInvert => {}
-            Self::SetPanInvert { pan_invert } => buf.push(*pan_invert as u8).unwrap(),
+            Self::SetPanInvert { pan_invert } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*pan_invert as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*pan_invert as u8).unwrap();
+            }
             Self::GetTiltInvert => {}
-            Self::SetTiltInvert { tilt_invert } => buf.push(*tilt_invert as u8).unwrap(),
+            Self::SetTiltInvert { tilt_invert } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*tilt_invert as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*tilt_invert as u8).unwrap();
+            }
             Self::GetPanTiltSwap => {}
-            Self::SetPanTiltSwap { pan_tilt_swap } => buf.push(*pan_tilt_swap as u8).unwrap(),
+            Self::SetPanTiltSwap { pan_tilt_swap } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*pan_tilt_swap as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*pan_tilt_swap as u8).unwrap();
+            }
             Self::GetRealTimeClock => {}
             Self::SetRealTimeClock {
                 year,
@@ -1026,24 +828,78 @@ impl RequestParameter {
                 minute,
                 second,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x07);
+
                 buf.extend((*year).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*month);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*month).unwrap();
+                #[cfg(feature = "alloc")]
+                buf.push(*day);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*day).unwrap();
+                #[cfg(feature = "alloc")]
+                buf.push(*hour);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*hour).unwrap();
+                #[cfg(feature = "alloc")]
+                buf.push(*minute);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*minute).unwrap();
+                #[cfg(feature = "alloc")]
+                buf.push(*second);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*second).unwrap();
             }
             Self::GetIdentifyDevice => {}
-            Self::SetIdentifyDevice { identify } => buf.push(*identify as u8).unwrap(),
-            Self::SetResetDevice { reset_device } => buf.push(*reset_device as u8).unwrap(),
+            Self::SetIdentifyDevice { identify } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*identify as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*identify as u8).unwrap();
+            }
+            Self::SetResetDevice { reset_device } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*reset_device as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*reset_device as u8).unwrap();
+            }
             Self::GetPowerState => {}
-            Self::SetPowerState { power_state } => buf.push(*power_state as u8).unwrap(),
+            Self::SetPowerState { power_state } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*power_state as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*power_state as u8).unwrap();
+            }
             Self::GetPerformSelfTest => {}
-            Self::SetPerformSelfTest { self_test_id } => buf.push((*self_test_id).into()).unwrap(),
+            Self::SetPerformSelfTest { self_test_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push((*self_test_id).into());
+                #[cfg(not(feature = "alloc"))]
+                buf.push((*self_test_id).into()).unwrap();
+            }
             Self::SetCapturePreset {
                 scene_id,
                 fade_times,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(if fade_times.is_some() { 0x08 } else { 0x02 });
+
                 buf.extend((*scene_id).to_be_bytes());
 
                 if let Some(fade_times) = fade_times {
@@ -1053,16 +909,32 @@ impl RequestParameter {
                 }
             }
             Self::GetSelfTestDescription { self_test_id } => {
-                buf.push((*self_test_id).into()).unwrap()
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push((*self_test_id).into());
+                #[cfg(not(feature = "alloc"))]
+                buf.push((*self_test_id).into()).unwrap();
             }
             Self::GetPresetPlayback => {}
             Self::SetPresetPlayback { mode, level } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x03);
+
                 buf.extend(u16::from(*mode).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*level);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*level).unwrap();
             }
             // E1.37-1
             Self::GetDmxBlockAddress => {}
             Self::SetDmxBlockAddress { dmx_block_address } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*dmx_block_address).to_be_bytes());
             }
             Self::GetDmxFailMode => {}
@@ -1072,9 +944,16 @@ impl RequestParameter {
                 hold_time,
                 level,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x07);
+
                 buf.extend(u16::from(*scene_id).to_be_bytes());
                 buf.extend(u16::from(*loss_of_signal_delay_time).to_be_bytes());
                 buf.extend(u16::from(*hold_time).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*level);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*level).unwrap();
             }
             Self::GetDmxStartupMode => {}
@@ -1084,9 +963,16 @@ impl RequestParameter {
                 hold_time,
                 level,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x07);
+
                 buf.extend(u16::from(*scene_id).to_be_bytes());
                 buf.extend(u16::from(*startup_delay).to_be_bytes());
                 buf.extend(u16::from(*hold_time).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*level);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*level).unwrap();
             }
             Self::GetDimmerInfo => {}
@@ -1096,45 +982,97 @@ impl RequestParameter {
                 minimum_level_decreasing,
                 on_below_minimum,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x05);
+
                 buf.extend((*minimum_level_increasing).to_be_bytes());
                 buf.extend((*minimum_level_decreasing).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*on_below_minimum as u8);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*on_below_minimum as u8).unwrap();
             }
             Self::GetMaximumLevel => {}
             Self::SetMaximumLevel { maximum_level } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*maximum_level).to_be_bytes());
             }
             Self::GetCurve => {}
             Self::SetCurve { curve_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*curve_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*curve_id).unwrap();
             }
             Self::GetCurveDescription { curve_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*curve_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*curve_id).unwrap();
             }
             Self::GetOutputResponseTime => {}
             Self::SetOutputResponseTime {
                 output_response_time_id,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*output_response_time_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*output_response_time_id).unwrap();
             }
             Self::GetOutputResponseTimeDescription {
                 output_response_time_id,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*output_response_time_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*output_response_time_id).unwrap();
             }
             Self::GetModulationFrequency => {}
             Self::SetModulationFrequency {
                 modulation_frequency_id,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*modulation_frequency_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*modulation_frequency_id).unwrap();
             }
             Self::GetModulationFrequencyDescription {
                 modulation_frequency_id,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*modulation_frequency_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*modulation_frequency_id).unwrap();
             }
             Self::GetPowerOnSelfTest => {}
             Self::SetPowerOnSelfTest { self_test_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push((*self_test_id).into());
+                #[cfg(not(feature = "alloc"))]
                 buf.push((*self_test_id).into()).unwrap();
             }
             Self::GetLockState => {}
@@ -1142,7 +1080,14 @@ impl RequestParameter {
                 pin_code,
                 lock_state,
             } => {
-                buf.extend(pin_code.0.to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x03);
+
+                buf.extend((pin_code.0).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*lock_state as u8);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*lock_state as u8).unwrap();
             }
             Self::GetLockStateDescription => {}
@@ -1151,19 +1096,37 @@ impl RequestParameter {
                 new_pin_code,
                 current_pin_code,
             } => {
-                buf.extend(new_pin_code.0.to_be_bytes());
-                buf.extend(current_pin_code.0.to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((new_pin_code.0).to_be_bytes());
+                buf.extend((current_pin_code.0).to_be_bytes());
             }
             Self::GetBurnIn => {}
             Self::SetBurnIn { hours } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*hours);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*hours).unwrap();
             }
             Self::GetIdentifyMode => {}
             Self::SetIdentifyMode { identify_mode } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*identify_mode);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*identify_mode).unwrap();
             }
             Self::GetPresetInfo => {}
             Self::GetPresetStatus { scene_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*scene_id).to_be_bytes());
             }
             Self::SetPresetStatus {
@@ -1173,21 +1136,46 @@ impl RequestParameter {
                 wait_time,
                 clear_preset,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x0a);
+
                 buf.extend((*scene_id).to_be_bytes());
                 buf.extend((*up_fade_time).to_be_bytes());
                 buf.extend((*down_fade_time).to_be_bytes());
                 buf.extend((*wait_time).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*clear_preset as u8);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*clear_preset as u8).unwrap();
             }
             Self::GetPresetMergeMode => {}
             Self::SetPresetMergeMode { merge_mode } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*merge_mode as u8);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*merge_mode as u8).unwrap();
             }
             Self::ManufacturerSpecific { parameter_data, .. } => {
-                buf.extend_from_slice(parameter_data).unwrap();
+                #[cfg(feature = "alloc")]
+                buf.reserve(parameter_data.len());
+
+                #[cfg(feature = "alloc")]
+                buf.extend(parameter_data);
+                #[cfg(not(feature = "alloc"))]
+                buf.extend(*parameter_data);
             }
             Self::Unsupported { parameter_data, .. } => {
-                buf.extend_from_slice(parameter_data).unwrap();
+                #[cfg(feature = "alloc")]
+                buf.reserve(parameter_data.len());
+
+                #[cfg(feature = "alloc")]
+                buf.extend(parameter_data);
+                #[cfg(not(feature = "alloc"))]
+                buf.extend(*parameter_data);
             }
         };
 
