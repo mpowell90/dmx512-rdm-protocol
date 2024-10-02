@@ -1667,8 +1667,8 @@ impl ResponseParameterData {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*static_config_type as u8).unwrap();
 
-                buf.extend(u32::from(*static_ipv4_address).to_be_bytes());
-                buf.extend(u128::from(*static_ipv6_address).to_be_bytes());
+                buf.extend::<[u8; 4]>((*static_ipv4_address).into());
+                buf.extend::<[u8; 16]>((*static_ipv6_address).into());
                 buf.extend(static_port.to_be_bytes());
             },
             Self::GetSearchDomain(search_domain) => {
@@ -1689,8 +1689,8 @@ impl ResponseParameterData {
 
                 buf.extend(scope_string.bytes());
 
-                buf.extend(u32::from(*broker_ipv4_address).to_be_bytes());
-                buf.extend(u128::from(*broker_ipv6_address).to_be_bytes());
+                buf.extend::<[u8; 4]>((*broker_ipv4_address).into());
+                buf.extend::<[u8; 16]>((*broker_ipv6_address).into());
                 buf.extend(broker_port.to_be_bytes());
                 buf.extend(unhealthy_tcp_events.to_be_bytes());
             },
