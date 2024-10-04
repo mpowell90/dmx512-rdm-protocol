@@ -1584,7 +1584,6 @@ impl ResponseParameterData {
                 buf.push(*netmask);
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*netmask).unwrap();
-
             }
             Self::GetIpV4DefaultRoute {
                 interface_id,
@@ -1611,13 +1610,13 @@ impl ResponseParameterData {
                 buf.reserve(host_name.len());
 
                 buf.extend(host_name.bytes());
-            },
+            }
             Self::GetDnsDomainName(domain_name) => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(domain_name.len());
 
                 buf.extend(domain_name.bytes());
-            },
+            }
             Self::ManufacturerSpecific(data) => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(data.len());
@@ -2614,7 +2613,8 @@ mod tests {
             parameter_data: ResponseData::ParameterData(Some(
                 ResponseParameterData::GetIdentifyDevice(true),
             )),
-        }).encode();
+        })
+        .encode();
 
         let expected = &[
             0xcc, // Start Code
@@ -2700,7 +2700,8 @@ mod tests {
                     Vec::<u8, 231>::from_slice(&[0x04, 0x03, 0x02, 0x01]).unwrap(),
                 ),
             )),
-        }).encode();
+        })
+        .encode();
 
         let expected = &[
             0xcc, // Start Code
@@ -2768,7 +2769,8 @@ mod tests {
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::EstimateResponseTime(0x0a),
-        }).encode();
+        })
+        .encode();
 
         let expected = &[
             0xcc, // Start Code
@@ -2836,7 +2838,8 @@ mod tests {
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::NackReason(ResponseNackReasonCode::FormatError),
-        }).encode();
+        })
+        .encode();
 
         let expected = &[
             0xcc, // Start Code
@@ -2908,7 +2911,8 @@ mod tests {
             parameter_data: ResponseData::ParameterData(Some(
                 ResponseParameterData::GetIdentifyDevice(true),
             )),
-        }).encode();
+        })
+        .encode();
 
         let expected = &[
             0xcc, // Start Code
@@ -2996,9 +3000,10 @@ mod tests {
 
     #[test]
     fn should_encode_valid_discovery_unique_branch_response() {
-        let encoded = RdmResponse::DiscoveryUniqueBranchFrame(
-            DiscoveryUniqueBranchFrameResponse(DeviceUID::new(0x0102, 0x03040506)),
-        ).encode();
+        let encoded = RdmResponse::DiscoveryUniqueBranchFrame(DiscoveryUniqueBranchFrameResponse(
+            DeviceUID::new(0x0102, 0x03040506),
+        ))
+        .encode();
 
         let expected = &[
             DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,

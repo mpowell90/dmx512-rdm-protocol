@@ -2268,7 +2268,7 @@ impl From<Ipv4Address> for u32 {
     fn from(value: Ipv4Address) -> u32 {
         match value {
             Ipv4Address::Unconfigured => 0,
-            Ipv4Address::Configured(ip) => ip.to_bits()
+            Ipv4Address::Configured(ip) => ip.to_bits(),
         }
     }
 }
@@ -2318,7 +2318,7 @@ impl From<Ipv4Route> for u32 {
     fn from(value: Ipv4Route) -> u32 {
         match value {
             Ipv4Route::NoDefault => 0,
-            Ipv4Route::Configured(ip) => ip.to_bits()
+            Ipv4Route::Configured(ip) => ip.to_bits(),
         }
     }
 }

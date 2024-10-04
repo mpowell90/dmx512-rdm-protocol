@@ -2391,8 +2391,9 @@ mod tests {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Parameter Data - Lower Bound UID
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // Parameter Data - Upper Bound UID
             0x07, 0x34, // Checksum
-        ]).unwrap();
-        
+        ])
+        .unwrap();
+
         let expected = RdmRequest::new(
             DeviceUID::new(0x0102, 0x03040506),
             DeviceUID::new(0x0605, 0x04030201),
@@ -2455,7 +2456,8 @@ mod tests {
             0x10, 0x00, // Parameter ID = Identify Device
             0x00, // PDL
             0x01, 0x40, // Checksum
-        ]).unwrap();
+        ])
+        .unwrap();
 
         let expected = RdmRequest::new(
             DeviceUID::new(0x0102, 0x03040506),
@@ -2525,7 +2527,8 @@ mod tests {
             0x04, // PDL
             0x01, 0x02, 0x03, 0x04, // Parameter Data
             0x02, 0x52, // Checksum
-        ]).unwrap();
+        ])
+        .unwrap();
 
         let expected = RdmRequest::new(
             DeviceUID::new(0x0102, 0x03040506),
