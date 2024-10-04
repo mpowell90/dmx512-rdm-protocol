@@ -40,11 +40,11 @@
 //! See tests for more examples.
 
 use super::{
-    bsd_16_crc,
-    parameter::{
-        DisplayInvertMode, FadeTimes, LampOnMode, LampState, MergeMode, ParameterId, PinCode, PowerState, PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType, TimeMode
-    },
-    CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
+    bsd_16_crc, error::RdmError, parameter::{
+        decode_string_bytes, DisplayInvertMode, FadeTimes, LampOnMode, LampState, MergeMode,
+        ParameterId, PinCode, PowerState, PresetPlaybackMode, ResetDeviceMode, SelfTest,
+        StatusType, TimeMode,
+    }, CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE
 };
 
 #[cfg(not(feature = "alloc"))]
@@ -505,7 +505,9 @@ impl RequestParameter {
             Self::GetSelfTestDescription { .. } => ParameterId::SelfTestDescription,
             Self::GetPresetPlayback | Self::SetPresetPlayback { .. } => ParameterId::PresetPlayback,
             // E1.37-1
-            Self::GetDmxBlockAddress | Self::SetDmxBlockAddress { .. } => ParameterId::DmxBlockAddress,
+            Self::GetDmxBlockAddress | Self::SetDmxBlockAddress { .. } => {
+                ParameterId::DmxBlockAddress
+            }
             Self::GetDmxFailMode | Self::SetDmxFailMode { .. } => ParameterId::DmxFailMode,
             Self::GetDmxStartupMode | Self::SetDmxStartupMode { .. } => ParameterId::DmxStartupMode,
             Self::GetDimmerInfo => ParameterId::DimmerInfo,
@@ -534,8 +536,12 @@ impl RequestParameter {
             Self::GetBurnIn | Self::SetBurnIn { .. } => ParameterId::BurnIn,
             Self::GetIdentifyMode | Self::SetIdentifyMode { .. } => ParameterId::IdentifyMode,
             Self::GetPresetInfo => ParameterId::PresetInfo,
-            Self::GetPresetStatus { .. } | Self::SetPresetStatus { .. } => ParameterId::PresetStatus,
-            Self::GetPresetMergeMode | Self::SetPresetMergeMode { .. } => ParameterId::PresetMergeMode,
+            Self::GetPresetStatus { .. } | Self::SetPresetStatus { .. } => {
+                ParameterId::PresetStatus
+            }
+            Self::GetPresetMergeMode | Self::SetPresetMergeMode { .. } => {
+                ParameterId::PresetMergeMode
+            }
             Self::ManufacturerSpecific { parameter_id, .. } => {
                 ParameterId::ManufacturerSpecific(*parameter_id)
             }
@@ -543,367 +549,11 @@ impl RequestParameter {
         }
     }
 
-    #[cfg(feature = "alloc")]
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> EncodedParameterData {
+        #[cfg(feature = "alloc")]
         let mut buf = Vec::new();
-
-        match self {
-            // E1.20
-            Self::DiscMute => {}
-            Self::DiscUnMute => {}
-            Self::DiscUniqueBranch {
-                lower_bound_uid,
-                upper_bound_uid,
-            } => {
-                buf.reserve(0x0c);
-                buf.extend(lower_bound_uid.manufacturer_id.to_be_bytes());
-                buf.extend(lower_bound_uid.device_id.to_be_bytes());
-                buf.extend(upper_bound_uid.manufacturer_id.to_be_bytes());
-                buf.extend(upper_bound_uid.device_id.to_be_bytes());
-            }
-            Self::GetCommsStatus => {}
-            Self::SetCommsStatus => {}
-            Self::GetQueuedMessage { status_type } => {
-                buf.reserve(0x01);
-                buf.push(*status_type as u8)
-            }
-            Self::GetStatusMessages { status_type } => {
-                buf.reserve(0x01);
-                buf.push(*status_type as u8)
-            }
-            Self::GetStatusIdDescription { status_id } => {
-                buf.reserve(0x02);
-                buf.extend((*status_id).to_be_bytes());
-            }
-            Self::SetClearStatusId => {}
-            Self::GetSubDeviceIdStatusReportThreshold => {}
-            Self::SetSubDeviceIdStatusReportThreshold { status_type } => {
-                buf.reserve(0x01);
-                buf.push(*status_type as u8)
-            }
-            Self::GetSupportedParameters => {}
-            Self::GetParameterDescription { parameter_id } => {
-                buf.reserve(0x02);
-                buf.extend((*parameter_id).to_be_bytes());
-            }
-            Self::GetDeviceInfo => {}
-            Self::GetProductDetailIdList => {}
-            Self::GetDeviceModelDescription => {}
-            Self::GetManufacturerLabel => {}
-            Self::GetDeviceLabel => {}
-            Self::SetDeviceLabel { device_label } => {
-                buf.reserve(device_label.len());
-                buf.extend(device_label.as_bytes())
-            }
-            Self::GetFactoryDefaults => {}
-            Self::SetFactoryDefaults => {}
-            Self::GetLanguageCapabilities => {}
-            Self::GetLanguage => {}
-            Self::SetLanguage { language } => {
-                buf.reserve(language.len());
-                buf.extend(language.as_bytes())
-            }
-            Self::GetSoftwareVersionLabel => {}
-            Self::GetBootSoftwareVersionId => {}
-            Self::GetBootSoftwareVersionLabel => {}
-            Self::GetDmxPersonality => {}
-            Self::SetDmxPersonality { personality_id } => {
-                buf.reserve(0x01);
-                buf.push(*personality_id)
-            }
-            Self::GetDmxPersonalityDescription { personality } => {
-                buf.reserve(0x01);
-                buf.push(*personality)
-            }
-            Self::GetDmxStartAddress => {}
-            Self::SetDmxStartAddress { dmx_start_address } => {
-                buf.reserve(0x02);
-                buf.extend((*dmx_start_address).to_be_bytes());
-            }
-            Self::GetSlotInfo => {}
-            Self::GetSlotDescription { slot_id } => {
-                buf.reserve(0x02);
-                buf.extend((*slot_id).to_be_bytes());
-            }
-            Self::GetDefaultSlotValue => {}
-            Self::GetSensorDefinition { sensor_id } => {
-                buf.reserve(0x01);
-                buf.push(*sensor_id)
-            }
-            Self::GetSensorValue { sensor_id } => {
-                buf.reserve(0x01);
-                buf.push(*sensor_id)
-            }
-            Self::SetSensorValue { sensor_id } => {
-                buf.reserve(0x01);
-                buf.push(*sensor_id)
-            }
-            Self::SetRecordSensors { sensor_id } => {
-                buf.reserve(0x01);
-                buf.push(*sensor_id)
-            }
-            Self::GetDeviceHours => {}
-            Self::SetDeviceHours { device_hours } => {
-                buf.reserve(0x04);
-                buf.extend((*device_hours).to_be_bytes());
-            }
-            Self::GetLampHours => {}
-            Self::SetLampHours { lamp_hours } => {
-                buf.reserve(0x04);
-                buf.extend((*lamp_hours).to_be_bytes());
-            }
-            Self::GetLampStrikes => {}
-            Self::SetLampStrikes { lamp_strikes } => {
-                buf.reserve(0x04);
-                buf.extend((*lamp_strikes).to_be_bytes());
-            }
-            Self::GetLampState => {}
-            Self::SetLampState { lamp_state } => {
-                buf.reserve(0x01);
-                buf.push(u8::from(*lamp_state))
-            }
-            Self::GetLampOnMode => {}
-            Self::SetLampOnMode { lamp_on_mode } => {
-                buf.reserve(0x01);
-                buf.push(u8::from(*lamp_on_mode))
-            }
-            Self::GetDevicePowerCycles => {}
-            Self::SetDevicePowerCycles {
-                device_power_cycles,
-            } => {
-                buf.reserve(0x04);
-                buf.extend((*device_power_cycles).to_be_bytes());
-            }
-            Self::GetDisplayInvert => {}
-            Self::SetDisplayInvert { display_invert } => {
-                buf.reserve(0x01);
-                buf.push(*display_invert as u8)
-            }
-            Self::GetDisplayLevel => {}
-            Self::SetDisplayLevel { display_level } => {
-                buf.reserve(0x01);
-                buf.push(*display_level)
-            }
-            Self::GetPanInvert => {}
-            Self::SetPanInvert { pan_invert } => {
-                buf.reserve(0x01);
-                buf.push(*pan_invert as u8)
-            }
-            Self::GetTiltInvert => {}
-            Self::SetTiltInvert { tilt_invert } => {
-                buf.reserve(0x01);
-                buf.push(*tilt_invert as u8)
-            }
-            Self::GetPanTiltSwap => {}
-            Self::SetPanTiltSwap { pan_tilt_swap } => {
-                buf.reserve(0x01);
-                buf.push(*pan_tilt_swap as u8)
-            }
-            Self::GetRealTimeClock => {}
-            Self::SetRealTimeClock {
-                year,
-                month,
-                day,
-                hour,
-                minute,
-                second,
-            } => {
-                buf.reserve(0x07);
-                buf.extend((*year).to_be_bytes());
-                buf.push(*month);
-                buf.push(*day);
-                buf.push(*hour);
-                buf.push(*minute);
-                buf.push(*second);
-            }
-            Self::GetIdentifyDevice => {}
-            Self::SetIdentifyDevice { identify } => {
-                buf.reserve(0x01);
-                buf.push(*identify as u8)
-            }
-            Self::SetResetDevice { reset_device } => {
-                buf.reserve(0x01);
-                buf.push(*reset_device as u8)
-            }
-            Self::GetPowerState => {}
-            Self::SetPowerState { power_state } => {
-                buf.reserve(0x01);
-                buf.push(*power_state as u8)
-            }
-            Self::GetPerformSelfTest => {}
-            Self::SetPerformSelfTest { self_test_id } => {
-                buf.reserve(0x01);
-                buf.push((*self_test_id).into())
-            }
-            Self::SetCapturePreset {
-                scene_id,
-                fade_times,
-            } => {
-                buf.reserve(if fade_times.is_some() { 0x08 } else { 0x02 });
-                buf.extend((*scene_id).to_be_bytes());
-
-                if let Some(fade_times) = fade_times {
-                    buf.extend((fade_times.up_fade_time).to_be_bytes());
-                    buf.extend((fade_times.down_fade_time).to_be_bytes());
-                    buf.extend((fade_times.wait_time).to_be_bytes());
-                }
-            }
-            Self::GetSelfTestDescription { self_test_id } => {
-                buf.reserve(0x01);
-                buf.push((*self_test_id).into())
-            }
-            Self::GetPresetPlayback => {}
-            Self::SetPresetPlayback { mode, level } => {
-                buf.reserve(0x03);
-                buf.extend(u16::from(*mode).to_be_bytes());
-                buf.push(*level);
-            }
-            // E1.37-1
-            Self::GetDmxBlockAddress => {}
-            Self::SetDmxBlockAddress { dmx_block_address } => {
-                buf.reserve(0x02);
-                buf.extend((*dmx_block_address).to_be_bytes());
-            }
-            Self::GetDmxFailMode => {}
-            Self::SetDmxFailMode {
-                scene_id,
-                loss_of_signal_delay_time,
-                hold_time,
-                level,
-            } => {
-                buf.reserve(0x07);
-                buf.extend(u16::from(*scene_id).to_be_bytes());
-                buf.extend(u16::from(*loss_of_signal_delay_time).to_be_bytes());
-                buf.extend(u16::from(*hold_time).to_be_bytes());
-                buf.push(*level);
-            }
-            Self::GetDmxStartupMode => {}
-            Self::SetDmxStartupMode {
-                scene_id,
-                startup_delay,
-                hold_time,
-                level,
-            } => {
-                buf.reserve(0x07);
-                buf.extend(u16::from(*scene_id).to_be_bytes());
-                buf.extend(u16::from(*startup_delay).to_be_bytes());
-                buf.extend(u16::from(*hold_time).to_be_bytes());
-                buf.push(*level);
-            }
-            Self::GetDimmerInfo => {}
-            Self::GetMinimumLevel => {}
-            Self::SetMinimumLevel {
-                minimum_level_increasing,
-                minimum_level_decreasing,
-                on_below_minimum,
-            } => {
-                buf.reserve(0x05);
-                buf.extend((*minimum_level_increasing).to_be_bytes());
-                buf.extend((*minimum_level_decreasing).to_be_bytes());
-                buf.push(*on_below_minimum as u8);
-            }
-            Self::GetMaximumLevel => {}
-            Self::SetMaximumLevel { maximum_level } => {
-                buf.reserve(0x02);
-                buf.extend((*maximum_level).to_be_bytes());
-            }
-            Self::GetCurve => {}
-            Self::SetCurve { curve_id } => {
-                buf.reserve(0x01);
-                buf.push(*curve_id)
-            }
-            Self::GetCurveDescription { curve_id } => {
-                buf.reserve(0x01);
-                buf.push(*curve_id)
-            }
-            Self::GetOutputResponseTime => {}
-            Self::SetOutputResponseTime { output_response_time_id } => {
-                buf.reserve(0x01);
-                buf.push(*output_response_time_id)
-            }
-            Self::GetOutputResponseTimeDescription { output_response_time_id } => {
-                buf.reserve(0x01);
-                buf.push(*output_response_time_id)
-            }
-            Self::GetModulationFrequency => {}
-            Self::SetModulationFrequency { modulation_frequency_id } => {
-                buf.reserve(0x01);
-                buf.push(*modulation_frequency_id)
-            }
-            Self::GetModulationFrequencyDescription { modulation_frequency_id } => {
-                buf.reserve(0x01);
-                buf.push(*modulation_frequency_id)
-            }
-            Self::GetPowerOnSelfTest => {}
-            Self::SetPowerOnSelfTest { self_test_id } => {
-                buf.reserve(0x01);
-                buf.push((*self_test_id).into())
-            }
-            Self::GetLockState => {}
-            Self::SetLockState { pin_code, lock_state } => {
-                buf.reserve(0x03);
-                buf.extend((pin_code.0).to_be_bytes());
-                buf.push(*lock_state as u8);
-            }
-            Self::GetLockStateDescription => {}
-            Self::GetLockPin => {}
-            Self::SetLockPin {
-                new_pin_code,
-                current_pin_code,
-            } => {
-                buf.reserve(0x04);
-                buf.extend((new_pin_code.0).to_be_bytes());
-                buf.extend((current_pin_code.0).to_be_bytes());
-            }
-            Self::GetBurnIn => {}
-            Self::SetBurnIn { hours } => {
-                buf.reserve(0x01);
-                buf.push(*hours)
-            }
-            Self::GetIdentifyMode => {}
-            Self::SetIdentifyMode { identify_mode } => {
-                buf.reserve(0x01);
-                buf.push(*identify_mode)
-            }
-            Self::GetPresetInfo => {}
-            Self::GetPresetStatus { scene_id } => {
-                buf.reserve(0x02);
-                buf.extend((*scene_id).to_be_bytes());
-            }
-            Self::SetPresetStatus {
-                scene_id,
-                up_fade_time,
-                down_fade_time,
-                wait_time,
-                clear_preset,
-            } => {
-                buf.reserve(0x0a);
-                buf.extend((*scene_id).to_be_bytes());
-                buf.extend((*up_fade_time).to_be_bytes());
-                buf.extend((*down_fade_time).to_be_bytes());
-                buf.extend((*wait_time).to_be_bytes());
-                buf.push(*clear_preset as u8);
-            }
-            Self::GetPresetMergeMode => {}
-            Self::SetPresetMergeMode { merge_mode } => {
-                buf.reserve(0x01);
-                buf.push(*merge_mode as u8)
-            }
-            Self::ManufacturerSpecific { parameter_data, .. } => {
-                buf.reserve(parameter_data.len());
-                buf.extend(parameter_data);
-            }
-            Self::Unsupported { parameter_data, .. } => {
-                buf.reserve(parameter_data.len());
-                buf.extend(parameter_data);
-            }
-        };
-
-        buf
-    }
-
-    #[cfg(not(feature = "alloc"))]
-    pub fn encode(&self) -> Vec<u8, 231> {
+        
+        #[cfg(not(feature = "alloc"))]
         let mut buf: Vec<u8, 231> = Vec::new();
 
         match self {
@@ -914,6 +564,9 @@ impl RequestParameter {
                 lower_bound_uid,
                 upper_bound_uid,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x0c);
+
                 buf.extend(lower_bound_uid.manufacturer_id.to_be_bytes());
                 buf.extend(lower_bound_uid.device_id.to_be_bytes());
                 buf.extend(upper_bound_uid.manufacturer_id.to_be_bytes());
@@ -921,18 +574,46 @@ impl RequestParameter {
             }
             Self::GetCommsStatus => {}
             Self::SetCommsStatus => {}
-            Self::GetQueuedMessage { status_type } => buf.push(*status_type as u8).unwrap(),
-            Self::GetStatusMessages { status_type } => buf.push(*status_type as u8).unwrap(),
+            Self::GetQueuedMessage { status_type } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*status_type as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*status_type as u8).unwrap();
+            }
+            Self::GetStatusMessages { status_type } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*status_type as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*status_type as u8).unwrap();
+            }
             Self::GetStatusIdDescription { status_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*status_id).to_be_bytes());
             }
             Self::SetClearStatusId => {}
             Self::GetSubDeviceIdStatusReportThreshold => {}
             Self::SetSubDeviceIdStatusReportThreshold { status_type } => {
-                buf.push(*status_type as u8).unwrap()
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*status_type as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*status_type as u8).unwrap();
             }
             Self::GetSupportedParameters => {}
             Self::GetParameterDescription { parameter_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*parameter_id).to_be_bytes());
             }
             Self::GetDeviceInfo => {}
@@ -940,63 +621,195 @@ impl RequestParameter {
             Self::GetDeviceModelDescription => {}
             Self::GetManufacturerLabel => {}
             Self::GetDeviceLabel => {}
-            Self::SetDeviceLabel { device_label } => buf.extend(device_label.bytes()),
+            Self::SetDeviceLabel { device_label } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(device_label.len());
+
+                buf.extend(device_label.bytes());
+            }
             Self::GetFactoryDefaults => {}
             Self::SetFactoryDefaults => {}
             Self::GetLanguageCapabilities => {}
             Self::GetLanguage => {}
-            Self::SetLanguage { language } => buf.extend(language.bytes()),
+            Self::SetLanguage { language } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(language.len());
+
+                buf.extend(language.bytes());
+            }
             Self::GetSoftwareVersionLabel => {}
             Self::GetBootSoftwareVersionId => {}
             Self::GetBootSoftwareVersionLabel => {}
             Self::GetDmxPersonality => {}
-            Self::SetDmxPersonality { personality_id } => buf.push(*personality_id).unwrap(),
-            Self::GetDmxPersonalityDescription { personality } => buf.push(*personality).unwrap(),
+            Self::SetDmxPersonality { personality_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*personality_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*personality_id).unwrap();
+            }
+            Self::GetDmxPersonalityDescription { personality } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*personality);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*personality).unwrap();
+            }
             Self::GetDmxStartAddress => {}
             Self::SetDmxStartAddress { dmx_start_address } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*dmx_start_address).to_be_bytes());
             }
             Self::GetSlotInfo => {}
             Self::GetSlotDescription { slot_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*slot_id).to_be_bytes());
             }
             Self::GetDefaultSlotValue => {}
-            Self::GetSensorDefinition { sensor_id } => buf.push(*sensor_id).unwrap(),
-            Self::GetSensorValue { sensor_id } => buf.push(*sensor_id).unwrap(),
-            Self::SetSensorValue { sensor_id } => buf.push(*sensor_id).unwrap(),
-            Self::SetRecordSensors { sensor_id } => buf.push(*sensor_id).unwrap(),
+            Self::GetSensorDefinition { sensor_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*sensor_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*sensor_id).unwrap();
+            }
+            Self::GetSensorValue { sensor_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*sensor_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*sensor_id).unwrap();
+            }
+            Self::SetSensorValue { sensor_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*sensor_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*sensor_id).unwrap();
+            }
+            Self::SetRecordSensors { sensor_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*sensor_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*sensor_id).unwrap();
+            }
             Self::GetDeviceHours => {}
             Self::SetDeviceHours { device_hours } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
                 buf.extend((*device_hours).to_be_bytes());
             }
             Self::GetLampHours => {}
             Self::SetLampHours { lamp_hours } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
                 buf.extend((*lamp_hours).to_be_bytes());
             }
             Self::GetLampStrikes => {}
             Self::SetLampStrikes { lamp_strikes } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
                 buf.extend((*lamp_strikes).to_be_bytes());
             }
             Self::GetLampState => {}
-            Self::SetLampState { lamp_state } => buf.push(u8::from(*lamp_state)).unwrap(),
+            Self::SetLampState { lamp_state } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(u8::from(*lamp_state));
+                #[cfg(not(feature = "alloc"))]
+                buf.push(u8::from(*lamp_state)).unwrap();
+            }
             Self::GetLampOnMode => {}
-            Self::SetLampOnMode { lamp_on_mode } => buf.push(u8::from(*lamp_on_mode)).unwrap(),
+            Self::SetLampOnMode { lamp_on_mode } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(u8::from(*lamp_on_mode));
+                #[cfg(not(feature = "alloc"))]
+                buf.push(u8::from(*lamp_on_mode)).unwrap();
+            }
             Self::GetDevicePowerCycles => {}
             Self::SetDevicePowerCycles {
                 device_power_cycles,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
                 buf.extend((*device_power_cycles).to_be_bytes());
             }
             Self::GetDisplayInvert => {}
-            Self::SetDisplayInvert { display_invert } => buf.push(*display_invert as u8).unwrap(),
+            Self::SetDisplayInvert { display_invert } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*display_invert as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*display_invert as u8).unwrap();
+            }
             Self::GetDisplayLevel => {}
-            Self::SetDisplayLevel { display_level } => buf.push(*display_level).unwrap(),
+            Self::SetDisplayLevel { display_level } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*display_level);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*display_level).unwrap();
+            }
             Self::GetPanInvert => {}
-            Self::SetPanInvert { pan_invert } => buf.push(*pan_invert as u8).unwrap(),
+            Self::SetPanInvert { pan_invert } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*pan_invert as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*pan_invert as u8).unwrap();
+            }
             Self::GetTiltInvert => {}
-            Self::SetTiltInvert { tilt_invert } => buf.push(*tilt_invert as u8).unwrap(),
+            Self::SetTiltInvert { tilt_invert } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*tilt_invert as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*tilt_invert as u8).unwrap();
+            }
             Self::GetPanTiltSwap => {}
-            Self::SetPanTiltSwap { pan_tilt_swap } => buf.push(*pan_tilt_swap as u8).unwrap(),
+            Self::SetPanTiltSwap { pan_tilt_swap } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*pan_tilt_swap as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*pan_tilt_swap as u8).unwrap();
+            }
             Self::GetRealTimeClock => {}
             Self::SetRealTimeClock {
                 year,
@@ -1006,24 +819,78 @@ impl RequestParameter {
                 minute,
                 second,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x07);
+
                 buf.extend((*year).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*month);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*month).unwrap();
+                #[cfg(feature = "alloc")]
+                buf.push(*day);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*day).unwrap();
+                #[cfg(feature = "alloc")]
+                buf.push(*hour);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*hour).unwrap();
+                #[cfg(feature = "alloc")]
+                buf.push(*minute);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*minute).unwrap();
+                #[cfg(feature = "alloc")]
+                buf.push(*second);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*second).unwrap();
             }
             Self::GetIdentifyDevice => {}
-            Self::SetIdentifyDevice { identify } => buf.push(*identify as u8).unwrap(),
-            Self::SetResetDevice { reset_device } => buf.push(*reset_device as u8).unwrap(),
+            Self::SetIdentifyDevice { identify } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*identify as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*identify as u8).unwrap();
+            }
+            Self::SetResetDevice { reset_device } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*reset_device as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*reset_device as u8).unwrap();
+            }
             Self::GetPowerState => {}
-            Self::SetPowerState { power_state } => buf.push(*power_state as u8).unwrap(),
+            Self::SetPowerState { power_state } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*power_state as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*power_state as u8).unwrap();
+            }
             Self::GetPerformSelfTest => {}
-            Self::SetPerformSelfTest { self_test_id } => buf.push((*self_test_id).into()).unwrap(),
+            Self::SetPerformSelfTest { self_test_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push((*self_test_id).into());
+                #[cfg(not(feature = "alloc"))]
+                buf.push((*self_test_id).into()).unwrap();
+            }
             Self::SetCapturePreset {
                 scene_id,
                 fade_times,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(if fade_times.is_some() { 0x08 } else { 0x02 });
+
                 buf.extend((*scene_id).to_be_bytes());
 
                 if let Some(fade_times) = fade_times {
@@ -1033,16 +900,32 @@ impl RequestParameter {
                 }
             }
             Self::GetSelfTestDescription { self_test_id } => {
-                buf.push((*self_test_id).into()).unwrap()
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push((*self_test_id).into());
+                #[cfg(not(feature = "alloc"))]
+                buf.push((*self_test_id).into()).unwrap();
             }
             Self::GetPresetPlayback => {}
             Self::SetPresetPlayback { mode, level } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x03);
+
                 buf.extend(u16::from(*mode).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*level);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*level).unwrap();
             }
             // E1.37-1
             Self::GetDmxBlockAddress => {}
             Self::SetDmxBlockAddress { dmx_block_address } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*dmx_block_address).to_be_bytes());
             }
             Self::GetDmxFailMode => {}
@@ -1052,9 +935,16 @@ impl RequestParameter {
                 hold_time,
                 level,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x07);
+
                 buf.extend(u16::from(*scene_id).to_be_bytes());
                 buf.extend(u16::from(*loss_of_signal_delay_time).to_be_bytes());
                 buf.extend(u16::from(*hold_time).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*level);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*level).unwrap();
             }
             Self::GetDmxStartupMode => {}
@@ -1064,9 +954,16 @@ impl RequestParameter {
                 hold_time,
                 level,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x07);
+
                 buf.extend(u16::from(*scene_id).to_be_bytes());
                 buf.extend(u16::from(*startup_delay).to_be_bytes());
                 buf.extend(u16::from(*hold_time).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*level);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*level).unwrap();
             }
             Self::GetDimmerInfo => {}
@@ -1076,42 +973,112 @@ impl RequestParameter {
                 minimum_level_decreasing,
                 on_below_minimum,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x05);
+
                 buf.extend((*minimum_level_increasing).to_be_bytes());
                 buf.extend((*minimum_level_decreasing).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*on_below_minimum as u8);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*on_below_minimum as u8).unwrap();
             }
             Self::GetMaximumLevel => {}
             Self::SetMaximumLevel { maximum_level } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*maximum_level).to_be_bytes());
             }
             Self::GetCurve => {}
             Self::SetCurve { curve_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*curve_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*curve_id).unwrap();
             }
             Self::GetCurveDescription { curve_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*curve_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*curve_id).unwrap();
             }
             Self::GetOutputResponseTime => {}
-            Self::SetOutputResponseTime { output_response_time_id } => {
+            Self::SetOutputResponseTime {
+                output_response_time_id,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*output_response_time_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*output_response_time_id).unwrap();
             }
-            Self::GetOutputResponseTimeDescription { output_response_time_id } => {
+            Self::GetOutputResponseTimeDescription {
+                output_response_time_id,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*output_response_time_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*output_response_time_id).unwrap();
             }
             Self::GetModulationFrequency => {}
-            Self::SetModulationFrequency { modulation_frequency_id } => {
+            Self::SetModulationFrequency {
+                modulation_frequency_id,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*modulation_frequency_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*modulation_frequency_id).unwrap();
             }
-            Self::GetModulationFrequencyDescription { modulation_frequency_id } => {
+            Self::GetModulationFrequencyDescription {
+                modulation_frequency_id,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*modulation_frequency_id);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*modulation_frequency_id).unwrap();
             }
             Self::GetPowerOnSelfTest => {}
             Self::SetPowerOnSelfTest { self_test_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push((*self_test_id).into());
+                #[cfg(not(feature = "alloc"))]
                 buf.push((*self_test_id).into()).unwrap();
             }
             Self::GetLockState => {}
-            Self::SetLockState { pin_code, lock_state } => {
-                buf.extend(pin_code.0.to_be_bytes());
+            Self::SetLockState {
+                pin_code,
+                lock_state,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x03);
+
+                buf.extend((pin_code.0).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*lock_state as u8);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*lock_state as u8).unwrap();
             }
             Self::GetLockStateDescription => {}
@@ -1120,19 +1087,37 @@ impl RequestParameter {
                 new_pin_code,
                 current_pin_code,
             } => {
-                buf.extend(new_pin_code.0.to_be_bytes());
-                buf.extend(current_pin_code.0.to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((new_pin_code.0).to_be_bytes());
+                buf.extend((current_pin_code.0).to_be_bytes());
             }
             Self::GetBurnIn => {}
             Self::SetBurnIn { hours } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*hours);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*hours).unwrap();
             }
             Self::GetIdentifyMode => {}
             Self::SetIdentifyMode { identify_mode } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*identify_mode);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*identify_mode).unwrap();
             }
             Self::GetPresetInfo => {}
             Self::GetPresetStatus { scene_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
                 buf.extend((*scene_id).to_be_bytes());
             }
             Self::SetPresetStatus {
@@ -1142,25 +1127,641 @@ impl RequestParameter {
                 wait_time,
                 clear_preset,
             } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x0a);
+
                 buf.extend((*scene_id).to_be_bytes());
                 buf.extend((*up_fade_time).to_be_bytes());
                 buf.extend((*down_fade_time).to_be_bytes());
                 buf.extend((*wait_time).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*clear_preset as u8);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*clear_preset as u8).unwrap();
             }
             Self::GetPresetMergeMode => {}
             Self::SetPresetMergeMode { merge_mode } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*merge_mode as u8);
+                #[cfg(not(feature = "alloc"))]
                 buf.push(*merge_mode as u8).unwrap();
             }
             Self::ManufacturerSpecific { parameter_data, .. } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(parameter_data.len());
+
+                #[cfg(feature = "alloc")]
+                buf.extend(parameter_data);
+                #[cfg(not(feature = "alloc"))]
                 buf.extend_from_slice(parameter_data).unwrap();
             }
             Self::Unsupported { parameter_data, .. } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(parameter_data.len());
+
+                #[cfg(feature = "alloc")]
+                buf.extend(parameter_data);
+                #[cfg(not(feature = "alloc"))]
                 buf.extend_from_slice(parameter_data).unwrap();
             }
         };
 
         buf
+    }
+
+    pub fn decode(
+        command_class: CommandClass,
+        parameter_id: ParameterId,
+        bytes: &[u8],
+    ) -> Result<Self, RdmError> {
+        match (command_class, parameter_id) {
+            // E1.20
+            (CommandClass::DiscoveryCommand, ParameterId::DiscMute) => Ok(Self::DiscMute),
+            (CommandClass::DiscoveryCommand, ParameterId::DiscUnMute) => Ok(Self::DiscUnMute),
+            (CommandClass::DiscoveryCommand, ParameterId::DiscUniqueBranch) => {
+                if bytes.len() < 12 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                let lower_bound_uid = DeviceUID::new(
+                    u16::from_be_bytes([bytes[0], bytes[1]]),
+                    u32::from_be_bytes([bytes[2], bytes[3], bytes[4], bytes[5]]),
+                );
+                let upper_bound_uid = DeviceUID::new(
+                    u16::from_be_bytes([bytes[6], bytes[7]]),
+                    u32::from_be_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]),
+                );
+                Ok(Self::DiscUniqueBranch {
+                    lower_bound_uid,
+                    upper_bound_uid,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::CommsStatus) => Ok(Self::GetCommsStatus),
+            (CommandClass::SetCommand, ParameterId::CommsStatus) => Ok(Self::SetCommsStatus),
+            (CommandClass::GetCommand, ParameterId::QueuedMessage) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetQueuedMessage {
+                    status_type: bytes[0].try_into()?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::StatusMessages) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetStatusMessages {
+                    status_type: bytes[0].try_into()?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::StatusIdDescription) => {
+                if bytes.len() < 2 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetStatusIdDescription {
+                    status_id: u16::from_be_bytes([bytes[0], bytes[1]]),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::ClearStatusId) => Ok(Self::SetClearStatusId),
+            (CommandClass::GetCommand, ParameterId::SubDeviceIdStatusReportThreshold) => {
+                Ok(Self::GetSubDeviceIdStatusReportThreshold)
+            }
+            (CommandClass::SetCommand, ParameterId::SubDeviceIdStatusReportThreshold) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetSubDeviceIdStatusReportThreshold {
+                    status_type: bytes[0].try_into()?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::SupportedParameters) => {
+                Ok(Self::GetSupportedParameters)
+            }
+            (CommandClass::GetCommand, ParameterId::ParameterDescription) => {
+                if bytes.len() < 2 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetParameterDescription {
+                    parameter_id: u16::from_be_bytes([bytes[0], bytes[1]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DeviceInfo) => Ok(Self::GetDeviceInfo),
+            (CommandClass::GetCommand, ParameterId::ProductDetailIdList) => {
+                Ok(Self::GetProductDetailIdList)
+            }
+            (CommandClass::GetCommand, ParameterId::DeviceModelDescription) => {
+                Ok(Self::GetDeviceModelDescription)
+            }
+            (CommandClass::GetCommand, ParameterId::ManufacturerLabel) => {
+                Ok(Self::GetManufacturerLabel)
+            }
+            (CommandClass::GetCommand, ParameterId::DeviceLabel) => Ok(Self::GetDeviceLabel),
+            (CommandClass::SetCommand, ParameterId::DeviceLabel) => Ok(Self::SetDeviceLabel {
+                #[cfg(feature = "alloc")]
+                device_label: decode_string_bytes(bytes)?,
+                #[cfg(not(feature = "alloc"))]
+                device_label: decode_string_bytes(bytes)?,
+            }),
+            (CommandClass::GetCommand, ParameterId::FactoryDefaults) => {
+                Ok(Self::GetFactoryDefaults)
+            }
+            (CommandClass::SetCommand, ParameterId::FactoryDefaults) => {
+                Ok(Self::SetFactoryDefaults)
+            }
+            (CommandClass::GetCommand, ParameterId::LanguageCapabilities) => {
+                Ok(Self::GetLanguageCapabilities)
+            }
+            (CommandClass::GetCommand, ParameterId::Language) => Ok(Self::GetLanguage),
+            (CommandClass::SetCommand, ParameterId::Language) => Ok(Self::SetLanguage {
+                #[cfg(feature = "alloc")]
+                language: decode_string_bytes(bytes)?,
+                #[cfg(not(feature = "alloc"))]
+                language: decode_string_bytes(bytes)?,
+            }),
+            (CommandClass::GetCommand, ParameterId::SoftwareVersionLabel) => {
+                Ok(Self::GetSoftwareVersionLabel)
+            }
+            (CommandClass::GetCommand, ParameterId::BootSoftwareVersionId) => {
+                Ok(Self::GetBootSoftwareVersionId)
+            }
+            (CommandClass::GetCommand, ParameterId::BootSoftwareVersionLabel) => {
+                Ok(Self::GetBootSoftwareVersionLabel)
+            }
+            (CommandClass::GetCommand, ParameterId::DmxPersonality) => Ok(Self::GetDmxPersonality),
+            (CommandClass::SetCommand, ParameterId::DmxPersonality) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetDmxPersonality {
+                    personality_id: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DmxPersonalityDescription) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetDmxPersonalityDescription {
+                    personality: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DmxStartAddress) => {
+                Ok(Self::GetDmxStartAddress)
+            }
+            (CommandClass::SetCommand, ParameterId::DmxStartAddress) => {
+                if bytes.len() < 2 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetDmxStartAddress {
+                    dmx_start_address: u16::from_be_bytes([bytes[0], bytes[1]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::SlotInfo) => Ok(Self::GetSlotInfo),
+            (CommandClass::GetCommand, ParameterId::SlotDescription) => {
+                if bytes.len() < 2 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetSlotDescription {
+                    slot_id: u16::from_be_bytes([bytes[0], bytes[1]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DefaultSlotValue) => {
+                Ok(Self::GetDefaultSlotValue)
+            }
+            (CommandClass::GetCommand, ParameterId::SensorDefinition) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetSensorDefinition {
+                    sensor_id: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::SensorValue) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetSensorValue {
+                    sensor_id: bytes[0],
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::SensorValue) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetSensorValue {
+                    sensor_id: bytes[0],
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::RecordSensors) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetRecordSensors {
+                    sensor_id: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DeviceHours) => Ok(Self::GetDeviceHours),
+            (CommandClass::SetCommand, ParameterId::DeviceHours) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetDeviceHours {
+                    device_hours: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::LampHours) => Ok(Self::GetLampHours),
+            (CommandClass::SetCommand, ParameterId::LampHours) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetLampHours {
+                    lamp_hours: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::LampStrikes) => Ok(Self::GetLampStrikes),
+            (CommandClass::SetCommand, ParameterId::LampStrikes) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetLampStrikes {
+                    lamp_strikes: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::LampState) => Ok(Self::GetLampState),
+            (CommandClass::SetCommand, ParameterId::LampState) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetLampState {
+                    lamp_state: bytes[0].try_into()?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::LampOnMode) => Ok(Self::GetLampOnMode),
+            (CommandClass::SetCommand, ParameterId::LampOnMode) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetLampOnMode {
+                    lamp_on_mode: bytes[0].try_into()?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DevicePowerCycles) => {
+                Ok(Self::GetDevicePowerCycles)
+            }
+            (CommandClass::SetCommand, ParameterId::DevicePowerCycles) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetDevicePowerCycles {
+                    device_power_cycles: u32::from_be_bytes([
+                        bytes[0], bytes[1], bytes[2], bytes[3],
+                    ]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DisplayInvert) => Ok(Self::GetDisplayInvert),
+            (CommandClass::SetCommand, ParameterId::DisplayInvert) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetDisplayInvert {
+                    display_invert: bytes[0].try_into()?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DisplayLevel) => Ok(Self::GetDisplayLevel),
+            (CommandClass::SetCommand, ParameterId::DisplayLevel) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetDisplayLevel {
+                    display_level: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PanInvert) => Ok(Self::GetPanInvert),
+            (CommandClass::SetCommand, ParameterId::PanInvert) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetPanInvert {
+                    pan_invert: bytes[0] != 0,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::TiltInvert) => Ok(Self::GetTiltInvert),
+            (CommandClass::SetCommand, ParameterId::TiltInvert) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetTiltInvert {
+                    tilt_invert: bytes[0] != 0,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PanTiltSwap) => Ok(Self::GetPanTiltSwap),
+            (CommandClass::SetCommand, ParameterId::PanTiltSwap) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetPanTiltSwap {
+                    pan_tilt_swap: bytes[0] != 0,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::RealTimeClock) => Ok(Self::GetRealTimeClock),
+            (CommandClass::SetCommand, ParameterId::RealTimeClock) => {
+                if bytes.len() < 7 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetRealTimeClock {
+                    year: u16::from_be_bytes([bytes[0], bytes[1]]),
+                    month: bytes[2],
+                    day: bytes[3],
+                    hour: bytes[4],
+                    minute: bytes[5],
+                    second: bytes[6],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::IdentifyDevice) => Ok(Self::GetIdentifyDevice),
+            (CommandClass::SetCommand, ParameterId::IdentifyDevice) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetIdentifyDevice {
+                    identify: bytes[0] != 0,
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::ResetDevice) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetResetDevice {
+                    reset_device: bytes[0].try_into()?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PowerState) => Ok(Self::GetPowerState),
+            (CommandClass::SetCommand, ParameterId::PowerState) => Ok(Self::SetPowerState {
+                power_state: bytes[0].try_into()?,
+            }),
+            (CommandClass::GetCommand, ParameterId::PerformSelfTest) => {
+                Ok(Self::GetPerformSelfTest)
+            }
+            (CommandClass::SetCommand, ParameterId::PerformSelfTest) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetPerformSelfTest {
+                    self_test_id: bytes[0].into(),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::CapturePreset) => {
+                if bytes.len() < 2 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+
+                let scene_id = u16::from_be_bytes([bytes[0], bytes[1]]);
+                let fade_times = if bytes.len() > 2 {
+                    Some(FadeTimes {
+                        up_fade_time: u16::from_be_bytes([bytes[2], bytes[3]]),
+                        down_fade_time: u16::from_be_bytes([bytes[4], bytes[5]]),
+                        wait_time: u16::from_be_bytes([bytes[6], bytes[7]]),
+                    })
+                } else {
+                    None
+                };
+
+                Ok(Self::SetCapturePreset {
+                    scene_id,
+                    fade_times,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::SelfTestDescription) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetSelfTestDescription {
+                    self_test_id: bytes[0].into(),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PresetPlayback) => Ok(Self::GetPresetPlayback),
+            (CommandClass::SetCommand, ParameterId::PresetPlayback) => {
+                if bytes.len() < 3 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetPresetPlayback {
+                    mode: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    level: bytes[2],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DmxBlockAddress) => {
+                Ok(Self::GetDmxBlockAddress)
+            }
+            (CommandClass::SetCommand, ParameterId::DmxBlockAddress) => {
+                if bytes.len() < 2 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetDmxBlockAddress {
+                    dmx_block_address: u16::from_be_bytes([bytes[0], bytes[1]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DmxFailMode) => Ok(Self::GetDmxFailMode),
+            (CommandClass::SetCommand, ParameterId::DmxFailMode) => {
+                if bytes.len() < 7 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetDmxFailMode {
+                    scene_id: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    loss_of_signal_delay_time: u16::from_be_bytes([bytes[2], bytes[3]]).into(),
+                    hold_time: u16::from_be_bytes([bytes[4], bytes[5]]).into(),
+                    level: bytes[6],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DmxStartupMode) => Ok(Self::GetDmxStartupMode),
+            (CommandClass::SetCommand, ParameterId::DmxStartupMode) => {
+                if bytes.len() < 7 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetDmxStartupMode {
+                    scene_id: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    startup_delay: u16::from_be_bytes([bytes[2], bytes[3]]).into(),
+                    hold_time: u16::from_be_bytes([bytes[4], bytes[5]]).into(),
+                    level: bytes[6],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DimmerInfo) => Ok(Self::GetDimmerInfo),
+            (CommandClass::GetCommand, ParameterId::MinimumLevel) => Ok(Self::GetMinimumLevel),
+            (CommandClass::SetCommand, ParameterId::MinimumLevel) => {
+                if bytes.len() < 5 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetMinimumLevel {
+                    minimum_level_increasing: u16::from_be_bytes([bytes[0], bytes[1]]),
+                    minimum_level_decreasing: u16::from_be_bytes([bytes[2], bytes[3]]),
+                    on_below_minimum: bytes[4] != 0,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::MaximumLevel) => Ok(Self::GetMaximumLevel),
+            (CommandClass::SetCommand, ParameterId::MaximumLevel) => {
+                if bytes.len() < 2 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetMaximumLevel {
+                    maximum_level: u16::from_be_bytes([bytes[0], bytes[1]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::Curve) => Ok(Self::GetCurve),
+            (CommandClass::SetCommand, ParameterId::Curve) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetCurve { curve_id: bytes[0] })
+            }
+            (CommandClass::GetCommand, ParameterId::CurveDescription) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetCurveDescription { curve_id: bytes[0] })
+            }
+            (CommandClass::GetCommand, ParameterId::OutputResponseTime) => {
+                Ok(Self::GetOutputResponseTime)
+            }
+            (CommandClass::SetCommand, ParameterId::OutputResponseTime) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetOutputResponseTime {
+                    output_response_time_id: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::OutputResponseTimeDescription) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetOutputResponseTimeDescription {
+                    output_response_time_id: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::ModulationFrequency) => {
+                Ok(Self::GetModulationFrequency)
+            }
+            (CommandClass::SetCommand, ParameterId::ModulationFrequency) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetModulationFrequency {
+                    modulation_frequency_id: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::ModulationFrequencyDescription) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetModulationFrequencyDescription {
+                    modulation_frequency_id: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PowerOnSelfTest) => {
+                Ok(Self::GetPowerOnSelfTest)
+            }
+            (CommandClass::SetCommand, ParameterId::PowerOnSelfTest) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetPowerOnSelfTest {
+                    self_test_id: bytes[0].into(),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::LockState) => Ok(Self::GetLockState),
+            (CommandClass::SetCommand, ParameterId::LockState) => {
+                if bytes.len() < 5 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetLockState {
+                    pin_code: u16::from_be_bytes([bytes[0], bytes[1]]).try_into()?,
+                    lock_state: bytes[4] != 0,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::LockStateDescription) => {
+                Ok(Self::GetLockStateDescription)
+            }
+            (CommandClass::GetCommand, ParameterId::LockPin) => Ok(Self::GetLockPin),
+            (CommandClass::SetCommand, ParameterId::LockPin) => {
+                if bytes.len() < 8 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetLockPin {
+                    new_pin_code: u16::from_be_bytes([bytes[0], bytes[1]]).try_into()?,
+                    current_pin_code: u16::from_be_bytes([bytes[2], bytes[3]]).try_into()?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::BurnIn) => Ok(Self::GetBurnIn),
+            (CommandClass::SetCommand, ParameterId::BurnIn) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetBurnIn { hours: bytes[0] })
+            }
+            (CommandClass::GetCommand, ParameterId::IdentifyMode) => Ok(Self::GetIdentifyMode),
+            (CommandClass::SetCommand, ParameterId::IdentifyMode) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetIdentifyMode {
+                    identify_mode: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PresetInfo) => Ok(Self::GetPresetInfo),
+            (CommandClass::GetCommand, ParameterId::PresetStatus) => {
+                if bytes.len() < 2 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetPresetStatus {
+                    scene_id: u16::from_be_bytes([bytes[0], bytes[1]]),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::PresetStatus) => {
+                if bytes.len() < 9 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetPresetStatus {
+                    scene_id: u16::from_be_bytes([bytes[0], bytes[1]]),
+                    up_fade_time: u16::from_be_bytes([bytes[2], bytes[3]]),
+                    down_fade_time: u16::from_be_bytes([bytes[4], bytes[5]]),
+                    wait_time: u16::from_be_bytes([bytes[6], bytes[7]]),
+                    clear_preset: bytes[8] != 0,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PresetMergeMode) => {
+                Ok(Self::GetPresetMergeMode)
+            }
+            (CommandClass::SetCommand, ParameterId::PresetMergeMode) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetPresetMergeMode {
+                    merge_mode: bytes[0].try_into()?,
+                })
+            }
+            (command_class, parameter_id) => {
+                #[cfg(feature = "alloc")]
+                let parameter_data = bytes.to_vec();
+                #[cfg(not(feature = "alloc"))]
+                let parameter_data = Vec::<u8, 231>::from_slice(bytes).unwrap();
+
+                let parameter_id: u16 = parameter_id.into();
+
+                if parameter_id >= 0x8000 {
+                    Ok(Self::ManufacturerSpecific {
+                        command_class,
+                        parameter_id,
+                        parameter_data,
+                    })
+                } else {
+                    Ok(Self::Unsupported {
+                        command_class,
+                        parameter_id,
+                        parameter_data,
+                    })
+                }
+            }
+        }
     }
 }
 
@@ -1201,64 +1802,113 @@ impl RdmRequest {
         self.parameter.parameter_id()
     }
 
-    #[cfg(feature = "alloc")]
-    pub fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> EncodedFrame {
         let parameter_data = self.parameter.encode();
-
+        
         let message_length = 24 + parameter_data.len();
-
+        
+        #[cfg(feature = "alloc")]
         let mut buf = Vec::with_capacity(message_length + 2);
-
-        buf.push(RDM_START_CODE_BYTE);
-        buf.push(RDM_SUB_START_CODE_BYTE);
-        buf.push(message_length as u8);
-        buf.extend(self.destination_uid.manufacturer_id.to_be_bytes().iter());
-        buf.extend(self.destination_uid.device_id.to_be_bytes().iter());
-        buf.extend(self.source_uid.manufacturer_id.to_be_bytes().iter());
-        buf.extend(self.source_uid.device_id.to_be_bytes().iter());
-        buf.push(self.transaction_number);
-        buf.push(self.port_id);
-        buf.push(0x00); // Message Count shall be set to 0x00 in all controller generated requests
-        buf.extend(u16::from(self.sub_device_id).to_be_bytes().iter());
-        buf.push(self.parameter.command_class() as u8);
-        buf.extend(
-            u16::from(self.parameter.parameter_id())
-                .to_be_bytes()
-                .iter(),
-        );
-        buf.push(parameter_data.len() as u8);
-        buf.extend(parameter_data);
-        buf.extend(bsd_16_crc(&buf[..]).to_be_bytes().iter());
-
-        buf
-    }
-
-    #[cfg(not(feature = "alloc"))]
-    pub fn encode(&self) -> Vec<u8, 257> {
-        let parameter_data = self.parameter.encode();
-
-        let message_length = 24 + parameter_data.len();
-
+        #[cfg(not(feature = "alloc"))]
         let mut buf = Vec::new();
-
+        
+        #[cfg(feature = "alloc")]
+        buf.push(RDM_START_CODE_BYTE);
+        #[cfg(not(feature = "alloc"))]
         buf.push(RDM_START_CODE_BYTE).unwrap();
+
+        #[cfg(feature = "alloc")]
+        buf.push(RDM_SUB_START_CODE_BYTE);
+        #[cfg(not(feature = "alloc"))]
         buf.push(RDM_SUB_START_CODE_BYTE).unwrap();
+
+        #[cfg(feature = "alloc")]
+        buf.push(message_length as u8);
+        #[cfg(not(feature = "alloc"))]
         buf.push(message_length as u8).unwrap();
+
         buf.extend(self.destination_uid.manufacturer_id.to_be_bytes());
         buf.extend(self.destination_uid.device_id.to_be_bytes());
         buf.extend(self.source_uid.manufacturer_id.to_be_bytes());
         buf.extend(self.source_uid.device_id.to_be_bytes());
+
+        #[cfg(feature = "alloc")]
+        buf.push(self.transaction_number);
+        #[cfg(not(feature = "alloc"))]
         buf.push(self.transaction_number).unwrap();
+        
+        #[cfg(feature = "alloc")]
+        buf.push(self.port_id);
+        #[cfg(not(feature = "alloc"))]
         buf.push(self.port_id).unwrap();
-        buf.push(0x00).unwrap(); // Message Count shall be set to 0x00 in all controller generated requests
+
+        // Message Count shall be set to 0x00 in all controller generated requests
+        #[cfg(feature = "alloc")]
+        buf.push(0x00);
+        #[cfg(not(feature = "alloc"))]
+        buf.push(0x00).unwrap();
+
         buf.extend(u16::from(self.sub_device_id).to_be_bytes());
+
+        #[cfg(feature = "alloc")]
+        buf.push(self.parameter.command_class() as u8);
+        #[cfg(not(feature = "alloc"))]
         buf.push(self.parameter.command_class() as u8).unwrap();
-        buf.extend(u16::from(self.parameter.parameter_id()).to_be_bytes());
+
+        buf.extend(
+            u16::from(self.parameter.parameter_id())
+                .to_be_bytes()
+        );
+
+        #[cfg(feature = "alloc")]
+        buf.push(parameter_data.len() as u8);
+        #[cfg(not(feature = "alloc"))]
         buf.push(parameter_data.len() as u8).unwrap();
+
         buf.extend(parameter_data);
         buf.extend(bsd_16_crc(&buf[..]).to_be_bytes());
 
         buf
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
+        if bytes.len() < 24 {
+            return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+        }
+
+        let destination_uid = DeviceUID::new(
+            u16::from_be_bytes([bytes[3], bytes[4]]),
+            u32::from_be_bytes([bytes[5], bytes[6], bytes[7], bytes[8]]),
+        );
+
+        let source_uid = DeviceUID::new(
+            u16::from_be_bytes([bytes[9], bytes[10]]),
+            u32::from_be_bytes([bytes[11], bytes[12], bytes[13], bytes[14]]),
+        );
+
+        let transaction_number = bytes[15];
+        let port_id = bytes[16];
+        let sub_device_id = u16::from_be_bytes([bytes[18], bytes[19]]).into();
+        let command_class = bytes[20].try_into()?;
+        let parameter_id = u16::from_be_bytes([bytes[21], bytes[22]]).into();
+        let parameter_data_length = bytes[23] as usize;
+
+        if bytes.len() < 24 + parameter_data_length {
+            return Err(RdmError::InvalidFrameLength(bytes.len() as u8));
+        }
+
+        let parameter_data = &bytes[24..24 + parameter_data_length];
+
+        let parameter = RequestParameter::decode(command_class, parameter_id, parameter_data)?;
+
+        Ok(Self::new(
+            destination_uid,
+            source_uid,
+            transaction_number,
+            port_id,
+            sub_device_id,
+            parameter,
+        ))
     }
 }
 
@@ -1317,6 +1967,41 @@ mod tests {
     }
 
     #[test]
+    fn should_decode_discovery_unique_branch_request() {
+        let decoded = RdmRequest::decode(&[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            0x24, // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Port ID
+            0x00, // Message Count
+            0x00, 0x01, // Sub-Device ID
+            0x10, // Command Class
+            0x00, 0x01, // Parameter ID
+            0x0c, // PDL
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Parameter Data - Lower Bound UID
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // Parameter Data - Upper Bound UID
+            0x07, 0x34, // Checksum
+        ]).unwrap();
+        
+        let expected = RdmRequest::new(
+            DeviceUID::new(0x0102, 0x03040506),
+            DeviceUID::new(0x0605, 0x04030201),
+            0x00,
+            0x01,
+            SubDeviceId::Id(0x01),
+            RequestParameter::DiscUniqueBranch {
+                lower_bound_uid: DeviceUID::new(0x0000, 0x00000000),
+                upper_bound_uid: DeviceUID::new(0xffff, 0xffffffff),
+            },
+        );
+
+        assert_eq!(decoded, expected);
+    }
+
+    #[test]
     fn should_encode_valid_rdm_request() {
         let encoded = RdmRequest::new(
             DeviceUID::new(0x0102, 0x03040506),
@@ -1345,6 +2030,36 @@ mod tests {
         ];
 
         assert_eq!(encoded, expected);
+    }
+
+    #[test]
+    fn should_decode_valid_rdm_request() {
+        let decoded = RdmRequest::decode(&[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            0x18, // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Port ID
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x20, // Command Class = GetCommand
+            0x10, 0x00, // Parameter ID = Identify Device
+            0x00, // PDL
+            0x01, 0x40, // Checksum
+        ]).unwrap();
+
+        let expected = RdmRequest::new(
+            DeviceUID::new(0x0102, 0x03040506),
+            DeviceUID::new(0x0605, 0x04030201),
+            0x00,
+            0x01,
+            SubDeviceId::RootDevice,
+            RequestParameter::GetIdentifyDevice,
+        );
+
+        assert_eq!(decoded, expected);
     }
 
     #[test]
@@ -1384,5 +2099,43 @@ mod tests {
         ];
 
         assert_eq!(encoded, expected);
+    }
+
+    #[test]
+    fn should_decode_manufacturer_specific_rdm_request() {
+        let decoded = RdmRequest::decode(&[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            0x1c, // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Port ID
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x30, // Command Class = SetCommand
+            0x80, 0x80, // Parameter ID = Identify Device
+            0x04, // PDL
+            0x01, 0x02, 0x03, 0x04, // Parameter Data
+            0x02, 0x52, // Checksum
+        ]).unwrap();
+
+        let expected = RdmRequest::new(
+            DeviceUID::new(0x0102, 0x03040506),
+            DeviceUID::new(0x0605, 0x04030201),
+            0x00,
+            0x01,
+            SubDeviceId::RootDevice,
+            RequestParameter::ManufacturerSpecific {
+                command_class: CommandClass::SetCommand,
+                parameter_id: 0x8080,
+                #[cfg(feature = "alloc")]
+                parameter_data: vec![0x01, 0x02, 0x03, 0x04],
+                #[cfg(not(feature = "alloc"))]
+                parameter_data: Vec::<u8, 231>::from_slice(&[0x01, 0x02, 0x03, 0x04]).unwrap(),
+            },
+        );
+
+        assert_eq!(decoded, expected);
     }
 }

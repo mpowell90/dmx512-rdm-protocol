@@ -13,6 +13,22 @@ pub const RDM_SUB_START_CODE_BYTE: u8 = 0x01;
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE: u8 = 0xfe;
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE: u8 = 0xaa;
 
+pub const MAX_RDM_FRAME_LENGTH: usize = 257;
+pub const MAX_RDM_PARAMETER_DATA_LENGTH: usize = 231;
+
+#[cfg(not(feature = "alloc"))]
+use heapless::Vec;
+
+#[cfg(feature = "alloc")]
+pub type EncodedFrame = Vec<u8>;
+#[cfg(not(feature = "alloc"))]
+pub type EncodedFrame = Vec<u8, MAX_RDM_FRAME_LENGTH>;
+
+#[cfg(feature = "alloc")]
+pub type EncodedParameterData = Vec<u8>;
+#[cfg(not(feature = "alloc"))]
+pub type EncodedParameterData = Vec<u8, MAX_RDM_PARAMETER_DATA_LENGTH>;
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CommandClass {
     DiscoveryCommand = 0x10,
