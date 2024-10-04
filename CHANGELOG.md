@@ -6,6 +6,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.5.2...v0.6.0) - 2024-10-04
+
+### Added
+
+- added e1.37-2 spec parameters
+
+### Fixed
+
+- incorrect encoding of certain parameters
+- missing request parameter encoding
+
+### Other
+
+- fmt
+
 ## [0.5.2](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.5.1...v0.5.2) - 2024-10-04
 
 ### Added
