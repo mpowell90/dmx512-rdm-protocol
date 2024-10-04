@@ -6,6 +6,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.2](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.5.1...v0.5.2) - 2024-10-04
+
+### Added
+
+- added more missing encode / decode implementations
+- added response encode, refactored request decode
+- added request decode function
+
+### Fixed
+
+- correct amount of disc unique preamble separator bytes, added response tests
+
+### Other
+
+- added request decode tests
+- consolidated RdmRequest encode alloc and non alloc methods
+- consolidated request encode alloc / no alloc functions
+
 ## [0.5.1](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.5.0...v0.5.1) - 2024-10-04
 
 ### Added
