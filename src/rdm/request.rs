@@ -1967,6 +1967,41 @@ mod tests {
     }
 
     #[test]
+    fn should_decode_discovery_unique_branch_request() {
+        let decoded = RdmRequest::decode(&[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            0x24, // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Port ID
+            0x00, // Message Count
+            0x00, 0x01, // Sub-Device ID
+            0x10, // Command Class
+            0x00, 0x01, // Parameter ID
+            0x0c, // PDL
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Parameter Data - Lower Bound UID
+            0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // Parameter Data - Upper Bound UID
+            0x07, 0x34, // Checksum
+        ]).unwrap();
+        
+        let expected = RdmRequest::new(
+            DeviceUID::new(0x0102, 0x03040506),
+            DeviceUID::new(0x0605, 0x04030201),
+            0x00,
+            0x01,
+            SubDeviceId::Id(0x01),
+            RequestParameter::DiscUniqueBranch {
+                lower_bound_uid: DeviceUID::new(0x0000, 0x00000000),
+                upper_bound_uid: DeviceUID::new(0xffff, 0xffffffff),
+            },
+        );
+
+        assert_eq!(decoded, expected);
+    }
+
+    #[test]
     fn should_encode_valid_rdm_request() {
         let encoded = RdmRequest::new(
             DeviceUID::new(0x0102, 0x03040506),
@@ -1995,6 +2030,36 @@ mod tests {
         ];
 
         assert_eq!(encoded, expected);
+    }
+
+    #[test]
+    fn should_decode_valid_rdm_request() {
+        let decoded = RdmRequest::decode(&[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            0x18, // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Port ID
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x20, // Command Class = GetCommand
+            0x10, 0x00, // Parameter ID = Identify Device
+            0x00, // PDL
+            0x01, 0x40, // Checksum
+        ]).unwrap();
+
+        let expected = RdmRequest::new(
+            DeviceUID::new(0x0102, 0x03040506),
+            DeviceUID::new(0x0605, 0x04030201),
+            0x00,
+            0x01,
+            SubDeviceId::RootDevice,
+            RequestParameter::GetIdentifyDevice,
+        );
+
+        assert_eq!(decoded, expected);
     }
 
     #[test]
@@ -2034,5 +2099,43 @@ mod tests {
         ];
 
         assert_eq!(encoded, expected);
+    }
+
+    #[test]
+    fn should_decode_manufacturer_specific_rdm_request() {
+        let decoded = RdmRequest::decode(&[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            0x1c, // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Port ID
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x30, // Command Class = SetCommand
+            0x80, 0x80, // Parameter ID = Identify Device
+            0x04, // PDL
+            0x01, 0x02, 0x03, 0x04, // Parameter Data
+            0x02, 0x52, // Checksum
+        ]).unwrap();
+
+        let expected = RdmRequest::new(
+            DeviceUID::new(0x0102, 0x03040506),
+            DeviceUID::new(0x0605, 0x04030201),
+            0x00,
+            0x01,
+            SubDeviceId::RootDevice,
+            RequestParameter::ManufacturerSpecific {
+                command_class: CommandClass::SetCommand,
+                parameter_id: 0x8080,
+                #[cfg(feature = "alloc")]
+                parameter_data: vec![0x01, 0x02, 0x03, 0x04],
+                #[cfg(not(feature = "alloc"))]
+                parameter_data: Vec::<u8, 231>::from_slice(&[0x01, 0x02, 0x03, 0x04]).unwrap(),
+            },
+        );
+
+        assert_eq!(decoded, expected);
     }
 }
