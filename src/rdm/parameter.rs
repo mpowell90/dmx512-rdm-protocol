@@ -1,5 +1,8 @@
 use super::{RdmError, SubDeviceId};
-use core::{net::Ipv4Addr, result::Result};
+use core::{
+    net::{Ipv4Addr, Ipv6Addr},
+    result::Result,
+};
 
 #[cfg(not(feature = "alloc"))]
 use core::str::FromStr;
@@ -121,6 +124,11 @@ pub enum ParameterId {
     DnsIpV4NameServer,
     DnsHostName,
     DnsDomainName,
+    // E1.33
+    ComponentScope,
+    SearchDomain,
+    TcpCommsStatus,
+    BrokerStatus,
     ManufacturerSpecific(u16),
     Unsupported(u16),
 }
@@ -218,6 +226,11 @@ impl From<u16> for ParameterId {
             0x070b => Self::DnsIpV4NameServer,
             0x070c => Self::DnsHostName,
             0x070d => Self::DnsDomainName,
+            // E1.33
+            0x8000 => Self::ComponentScope,
+            0x8001 => Self::SearchDomain,
+            0x8002 => Self::TcpCommsStatus,
+            0x8003 => Self::BrokerStatus,
             n if (0x8000..=0xffdf).contains(&n) => Self::ManufacturerSpecific(n),
             n => Self::Unsupported(n),
         }
@@ -317,6 +330,11 @@ impl From<ParameterId> for u16 {
             ParameterId::DnsIpV4NameServer => 0x070b,
             ParameterId::DnsHostName => 0x070c,
             ParameterId::DnsDomainName => 0x070d,
+            // E1.33
+            ParameterId::ComponentScope => 0x8000,
+            ParameterId::SearchDomain => 0x8001,
+            ParameterId::TcpCommsStatus => 0x8002,
+            ParameterId::BrokerStatus => 0x8003,
             ParameterId::ManufacturerSpecific(pid) => pid,
             ParameterId::Unsupported(pid) => pid,
         }
@@ -2274,6 +2292,56 @@ impl From<Ipv4Address> for u32 {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+pub enum Ipv6Address {
+    Unconfigured,
+    Configured(Ipv6Addr),
+}
+
+impl From<Ipv6Addr> for Ipv6Address {
+    fn from(value: Ipv6Addr) -> Self {
+        Self::Configured(value)
+    }
+}
+
+impl From<u128> for Ipv6Address {
+    fn from(value: u128) -> Self {
+        if value == 0 {
+            Self::Unconfigured
+        } else {
+            Self::Configured(Ipv6Addr::from(value))
+        }
+    }
+}
+
+impl From<[u8; 16]> for Ipv6Address {
+    fn from(value: [u8; 16]) -> Self {
+        if value == [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] {
+            Self::Unconfigured
+        } else {
+            Self::Configured(Ipv6Addr::from(value))
+        }
+    }
+}
+
+impl From<Ipv6Address> for [u8; 16] {
+    fn from(value: Ipv6Address) -> [u8; 16] {
+        match value {
+            Ipv6Address::Unconfigured => [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            Ipv6Address::Configured(ip) => ip.octets(),
+        }
+    }
+}
+
+impl From<Ipv6Address> for u128 {
+    fn from(value: Ipv6Address) -> u128 {
+        match value {
+            Ipv6Address::Unconfigured => 0,
+            Ipv6Address::Configured(ip) => ip.to_bits(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Ipv4Route {
     NoDefault,
     Configured(Ipv4Addr),
@@ -2473,6 +2541,46 @@ impl From<HardwareType> for u16 {
 pub struct NetworkInterface {
     pub interface_id: u32,
     pub hardware_type: HardwareType,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum StaticConfigType {
+    NoStaticConfig = 0x00,
+    StaticConfigIpv4 = 0x01,
+    StaticConfigIpv6 = 0x02,
+}
+
+impl TryFrom<u8> for StaticConfigType {
+    type Error = RdmError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::NoStaticConfig),
+            0x01 => Ok(Self::StaticConfigIpv4),
+            0x02 => Ok(Self::StaticConfigIpv6),
+            value => Err(RdmError::InvalidStaticConfigType(value)),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub enum BrokerState {
+    Disabled = 0x00,
+    Active = 0x01,
+    Standby = 0x02,
+}
+
+impl TryFrom<u8> for BrokerState {
+    type Error = RdmError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::Disabled),
+            0x01 => Ok(Self::Active),
+            0x02 => Ok(Self::Standby),
+            value => Err(RdmError::InvalidBrokerState(value)),
+        }
+    }
 }
 
 #[cfg(test)]

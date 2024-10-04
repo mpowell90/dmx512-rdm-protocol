@@ -32,6 +32,8 @@ pub enum RdmError {
     InvalidPresetProgrammed(u8),
     InvalidPinCode(u16),
     InvalidDhcpMode(u8),
+    InvalidStaticConfigType(u8),
+    InvalidBrokerState(u8),
     MalformedPacket,
 }
 
@@ -125,6 +127,10 @@ impl fmt::Display for RdmError {
             Self::InvalidDhcpMode(dhcp_mode) => {
                 write!(f, "Invalid DhcpMode: {}", dhcp_mode)
             }
+            Self::InvalidStaticConfigType(static_config_type) => {
+                write!(f, "Invalid StaticConfigType: {}", static_config_type)
+            }
+            Self::InvalidBrokerState(broker_state) => write!(f, "Invalid BrokerState: {}", broker_state),
             Self::MalformedPacket => write!(f, "Malformed packet"),
         }
     }
