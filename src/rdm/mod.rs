@@ -39,7 +39,7 @@ impl TryFrom<u8> for CommandClass {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceUID {
     pub manufacturer_id: u16,
     pub device_id: u32,
