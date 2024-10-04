@@ -6,6 +6,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.6.0...v0.7.0) - 2024-10-04
+
+### Added
+
+- added e1.33 spec parameters
+
+### Other
+
+- reworded implemented / supported parameters
+- added E1.33 references to README
+- use extend with turbofish rather than intermediate uint conversion
+
 ## [0.6.0](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.5.2...v0.6.0) - 2024-10-04
 
 ### Added
