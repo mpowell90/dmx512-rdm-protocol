@@ -35,6 +35,7 @@ Remote Device Management (RDM) is a backward-compatible extension of DMX512, ena
 - ANSI E1.20 (2010): RDM Remote Device Management Over DMX512 Networks
 - ANSI E1.37-1 (2012): Additional Message Sets for ANSI E1.20 (RDM) – Part 1, Dimmer Message Sets
 - ANSI E1.37-2 (2015): Additional Message Sets for ANSI E1.20 (RDM) – Part 2, IPv4 & DNS Configuration Messages
+- ANSI E1.33 (RDMnet): Message Transport and Management for ANSI E1.20 (RDM) compatible and similar devices over IP Networks
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -175,6 +176,6 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 
 ## Acknowledgments
 
-- The ANSI E1.11 (2008), ANSI E1.20 (2010), ANSI E1.37-1 (2012) and ANSI E1.37-2 (2015) specifications used to create this library is copyright and published by [ESTA](https://www.esta.org/)
+- The ANSI E1.11 (2008), ANSI E1.20 (2010), ANSI E1.37-1 (2012), ANSI E1.37-2 (2015) and ANSI E1.33 (RDMnet) specifications used to create this library is copyright and published by [ESTA](https://www.esta.org/)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
