@@ -1,6 +1,7 @@
 use core::{array::TryFromSliceError, error::Error, fmt, str::Utf8Error};
 
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub enum RdmError {
     InvalidStartCode,
     InvalidFrameLength(u8),
@@ -30,6 +31,7 @@ pub enum RdmError {
     InvalidMergeMode(u8),
     InvalidPresetProgrammed(u8),
     InvalidPinCode(u16),
+    InvalidDhcpMode(u8),
     MalformedPacket,
 }
 
@@ -119,6 +121,9 @@ impl fmt::Display for RdmError {
             }
             Self::InvalidPinCode(pin_code) => {
                 write!(f, "Invalid PinCode: {}", pin_code)
+            }
+            Self::InvalidDhcpMode(dhcp_mode) => {
+                write!(f, "Invalid DhcpMode: {}", dhcp_mode)
             }
             Self::MalformedPacket => write!(f, "Malformed packet"),
         }

@@ -17,3 +17,4 @@ alloc = []
 
 [dependencies]
 heapless = "0.8.0"
+macaddr = "1.0.1"

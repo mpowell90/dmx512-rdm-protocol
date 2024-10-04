@@ -6,6 +6,7 @@ pub mod request;
 pub mod response;
 
 use error::RdmError;
+pub use macaddr;
 
 pub const RDM_START_CODE_BYTE: u8 = 0xcc;
 pub const RDM_SUB_START_CODE_BYTE: u8 = 0x01;

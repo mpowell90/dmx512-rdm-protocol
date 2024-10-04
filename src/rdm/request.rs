@@ -40,11 +40,15 @@
 //! See tests for more examples.
 
 use super::{
-    bsd_16_crc, error::RdmError, parameter::{
-        decode_string_bytes, DisplayInvertMode, FadeTimes, LampOnMode, LampState, MergeMode,
-        ParameterId, PinCode, PowerState, PresetPlaybackMode, ResetDeviceMode, SelfTest,
-        StatusType, TimeMode,
-    }, CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE
+    bsd_16_crc,
+    error::RdmError,
+    parameter::{
+        decode_string_bytes, DisplayInvertMode, FadeTimes, Ipv4Address, Ipv4Route, LampOnMode,
+        LampState, MergeMode, ParameterId, PinCode, PowerState, PresetPlaybackMode,
+        ResetDeviceMode, SelfTest, StatusType, TimeMode,
+    },
+    CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, SubDeviceId, RDM_START_CODE_BYTE,
+    RDM_SUB_START_CODE_BYTE,
 };
 
 #[cfg(not(feature = "alloc"))]
@@ -300,6 +304,74 @@ pub enum RequestParameter {
         wait_time: u16,
         clear_preset: bool,
     },
+    // E1.37-2
+    GetListInterfaces,
+    GetInterfaceLabel {
+        interface_id: u32,
+    },
+    GetInterfaceHardwareAddressType1 {
+        interface_id: u32,
+    },
+    GetIpV4DhcpMode {
+        interface_id: u32,
+    },
+    SetIpV4DhcpMode {
+        interface_id: u32,
+        dhcp_mode: bool,
+    },
+    GetIpV4ZeroConfMode {
+        interface_id: u32,
+    },
+    SetIpV4ZeroConfMode {
+        interface_id: u32,
+        zero_conf_mode: bool,
+    },
+    GetIpV4CurrentAddress {
+        interface_id: u32,
+    },
+    GetIpV4StaticAddress {
+        interface_id: u32,
+    },
+    SetIpV4StaticAddress {
+        interface_id: u32,
+        address: Ipv4Address,
+        netmask: u8,
+    },
+    SetInterfaceApplyConfiguration {
+        interface_id: u32,
+    },
+    SetInterfaceRenewDhcp {
+        interface_id: u32,
+    },
+    SetInterfaceReleaseDhcp {
+        interface_id: u32,
+    },
+    GetIpV4DefaultRoute,
+    SetIpV4DefaultRoute {
+        interface_id: u32,
+        ipv4_default_route: Ipv4Route,
+    },
+    GetDnsIpV4NameServer {
+        name_server_index: u8,
+    },
+    SetDnsIpV4NameServer {
+        name_server_index: u8,
+        name_server_address: Ipv4Address,
+    },
+    GetDnsHostName,
+    SetDnsHostName {
+        #[cfg(feature = "alloc")]
+        host_name: String,
+        #[cfg(not(feature = "alloc"))]
+        host_name: String<63>,
+    },
+    GetDnsDomainName,
+    SetDnsDomainName {
+        #[cfg(feature = "alloc")]
+        domain_name: String,
+        #[cfg(not(feature = "alloc"))]
+        domain_name: String<231>,
+    },
     ManufacturerSpecific {
         command_class: CommandClass,
         parameter_id: u16,
@@ -390,6 +462,18 @@ impl RequestParameter {
             | Self::GetPresetInfo
             | Self::GetPresetStatus { .. }
             | Self::GetPresetMergeMode
+            // E1.37-2
+            | Self::GetListInterfaces
+            | Self::GetInterfaceLabel { .. }
+            | Self::GetInterfaceHardwareAddressType1 { .. }
+            | Self::GetIpV4DhcpMode { .. }
+            | Self::GetIpV4ZeroConfMode { .. }
+            | Self::GetIpV4CurrentAddress { .. }
+            | Self::GetIpV4StaticAddress { .. }
+            | Self::GetIpV4DefaultRoute
+            | Self::GetDnsIpV4NameServer { .. }
+            | Self::GetDnsHostName
+            | Self::GetDnsDomainName
             => CommandClass::GetCommand,
             // E1.20
             Self::SetCommsStatus
@@ -436,6 +520,17 @@ impl RequestParameter {
             | Self::SetIdentifyMode { .. }
             | Self::SetPresetMergeMode { .. }
             | Self::SetPresetStatus { .. }
+            // E1.37-2
+            | Self::SetIpV4DhcpMode { .. }
+            | Self::SetIpV4ZeroConfMode { .. }
+            | Self::SetIpV4StaticAddress { .. }
+            | Self::SetInterfaceApplyConfiguration { .. }
+            | Self::SetInterfaceRenewDhcp { .. }
+            | Self::SetInterfaceReleaseDhcp { .. }
+            | Self::SetIpV4DefaultRoute { .. }
+            | Self::SetDnsIpV4NameServer { .. }
+            | Self::SetDnsHostName { .. }
+            | Self::SetDnsDomainName { .. }
             => CommandClass::SetCommand,
             Self::ManufacturerSpecific { command_class, .. } => *command_class,
             Self::Unsupported { command_class, .. } => *command_class,
@@ -542,6 +637,33 @@ impl RequestParameter {
             Self::GetPresetMergeMode | Self::SetPresetMergeMode { .. } => {
                 ParameterId::PresetMergeMode
             }
+            // E1.37-2
+            Self::GetListInterfaces => ParameterId::ListInterfaces,
+            Self::GetInterfaceLabel { .. } => ParameterId::InterfaceLabel,
+            Self::GetInterfaceHardwareAddressType1 { .. } => {
+                ParameterId::InterfaceHardwareAddressType1
+            }
+            Self::GetIpV4DhcpMode { .. } | Self::SetIpV4DhcpMode { .. } => {
+                ParameterId::IpV4DhcpMode
+            }
+            Self::GetIpV4ZeroConfMode { .. } | Self::SetIpV4ZeroConfMode { .. } => {
+                ParameterId::IpV4ZeroConfMode
+            }
+            Self::GetIpV4CurrentAddress { .. } => ParameterId::IpV4CurrentAddress,
+            Self::GetIpV4StaticAddress { .. } | Self::SetIpV4StaticAddress { .. } => {
+                ParameterId::IpV4StaticAddress
+            }
+            Self::SetInterfaceApplyConfiguration { .. } => ParameterId::InterfaceApplyConfiguration,
+            Self::SetInterfaceRenewDhcp { .. } => ParameterId::InterfaceRenewDhcp,
+            Self::SetInterfaceReleaseDhcp { .. } => ParameterId::InterfaceReleaseDhcp,
+            Self::GetIpV4DefaultRoute | Self::SetIpV4DefaultRoute { .. } => {
+                ParameterId::IpV4DefaultRoute
+            }
+            Self::GetDnsIpV4NameServer { .. } | Self::SetDnsIpV4NameServer { .. } => {
+                ParameterId::DnsIpV4NameServer
+            }
+            Self::GetDnsHostName | Self::SetDnsHostName { .. } => ParameterId::DnsHostName,
+            Self::GetDnsDomainName | Self::SetDnsDomainName { .. } => ParameterId::DnsDomainName,
             Self::ManufacturerSpecific { parameter_id, .. } => {
                 ParameterId::ManufacturerSpecific(*parameter_id)
             }
@@ -552,7 +674,7 @@ impl RequestParameter {
     pub fn encode(&self) -> EncodedParameterData {
         #[cfg(feature = "alloc")]
         let mut buf = Vec::new();
-        
+
         #[cfg(not(feature = "alloc"))]
         let mut buf: Vec<u8, 231> = Vec::new();
 
@@ -1150,6 +1272,154 @@ impl RequestParameter {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*merge_mode as u8).unwrap();
             }
+            // E1.37-2
+            Self::GetListInterfaces => {}
+            Self::GetInterfaceLabel { interface_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((*interface_id).to_be_bytes());
+            }
+            Self::GetInterfaceHardwareAddressType1 { interface_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((*interface_id).to_be_bytes());
+            }
+            Self::GetIpV4DhcpMode { interface_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((*interface_id).to_be_bytes());
+            }
+            Self::SetIpV4DhcpMode {
+                interface_id,
+                dhcp_mode,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x05);
+
+                buf.extend((*interface_id).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*dhcp_mode as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*dhcp_mode as u8).unwrap();
+            }
+            Self::GetIpV4ZeroConfMode { interface_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((*interface_id).to_be_bytes());
+            }
+            Self::SetIpV4ZeroConfMode {
+                interface_id,
+                zero_conf_mode,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x05);
+
+                buf.extend((*interface_id).to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*zero_conf_mode as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*zero_conf_mode as u8).unwrap();
+            }
+            Self::GetIpV4CurrentAddress { interface_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((*interface_id).to_be_bytes());
+            }
+            Self::GetIpV4StaticAddress { interface_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((*interface_id).to_be_bytes());
+            }
+            Self::SetIpV4StaticAddress {
+                interface_id,
+                address,
+                netmask,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x09);
+
+                buf.extend((*interface_id).to_be_bytes());
+                buf.extend::<[u8; 4]>((*address).into());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*netmask);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*netmask).unwrap();
+            }
+            Self::SetInterfaceApplyConfiguration { interface_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((*interface_id).to_be_bytes());
+            }
+            Self::SetInterfaceRenewDhcp { interface_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((*interface_id).to_be_bytes());
+            }
+            Self::SetInterfaceReleaseDhcp { interface_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend((*interface_id).to_be_bytes());
+            }
+            Self::GetIpV4DefaultRoute => {}
+            Self::SetIpV4DefaultRoute {
+                interface_id,
+                ipv4_default_route,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x08);
+
+                buf.extend((*interface_id).to_be_bytes());
+                buf.extend::<[u8; 4]>((*ipv4_default_route).into());
+            }
+            Self::GetDnsIpV4NameServer { name_server_index } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*name_server_index);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*name_server_index).unwrap();
+            }
+            Self::SetDnsIpV4NameServer {
+                name_server_index,
+                name_server_address,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x08);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*name_server_index);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*name_server_index).unwrap();
+
+                buf.extend::<[u8; 4]>((*name_server_address).into());
+            }
+            Self::GetDnsHostName => {}
+            Self::SetDnsHostName { host_name } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(host_name.len());
+
+                buf.extend(host_name.bytes())
+            }
+            Self::GetDnsDomainName => {}
+            Self::SetDnsDomainName { domain_name } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(domain_name.len());
+
+                buf.extend(domain_name.bytes())
+            }
             Self::ManufacturerSpecific { parameter_data, .. } => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(parameter_data.len());
@@ -1739,6 +2009,146 @@ impl RequestParameter {
                     merge_mode: bytes[0].try_into()?,
                 })
             }
+            (CommandClass::GetCommand, ParameterId::ListInterfaces) => Ok(Self::GetListInterfaces),
+            (CommandClass::GetCommand, ParameterId::InterfaceLabel) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetInterfaceLabel {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::InterfaceHardwareAddressType1) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetInterfaceHardwareAddressType1 {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::IpV4DhcpMode) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetIpV4DhcpMode {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::IpV4DhcpMode) => {
+                if bytes.len() < 5 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetIpV4DhcpMode {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                    dhcp_mode: bytes[4] != 0,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::IpV4ZeroConfMode) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetIpV4ZeroConfMode {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::IpV4ZeroConfMode) => {
+                if bytes.len() < 5 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetIpV4ZeroConfMode {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                    zero_conf_mode: bytes[4] != 0,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::IpV4CurrentAddress) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetIpV4CurrentAddress {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::IpV4StaticAddress) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetIpV4StaticAddress {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::IpV4StaticAddress) => {
+                if bytes.len() < 9 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetIpV4StaticAddress {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                    address: Ipv4Address::from([bytes[4], bytes[5], bytes[6], bytes[7]]),
+                    netmask: bytes[8],
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::InterfaceApplyConfiguration) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetInterfaceApplyConfiguration {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::InterfaceRenewDhcp) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetInterfaceRenewDhcp {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::InterfaceReleaseDhcp) => {
+                if bytes.len() < 4 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetInterfaceReleaseDhcp {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::IpV4DefaultRoute) => {
+                Ok(Self::GetIpV4DefaultRoute)
+            }
+            (CommandClass::SetCommand, ParameterId::IpV4DefaultRoute) => {
+                if bytes.len() < 8 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetIpV4DefaultRoute {
+                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
+                    ipv4_default_route: Ipv4Route::from([bytes[4], bytes[5], bytes[6], bytes[7]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DnsIpV4NameServer) => {
+                if bytes.is_empty() {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::GetDnsIpV4NameServer {
+                    name_server_index: bytes[0],
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::DnsIpV4NameServer) => {
+                if bytes.len() < 5 {
+                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
+                }
+                Ok(Self::SetDnsIpV4NameServer {
+                    name_server_index: bytes[0],
+                    name_server_address: Ipv4Address::from([
+                        bytes[1], bytes[2], bytes[3], bytes[4],
+                    ]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DnsHostName) => Ok(Self::GetDnsHostName),
+            (CommandClass::SetCommand, ParameterId::DnsHostName) => Ok(Self::SetDnsHostName {
+                host_name: decode_string_bytes(bytes)?,
+            }),
+            (CommandClass::GetCommand, ParameterId::DnsDomainName) => Ok(Self::GetDnsDomainName),
+            (CommandClass::SetCommand, ParameterId::DnsDomainName) => Ok(Self::SetDnsDomainName {
+                domain_name: decode_string_bytes(bytes)?,
+            }),
             (command_class, parameter_id) => {
                 #[cfg(feature = "alloc")]
                 let parameter_data = bytes.to_vec();
@@ -1804,14 +2214,14 @@ impl RdmRequest {
 
     pub fn encode(&self) -> EncodedFrame {
         let parameter_data = self.parameter.encode();
-        
+
         let message_length = 24 + parameter_data.len();
-        
+
         #[cfg(feature = "alloc")]
         let mut buf = Vec::with_capacity(message_length + 2);
         #[cfg(not(feature = "alloc"))]
         let mut buf = Vec::new();
-        
+
         #[cfg(feature = "alloc")]
         buf.push(RDM_START_CODE_BYTE);
         #[cfg(not(feature = "alloc"))]
@@ -1836,7 +2246,7 @@ impl RdmRequest {
         buf.push(self.transaction_number);
         #[cfg(not(feature = "alloc"))]
         buf.push(self.transaction_number).unwrap();
-        
+
         #[cfg(feature = "alloc")]
         buf.push(self.port_id);
         #[cfg(not(feature = "alloc"))]
@@ -1855,10 +2265,7 @@ impl RdmRequest {
         #[cfg(not(feature = "alloc"))]
         buf.push(self.parameter.command_class() as u8).unwrap();
 
-        buf.extend(
-            u16::from(self.parameter.parameter_id())
-                .to_be_bytes()
-        );
+        buf.extend(u16::from(self.parameter.parameter_id()).to_be_bytes());
 
         #[cfg(feature = "alloc")]
         buf.push(parameter_data.len() as u8);
@@ -1984,8 +2391,9 @@ mod tests {
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // Parameter Data - Lower Bound UID
             0xff, 0xff, 0xff, 0xff, 0xff, 0xff, // Parameter Data - Upper Bound UID
             0x07, 0x34, // Checksum
-        ]).unwrap();
-        
+        ])
+        .unwrap();
+
         let expected = RdmRequest::new(
             DeviceUID::new(0x0102, 0x03040506),
             DeviceUID::new(0x0605, 0x04030201),
@@ -2048,7 +2456,8 @@ mod tests {
             0x10, 0x00, // Parameter ID = Identify Device
             0x00, // PDL
             0x01, 0x40, // Checksum
-        ]).unwrap();
+        ])
+        .unwrap();
 
         let expected = RdmRequest::new(
             DeviceUID::new(0x0102, 0x03040506),
@@ -2118,7 +2527,8 @@ mod tests {
             0x04, // PDL
             0x01, 0x02, 0x03, 0x04, // Parameter Data
             0x02, 0x52, // Checksum
-        ]).unwrap();
+        ])
+        .unwrap();
 
         let expected = RdmRequest::new(
             DeviceUID::new(0x0102, 0x03040506),

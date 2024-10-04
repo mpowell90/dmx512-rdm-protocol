@@ -48,16 +48,18 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        decode_string_bytes, DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, MergeMode,
-        ParameterDescription, ParameterId, PinCode, PowerState, PresetPlaybackMode,
-        PresetProgrammed, ProductCategory, ProductDetail, SelfTest, SensorDefinition, SensorValue,
-        SlotInfo, StatusMessage, StatusType, SupportedTimes, TimeMode,
+        decode_string_bytes, DefaultSlotValue, DhcpMode, DisplayInvertMode, Ipv4Address, Ipv4Route,
+        LampOnMode, LampState, MergeMode, NetworkInterface, ParameterDescription, ParameterId,
+        PinCode, PowerState, PresetPlaybackMode, PresetProgrammed, ProductCategory, ProductDetail,
+        SelfTest, SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
+        SupportedTimes, TimeMode,
     },
     CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, RdmError, SubDeviceId,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
     RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
 use core::{fmt::Display, iter, result::Result};
+use macaddr::MacAddr6;
 
 #[cfg(not(feature = "alloc"))]
 use core::str::FromStr;
@@ -77,6 +79,7 @@ pub enum ResponseNackReasonCode {
     PacketSizeUnsupported = 0x0008,
     SubDeviceIdOutOfRange = 0x0009,
     ProxyBufferFull = 0x000a,
+    ActionNotSupported = 0x000b,
 }
 
 impl TryFrom<u16> for ResponseNackReasonCode {
@@ -95,6 +98,7 @@ impl TryFrom<u16> for ResponseNackReasonCode {
             0x0008 => Ok(Self::PacketSizeUnsupported),
             0x0009 => Ok(Self::SubDeviceIdOutOfRange),
             0x000a => Ok(Self::ProxyBufferFull),
+            0x000b => Ok(Self::ActionNotSupported),
             value => Err(RdmError::InvalidNackReasonCode(value)),
         }
     }
@@ -114,6 +118,7 @@ impl Display for ResponseNackReasonCode {
             Self::PacketSizeUnsupported => "Incoming message exceeds buffer capacity.",
             Self::SubDeviceIdOutOfRange => "Sub-Device is out of range or unknown.",
             Self::ProxyBufferFull => "The proxy buffer is full and can not store any more Queued Message or Status Message responses.",
+            Self::ActionNotSupported => "The parameter data is valid but the SET operation cannot be performed with the current configuration.",
         };
 
         f.write_str(message)
@@ -482,6 +487,57 @@ pub enum ResponseParameterData {
         programmed: PresetProgrammed,
     },
     GetPresetMergeMode(MergeMode),
+    // E1.37-2
+    GetListInterfaces(
+        #[cfg(feature = "alloc")] Vec<NetworkInterface>,
+        #[cfg(not(feature = "alloc"))] Vec<NetworkInterface, 38>,
+    ),
+    GetInterfaceLabel {
+        interface_id: u32,
+        #[cfg(feature = "alloc")]
+        interface_label: String,
+        #[cfg(not(feature = "alloc"))]
+        interface_label: String<32>,
+    },
+    GetInterfaceHardwareAddressType1 {
+        interface_id: u32,
+        hardware_address: MacAddr6,
+    },
+    GetIpV4DhcpMode {
+        interface_id: u32,
+        dhcp_mode: bool,
+    },
+    GetIpV4ZeroConfMode {
+        interface_id: u32,
+        zero_conf_mode: bool,
+    },
+    GetIpV4CurrentAddress {
+        interface_id: u32,
+        address: Ipv4Address,
+        netmask: u8,
+        dhcp_status: DhcpMode,
+    },
+    GetIpV4StaticAddress {
+        interface_id: u32,
+        address: Ipv4Address,
+        netmask: u8,
+    },
+    GetIpV4DefaultRoute {
+        interface_id: u32,
+        address: Ipv4Route,
+    },
+    GetDnsIpV4NameServer {
+        name_server_index: u8,
+        address: Ipv4Address,
+    },
+    GetDnsHostName(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<63>,
+    ),
+    GetDnsDomainName(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<32>,
+    ),
     ManufacturerSpecific(
         #[cfg(feature = "alloc")] Vec<u8>,
         #[cfg(not(feature = "alloc"))] Vec<u8, 231>,
@@ -1434,6 +1490,133 @@ impl ResponseParameterData {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*mode as u8).unwrap();
             }
+            Self::GetListInterfaces(interfaces) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(interfaces.len() * 6);
+
+                for interface in interfaces {
+                    buf.extend(interface.interface_id.to_be_bytes());
+                    buf.extend(u16::from(interface.hardware_type).to_be_bytes());
+                }
+            }
+            Self::GetInterfaceLabel {
+                interface_id,
+                interface_label,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(4 + interface_label.len());
+
+                buf.extend(interface_id.to_be_bytes());
+                buf.extend(interface_label.bytes());
+            }
+            Self::GetInterfaceHardwareAddressType1 {
+                interface_id,
+                hardware_address,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(10);
+
+                buf.extend(interface_id.to_be_bytes());
+                buf.extend(hardware_address.into_array());
+            }
+            Self::GetIpV4DhcpMode {
+                interface_id,
+                dhcp_mode,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(5);
+
+                buf.extend(interface_id.to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*dhcp_mode as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*dhcp_mode as u8).unwrap();
+            }
+            Self::GetIpV4ZeroConfMode {
+                interface_id,
+                zero_conf_mode,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(5);
+
+                buf.extend(interface_id.to_be_bytes());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*zero_conf_mode as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*zero_conf_mode as u8).unwrap();
+            }
+            Self::GetIpV4CurrentAddress {
+                interface_id,
+                address,
+                netmask,
+                dhcp_status,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(13);
+
+                buf.extend(interface_id.to_be_bytes());
+                buf.extend::<[u8; 4]>((*address).into());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*netmask);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*netmask).unwrap();
+
+                #[cfg(feature = "alloc")]
+                buf.push(*dhcp_status as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*dhcp_status as u8).unwrap();
+            }
+            Self::GetIpV4StaticAddress {
+                interface_id,
+                address,
+                netmask,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(10);
+
+                buf.extend(interface_id.to_be_bytes());
+                buf.extend::<[u8; 4]>((*address).into());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*netmask);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*netmask).unwrap();
+            }
+            Self::GetIpV4DefaultRoute {
+                interface_id,
+                address,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(6);
+
+                buf.extend(interface_id.to_be_bytes());
+                buf.extend::<[u8; 4]>((*address).into());
+            }
+            Self::GetDnsIpV4NameServer {
+                name_server_index,
+                address,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(5);
+
+                buf.extend(name_server_index.to_be_bytes());
+                buf.extend::<[u8; 4]>((*address).into());
+            }
+            Self::GetDnsHostName(host_name) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(host_name.len());
+
+                buf.extend(host_name.bytes());
+            }
+            Self::GetDnsDomainName(domain_name) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(domain_name.len());
+
+                buf.extend(domain_name.bytes());
+            }
             Self::ManufacturerSpecific(data) => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(data.len());
@@ -1994,6 +2177,82 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::PresetMergeMode) => {
                 Ok(Self::GetPresetMergeMode(MergeMode::try_from(bytes[0])?))
             }
+            // E1.37-2
+            (CommandClass::GetCommandResponse, ParameterId::ListInterfaces) => {
+                Ok(Self::GetListInterfaces(
+                    #[cfg(feature = "alloc")]
+                    bytes
+                        .chunks(6)
+                        .map(|chunk| {
+                            Ok(NetworkInterface {
+                                interface_id: u32::from_be_bytes(chunk[0..=3].try_into()?),
+                                hardware_type: u16::from_be_bytes(chunk[4..=5].try_into()?).into(),
+                            })
+                        })
+                        .collect::<Result<Vec<NetworkInterface>, RdmError>>()?,
+                    #[cfg(not(feature = "alloc"))]
+                    bytes
+                        .chunks(6)
+                        .map(|chunk| {
+                            Ok(NetworkInterface {
+                                interface_id: u32::from_be_bytes(chunk[0..=3].try_into()?),
+                                hardware_type: u16::from_be_bytes(chunk[4..=5].try_into()?).into(),
+                            })
+                        })
+                        .collect::<Result<Vec<NetworkInterface, 38>, RdmError>>()?,
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::InterfaceLabel) => {
+                Ok(Self::GetInterfaceLabel {
+                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
+                    interface_label: decode_string_bytes(&bytes[4..])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::InterfaceHardwareAddressType1) => {
+                Ok(Self::GetInterfaceHardwareAddressType1 {
+                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
+                    hardware_address: TryInto::<[u8; 6]>::try_into(&bytes[4..=9])?.into(),
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::IpV4DhcpMode) => {
+                Ok(Self::GetIpV4DhcpMode {
+                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
+                    dhcp_mode: bytes[4] == 1,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::IpV4ZeroConfMode) => {
+                Ok(Self::GetIpV4ZeroConfMode {
+                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
+                    zero_conf_mode: bytes[4] == 1,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::IpV4CurrentAddress) => {
+                Ok(Self::GetIpV4CurrentAddress {
+                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
+                    address: TryInto::<[u8; 4]>::try_into(&bytes[4..=7])?.into(),
+                    netmask: bytes[8],
+                    dhcp_status: DhcpMode::try_from(bytes[9])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::IpV4StaticAddress) => {
+                Ok(Self::GetIpV4StaticAddress {
+                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
+                    address: TryInto::<[u8; 4]>::try_into(&bytes[4..=7])?.into(),
+                    netmask: bytes[8],
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::IpV4DefaultRoute) => {
+                Ok(Self::GetIpV4DefaultRoute {
+                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
+                    address: TryInto::<[u8; 4]>::try_into(&bytes[4..=7])?.into(),
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DnsIpV4NameServer) => {
+                Ok(Self::GetDnsIpV4NameServer {
+                    name_server_index: bytes[0],
+                    address: TryInto::<[u8; 4]>::try_into(&bytes[1..=4])?.into(),
+                })
+            }
             (_, ParameterId::ManufacturerSpecific(_)) => Ok(Self::ManufacturerSpecific(
                 #[cfg(feature = "alloc")]
                 bytes.to_vec(),
@@ -2354,7 +2613,8 @@ mod tests {
             parameter_data: ResponseData::ParameterData(Some(
                 ResponseParameterData::GetIdentifyDevice(true),
             )),
-        }).encode();
+        })
+        .encode();
 
         let expected = &[
             0xcc, // Start Code
@@ -2440,7 +2700,8 @@ mod tests {
                     Vec::<u8, 231>::from_slice(&[0x04, 0x03, 0x02, 0x01]).unwrap(),
                 ),
             )),
-        }).encode();
+        })
+        .encode();
 
         let expected = &[
             0xcc, // Start Code
@@ -2508,7 +2769,8 @@ mod tests {
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::EstimateResponseTime(0x0a),
-        }).encode();
+        })
+        .encode();
 
         let expected = &[
             0xcc, // Start Code
@@ -2576,7 +2838,8 @@ mod tests {
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::NackReason(ResponseNackReasonCode::FormatError),
-        }).encode();
+        })
+        .encode();
 
         let expected = &[
             0xcc, // Start Code
@@ -2648,7 +2911,8 @@ mod tests {
             parameter_data: ResponseData::ParameterData(Some(
                 ResponseParameterData::GetIdentifyDevice(true),
             )),
-        }).encode();
+        })
+        .encode();
 
         let expected = &[
             0xcc, // Start Code
@@ -2736,9 +3000,10 @@ mod tests {
 
     #[test]
     fn should_encode_valid_discovery_unique_branch_response() {
-        let encoded = RdmResponse::DiscoveryUniqueBranchFrame(
-            DiscoveryUniqueBranchFrameResponse(DeviceUID::new(0x0102, 0x03040506)),
-        ).encode();
+        let encoded = RdmResponse::DiscoveryUniqueBranchFrame(DiscoveryUniqueBranchFrameResponse(
+            DeviceUID::new(0x0102, 0x03040506),
+        ))
+        .encode();
 
         let expected = &[
             DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
