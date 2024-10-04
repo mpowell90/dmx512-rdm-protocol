@@ -2176,7 +2176,7 @@ impl DiscoveryUniqueBranchFrameResponse {
         buf.extend(iter::repeat(DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE).take(7));
 
         #[cfg(feature = "alloc")]
-        buf.push(DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE);
+        buf.push(DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE);
         #[cfg(not(feature = "alloc"))]
         buf.push(DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE)
             .unwrap();
@@ -2341,6 +2341,42 @@ mod tests {
     }
 
     #[test]
+    fn should_encode_valid_rdm_ack_response() {
+        let encoded = RdmResponse::RdmFrame(RdmFrameResponse {
+            destination_uid: DeviceUID::new(0x0102, 0x03040506),
+            source_uid: DeviceUID::new(0x0605, 0x04030201),
+            transaction_number: 0x00,
+            response_type: ResponseType::Ack,
+            message_count: 0x00,
+            sub_device_id: SubDeviceId::RootDevice,
+            command_class: CommandClass::GetCommandResponse,
+            parameter_id: ParameterId::IdentifyDevice,
+            parameter_data: ResponseData::ParameterData(Some(
+                ResponseParameterData::GetIdentifyDevice(true),
+            )),
+        }).encode();
+
+        let expected = &[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            25,   // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x00, // Response Type = Ack
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x21, // Command Class = GetCommandResponse
+            0x10, 0x00, // Parameter ID = Identify Device
+            0x01, // PDL
+            0x01, // Identifying = true
+            0x01, 0x43, // Checksum
+        ];
+
+        assert_eq!(encoded, expected);
+    }
+
+    #[test]
     fn should_decode_valid_rdm_ack_manufacturer_specific_response() {
         let decoded = RdmResponse::decode(&[
             0xcc, // Start Code
@@ -2384,6 +2420,49 @@ mod tests {
     }
 
     #[test]
+    fn should_encode_valid_rdm_ack_manufacturer_specific_response() {
+        let encoded = RdmResponse::RdmFrame(RdmFrameResponse {
+            destination_uid: DeviceUID::new(0x0102, 0x03040506),
+            source_uid: DeviceUID::new(0x0605, 0x04030201),
+            transaction_number: 0x00,
+            response_type: ResponseType::Ack,
+            message_count: 0x00,
+            sub_device_id: SubDeviceId::RootDevice,
+            command_class: CommandClass::SetCommandResponse,
+            parameter_id: ParameterId::ManufacturerSpecific(0x8080),
+            #[cfg(feature = "alloc")]
+            parameter_data: ResponseData::ParameterData(Some(
+                ResponseParameterData::ManufacturerSpecific(vec![0x04, 0x03, 0x02, 0x01]),
+            )),
+            #[cfg(not(feature = "alloc"))]
+            parameter_data: ResponseData::ParameterData(Some(
+                ResponseParameterData::ManufacturerSpecific(
+                    Vec::<u8, 231>::from_slice(&[0x04, 0x03, 0x02, 0x01]).unwrap(),
+                ),
+            )),
+        }).encode();
+
+        let expected = &[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            28,   // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x00, // Response Type = Ack
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x31, // Command Class = SetCommandResponse
+            0x80, 0x80, // Parameter ID = Identify Device
+            0x04, // PDL
+            0x04, 0x03, 0x02, 0x01, // Arbitrary manufacturer specific data
+            0x02, 0x52, // Checksum
+        ];
+
+        assert_eq!(encoded, expected);
+    }
+
+    #[test]
     fn should_decode_valid_rdm_ack_timer_response() {
         let decoded = RdmResponse::decode(&[
             0xcc, // Start Code
@@ -2415,6 +2494,40 @@ mod tests {
         }));
 
         assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn should_encode_valid_rdm_ack_timer_response() {
+        let encoded = RdmResponse::RdmFrame(RdmFrameResponse {
+            destination_uid: DeviceUID::new(0x0102, 0x03040506),
+            source_uid: DeviceUID::new(0x0605, 0x04030201),
+            transaction_number: 0x00,
+            response_type: ResponseType::AckTimer,
+            message_count: 0x00,
+            sub_device_id: SubDeviceId::RootDevice,
+            command_class: CommandClass::GetCommandResponse,
+            parameter_id: ParameterId::IdentifyDevice,
+            parameter_data: ResponseData::EstimateResponseTime(0x0a),
+        }).encode();
+
+        let expected = &[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            26,   // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Response Type = AckTimer
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x21, // Command Class = GetCommandResponse
+            0x10, 0x00, // Parameter ID = Identify Device
+            0x02, // PDL
+            0x00, 0x0a, // Estimated Response Time = 10x 100ms = 1 second
+            0x01, 0x4f, // Checksum
+        ];
+
+        assert_eq!(encoded, expected);
     }
 
     #[test]
@@ -2452,6 +2565,40 @@ mod tests {
     }
 
     #[test]
+    fn should_encode_valid_rdm_nack_reason_response() {
+        let encoded = RdmResponse::RdmFrame(RdmFrameResponse {
+            destination_uid: DeviceUID::new(0x0102, 0x03040506),
+            source_uid: DeviceUID::new(0x0605, 0x04030201),
+            transaction_number: 0x00,
+            response_type: ResponseType::NackReason,
+            message_count: 0x00,
+            sub_device_id: SubDeviceId::RootDevice,
+            command_class: CommandClass::GetCommandResponse,
+            parameter_id: ParameterId::IdentifyDevice,
+            parameter_data: ResponseData::NackReason(ResponseNackReasonCode::FormatError),
+        }).encode();
+
+        let expected = &[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            26,   // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x02, // Response Type = Nack_Reason
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x21, // Command Class = GetCommandResponse
+            0x10, 0x00, // Parameter ID = Identify Device
+            0x02, // PDL
+            0x00, 0x01, // Nack Reason = FormatError
+            0x01, 0x47, // Checksum
+        ];
+
+        assert_eq!(encoded, expected);
+    }
+
+    #[test]
     fn should_decode_valid_rdm_ack_overflow_response() {
         let decoded = RdmResponse::decode(&[
             0xcc, // Start Code
@@ -2485,6 +2632,42 @@ mod tests {
         }));
 
         assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn should_encode_valid_rdm_ack_overflow_response() {
+        let encoded = RdmResponse::RdmFrame(RdmFrameResponse {
+            destination_uid: DeviceUID::new(0x0102, 0x03040506),
+            source_uid: DeviceUID::new(0x0605, 0x04030201),
+            transaction_number: 0x00,
+            response_type: ResponseType::AckOverflow,
+            message_count: 0x00,
+            sub_device_id: SubDeviceId::RootDevice,
+            command_class: CommandClass::GetCommandResponse,
+            parameter_id: ParameterId::IdentifyDevice,
+            parameter_data: ResponseData::ParameterData(Some(
+                ResponseParameterData::GetIdentifyDevice(true),
+            )),
+        }).encode();
+
+        let expected = &[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            25,   // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x03, // Response Type = Ack_Overflow
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x21, // Command Class = GetCommandResponse
+            0x10, 0x00, // Parameter ID = Identify Device
+            0x01, // PDL
+            0x01, // Identifying = true
+            0x01, 0x46, // Checksum
+        ];
+
+        assert_eq!(encoded, expected);
     }
 
     #[test]
@@ -2549,5 +2732,41 @@ mod tests {
         ));
 
         assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn should_encode_valid_discovery_unique_branch_response() {
+        let encoded = RdmResponse::DiscoveryUniqueBranchFrame(
+            DiscoveryUniqueBranchFrameResponse(DeviceUID::new(0x0102, 0x03040506)),
+        ).encode();
+
+        let expected = &[
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
+            0xab, // euid 11 = manufacturer id 1 (MSB)
+            0x55, // euid 10 = manufacturer id 1 (MSB)
+            0xaa, // euid 9 = manufacturer id 0 (LSB)
+            0x57, // euid 8 = manufacturer id 0 (LSB)
+            0xab, // euid 7 = device id 3 (MSB)
+            0x57, // euid 6 = device id 3 (MSB)
+            0xae, // euid 5 = device id 2
+            0x55, // euid 4 = device id 2
+            0xaf, // euid 3 = device id 1
+            0x55, // euid 2 = device id 1
+            0xae, // euid 1 = device id 0 (LSB)
+            0x57, // euid 0 = device id 0 (LSB)
+            0xae, // ecs 3 = Checksum1 (MSB)
+            0x57, // ecs 2 = Checksum1 (MSB)
+            0xaf, // ecs 1 = Checksum0 (LSB)
+            0x5f, // ecs 0 = Checksum0 (LSB)
+        ];
+
+        assert_eq!(encoded, expected);
     }
 }
