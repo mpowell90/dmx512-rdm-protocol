@@ -29,13 +29,13 @@ Remote Device Management (RDM) is a backward-compatible extension of DMX512, ena
 
 - Driver implementations: DMX512 / RDM packets are transmitted over an RS485 bus but interface devices like the Enttec DMX USB PRO exist to communicate with devices via USB. These interface devices usually require extra packet framing ontop of the standard DMX512 / RDM packets, which is out of scope of this project.
 
-### Implemented specifications
+### Implemented specifications / supported parameters
 
-- ANSI E1.11 (2008): Asynchronous Serial Digital Data Transmission Standard for Controlling Lighting Equipment and Accessories
-- ANSI E1.20 (2010): RDM Remote Device Management Over DMX512 Networks
-- ANSI E1.37-1 (2012): Additional Message Sets for ANSI E1.20 (RDM) – Part 1, Dimmer Message Sets
-- ANSI E1.37-2 (2015): Additional Message Sets for ANSI E1.20 (RDM) – Part 2, IPv4 & DNS Configuration Messages
-- ANSI E1.33 (RDMnet): Message Transport and Management for ANSI E1.20 (RDM) compatible and similar devices over IP Networks
+- ANSI E1.11 (2008): Asynchronous Serial Digital Data Transmission Standard for Controlling Lighting Equipment and Accessories [Implemented]
+- ANSI E1.20 (2010): RDM Remote Device Management Over DMX512 Networks [Implemented]
+- ANSI E1.37-1 (2012): Additional Message Sets for ANSI E1.20 (RDM) – Part 1, Dimmer Message Sets [Implemented]
+- ANSI E1.37-2 (2015): Additional Message Sets for ANSI E1.20 (RDM) – Part 2, IPv4 & DNS Configuration Messages [Implemented]
+- ANSI E1.33 (RDMnet): Message Transport and Management for ANSI E1.20 (RDM) compatible and similar devices over IP Networks [Supported]
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
