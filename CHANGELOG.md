@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.7.0...v0.7.1) - 2024-10-06
+
+### Fixed
+
+- added ProtocolVersion struct, correctly encode and decode DeviceInfo
+
 ## [0.7.0](https://github.com/mpowell90/dmx512-rdm-protocol/compare/v0.6.0...v0.7.0) - 2024-10-04
 
 ### Added
