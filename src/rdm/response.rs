@@ -51,8 +51,9 @@ use super::{
         decode_string_bytes, BrokerState, DefaultSlotValue, DhcpMode, DisplayInvertMode,
         Ipv4Address, Ipv4Route, Ipv6Address, LampOnMode, LampState, MergeMode, NetworkInterface,
         ParameterDescription, ParameterId, PinCode, PowerState, PresetPlaybackMode,
-        PresetProgrammed, ProductCategory, ProductDetail, SelfTest, SensorDefinition, SensorValue,
-        SlotInfo, StaticConfigType, StatusMessage, StatusType, SupportedTimes, TimeMode,
+        PresetProgrammed, ProductCategory, ProductDetail, ProtocolVersion, SelfTest,
+        SensorDefinition, SensorValue, SlotInfo, StaticConfigType, StatusMessage, StatusType,
+        SupportedTimes, TimeMode,
     },
     CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, RdmError, SubDeviceId,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
@@ -61,8 +62,6 @@ use super::{
 use core::{fmt::Display, iter, result::Result};
 use macaddr::MacAddr6;
 
-#[cfg(not(feature = "alloc"))]
-use core::str::FromStr;
 #[cfg(not(feature = "alloc"))]
 use heapless::{String, Vec};
 
@@ -266,10 +265,7 @@ pub enum ResponseParameterData {
     ),
     GetParameterDescription(ParameterDescription),
     GetDeviceInfo {
-        #[cfg(feature = "alloc")]
-        protocol_version: String,
-        #[cfg(not(feature = "alloc"))]
-        protocol_version: String<32>,
+        protocol_version: ProtocolVersion,
         model_id: u16,
         product_category: ProductCategory,
         software_version_id: u32,
@@ -749,9 +745,9 @@ impl ResponseParameterData {
                 sensor_count,
             } => {
                 #[cfg(feature = "alloc")]
-                buf.reserve(19 + protocol_version.len());
+                buf.reserve(21);
 
-                buf.extend(protocol_version.bytes());
+                buf.extend(u16::from(*protocol_version).to_be_bytes());
 
                 buf.extend(model_id.to_be_bytes());
                 buf.extend(u16::from(*product_category).to_be_bytes());
@@ -1646,7 +1642,7 @@ impl ResponseParameterData {
                 buf.reserve(domain_name.len());
 
                 buf.extend(domain_name.bytes());
-            },
+            }
             // E1.33
             Self::GetComponentScope {
                 scope_slot,
@@ -1670,13 +1666,13 @@ impl ResponseParameterData {
                 buf.extend::<[u8; 4]>((*static_ipv4_address).into());
                 buf.extend::<[u8; 16]>((*static_ipv6_address).into());
                 buf.extend(static_port.to_be_bytes());
-            },
+            }
             Self::GetSearchDomain(search_domain) => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(25 + search_domain.len());
 
                 buf.extend(search_domain.bytes());
-            },
+            }
             Self::GetTcpCommsStatus {
                 scope_string,
                 broker_ipv4_address,
@@ -1693,7 +1689,7 @@ impl ResponseParameterData {
                 buf.extend::<[u8; 16]>((*broker_ipv6_address).into());
                 buf.extend(broker_port.to_be_bytes());
                 buf.extend(unhealthy_tcp_events.to_be_bytes());
-            },
+            }
             Self::GetBrokerStatus {
                 is_allowing_set_commands,
                 broker_state,
@@ -1710,7 +1706,7 @@ impl ResponseParameterData {
                 buf.push(*broker_state as u8);
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*broker_state as u8).unwrap();
-            },
+            }
             Self::ManufacturerSpecific(data) => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(data.len());
@@ -1872,13 +1868,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => {
                 Ok(Self::GetDeviceInfo {
-                    #[cfg(feature = "alloc")]
-                    protocol_version: format!("{}.{}", bytes[0], bytes[1]),
-                    #[cfg(not(feature = "alloc"))]
-                    protocol_version: String::<32>::from_str(
-                        format_args!("{}.{}", bytes[0], bytes[1]).as_str().unwrap(),
-                    )
-                    .unwrap(),
+                    protocol_version: ProtocolVersion::new(bytes[0], bytes[1]),
                     model_id: u16::from_be_bytes(bytes[2..=3].try_into()?),
                     product_category: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
                     software_version_id: u32::from_be_bytes(bytes[6..=9].try_into()?),

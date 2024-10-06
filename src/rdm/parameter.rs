@@ -1,5 +1,6 @@
 use super::{RdmError, SubDeviceId};
 use core::{
+    fmt,
     net::{Ipv4Addr, Ipv6Addr},
     result::Result,
 };
@@ -338,6 +339,30 @@ impl From<ParameterId> for u16 {
             ParameterId::ManufacturerSpecific(pid) => pid,
             ParameterId::Unsupported(pid) => pid,
         }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct ProtocolVersion {
+    major: u8,
+    minor: u8,
+}
+
+impl ProtocolVersion {
+    pub fn new(major: u8, minor: u8) -> Self {
+        Self { major, minor }
+    }
+}
+
+impl From<ProtocolVersion> for u16 {
+    fn from(value: ProtocolVersion) -> Self {
+        u16::from_be_bytes([value.major, value.minor])
+    }
+}
+
+impl fmt::Display for ProtocolVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.major, self.minor)
     }
 }
 
