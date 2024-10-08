@@ -332,10 +332,10 @@ impl From<ParameterId> for u16 {
             ParameterId::DnsHostName => 0x070c,
             ParameterId::DnsDomainName => 0x070d,
             // E1.33
-            ParameterId::ComponentScope => 0x8000,
-            ParameterId::SearchDomain => 0x8001,
-            ParameterId::TcpCommsStatus => 0x8002,
-            ParameterId::BrokerStatus => 0x8003,
+            ParameterId::ComponentScope => 0x0800,
+            ParameterId::SearchDomain => 0x0801,
+            ParameterId::TcpCommsStatus => 0x0802,
+            ParameterId::BrokerStatus => 0x0803,
             ParameterId::ManufacturerSpecific(pid) => pid,
             ParameterId::Unsupported(pid) => pid,
         }
