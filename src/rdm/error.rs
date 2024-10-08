@@ -34,6 +34,9 @@ pub enum RdmError {
     InvalidDhcpMode(u8),
     InvalidStaticConfigType(u8),
     InvalidBrokerState(u8),
+    InvalidDiscoveryState(u8),
+    InvalidEndpointMode(u8),
+    InvalidEndpointType(u8),
     MalformedPacket,
 }
 
@@ -131,6 +134,9 @@ impl fmt::Display for RdmError {
                 write!(f, "Invalid StaticConfigType: {}", static_config_type)
             }
             Self::InvalidBrokerState(broker_state) => write!(f, "Invalid BrokerState: {}", broker_state),
+            Self::InvalidDiscoveryState(discovery_state) => write!(f, "Invalid DiscoveryState: {}", discovery_state),
+            Self::InvalidEndpointMode(endpoint_mode) => write!(f, "Invalid EndpointMode: {}", endpoint_mode),
+            Self::InvalidEndpointType(endpoint_type) => write!(f, "Invalid EndpointType: {}", endpoint_type),
             Self::MalformedPacket => write!(f, "Malformed packet"),
         }
     }
