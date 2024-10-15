@@ -1583,7 +1583,7 @@ impl ResponseParameterData {
                 buf.reserve(13);
 
                 buf.extend(interface_id.to_be_bytes());
-                buf.extend::<[u8; 4]>((*address).into());
+                buf.extend(<[u8; 4]>::from(*address));
 
                 #[cfg(feature = "alloc")]
                 buf.push(*netmask);
@@ -1604,7 +1604,7 @@ impl ResponseParameterData {
                 buf.reserve(10);
 
                 buf.extend(interface_id.to_be_bytes());
-                buf.extend::<[u8; 4]>((*address).into());
+                buf.extend(<[u8; 4]>::from(*address));
 
                 #[cfg(feature = "alloc")]
                 buf.push(*netmask);
@@ -1619,7 +1619,7 @@ impl ResponseParameterData {
                 buf.reserve(6);
 
                 buf.extend(interface_id.to_be_bytes());
-                buf.extend::<[u8; 4]>((*address).into());
+                buf.extend(<[u8; 4]>::from(*address));
             }
             Self::GetDnsIpV4NameServer {
                 name_server_index,
@@ -1629,7 +1629,7 @@ impl ResponseParameterData {
                 buf.reserve(5);
 
                 buf.extend(name_server_index.to_be_bytes());
-                buf.extend::<[u8; 4]>((*address).into());
+                buf.extend(<[u8; 4]>::from(*address));
             }
             Self::GetDnsHostName(host_name) => {
                 #[cfg(feature = "alloc")]
@@ -1663,8 +1663,8 @@ impl ResponseParameterData {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*static_config_type as u8).unwrap();
 
-                buf.extend::<[u8; 4]>((*static_ipv4_address).into());
-                buf.extend::<[u8; 16]>((*static_ipv6_address).into());
+                buf.extend(<[u8; 4]>::from(*static_ipv4_address));
+                buf.extend(<[u8; 16]>::from(*static_ipv6_address));
                 buf.extend(static_port.to_be_bytes());
             }
             Self::GetSearchDomain(search_domain) => {
@@ -1685,8 +1685,8 @@ impl ResponseParameterData {
 
                 buf.extend(scope_string.bytes());
 
-                buf.extend::<[u8; 4]>((*broker_ipv4_address).into());
-                buf.extend::<[u8; 16]>((*broker_ipv6_address).into());
+                buf.extend(<[u8; 4]>::from(*broker_ipv4_address));
+                buf.extend(<[u8; 16]>::from(*broker_ipv6_address));
                 buf.extend(broker_port.to_be_bytes());
                 buf.extend(unhealthy_tcp_events.to_be_bytes());
             }
@@ -1738,9 +1738,7 @@ impl ResponseParameterData {
         match (command_class, parameter_id) {
             (CommandClass::DiscoveryCommandResponse, ParameterId::DiscMute) => {
                 let binding_uid = if bytes.len() > 2 {
-                    let manufacturer_id = u16::from_be_bytes(bytes[2..=3].try_into()?);
-                    let device_id = u32::from_be_bytes(bytes[4..=7].try_into()?);
-                    Some(DeviceUID::new(manufacturer_id, device_id))
+                    Some(DeviceUID::from(<[u8; 6]>::try_from(&bytes[2..=7])?))
                 } else {
                     None
                 };
@@ -1752,9 +1750,7 @@ impl ResponseParameterData {
             }
             (CommandClass::DiscoveryCommandResponse, ParameterId::DiscUnMute) => {
                 let binding_uid = if bytes.len() > 2 {
-                    let manufacturer_id = u16::from_be_bytes(bytes[2..=3].try_into()?);
-                    let device_id = u32::from_be_bytes(bytes[4..=7].try_into()?);
-                    Some(DeviceUID::new(manufacturer_id, device_id))
+                    Some(DeviceUID::from(<[u8; 6]>::try_from(&bytes[2..=7])?))
                 } else {
                     None
                 };
@@ -1775,22 +1771,12 @@ impl ResponseParameterData {
                     #[cfg(feature = "alloc")]
                     bytes
                         .chunks(6)
-                        .map(|chunk| {
-                            Ok(DeviceUID::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?),
-                                u32::from_be_bytes(chunk[2..=5].try_into()?),
-                            ))
-                        })
+                        .map(|chunk| Ok(DeviceUID::from(<[u8; 6]>::try_from(&chunk[0..=5])?)))
                         .collect::<Result<Vec<DeviceUID>, RdmError>>()?,
                     #[cfg(not(feature = "alloc"))]
                     bytes
                         .chunks(6)
-                        .map(|chunk| {
-                            Ok(DeviceUID::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?),
-                                u32::from_be_bytes(chunk[2..=5].try_into()?),
-                            ))
-                        })
+                        .map(|chunk| Ok(DeviceUID::from(<[u8; 6]>::try_from(&chunk[0..=5])?)))
                         .collect::<Result<Vec<DeviceUID, 38>, RdmError>>()?,
                 ))
             }
@@ -2295,7 +2281,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::InterfaceHardwareAddressType1) => {
                 Ok(Self::GetInterfaceHardwareAddressType1 {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    hardware_address: TryInto::<[u8; 6]>::try_into(&bytes[4..=9])?.into(),
+                    hardware_address: <[u8; 6]>::try_from(&bytes[4..=9])?.into(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::IpV4DhcpMode) => {
@@ -2313,7 +2299,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::IpV4CurrentAddress) => {
                 Ok(Self::GetIpV4CurrentAddress {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    address: TryInto::<[u8; 4]>::try_into(&bytes[4..=7])?.into(),
+                    address: <[u8; 4]>::try_from(&bytes[4..=7])?.into(),
                     netmask: bytes[8],
                     dhcp_status: DhcpMode::try_from(bytes[9])?,
                 })
@@ -2321,20 +2307,20 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::IpV4StaticAddress) => {
                 Ok(Self::GetIpV4StaticAddress {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    address: TryInto::<[u8; 4]>::try_into(&bytes[4..=7])?.into(),
+                    address: <[u8; 4]>::try_from(&bytes[4..=7])?.into(),
                     netmask: bytes[8],
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::IpV4DefaultRoute) => {
                 Ok(Self::GetIpV4DefaultRoute {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    address: TryInto::<[u8; 4]>::try_into(&bytes[4..=7])?.into(),
+                    address: <[u8; 4]>::try_from(&bytes[4..=7])?.into(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DnsIpV4NameServer) => {
                 Ok(Self::GetDnsIpV4NameServer {
                     name_server_index: bytes[0],
-                    address: TryInto::<[u8; 4]>::try_into(&bytes[1..=4])?.into(),
+                    address: <[u8; 4]>::try_from(&bytes[1..=4])?.into(),
                 })
             }
             // E1.33
@@ -2343,8 +2329,8 @@ impl ResponseParameterData {
                     scope_slot: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     scope_string: decode_string_bytes(&bytes[2..=64])?,
                     static_config_type: bytes[65].try_into()?,
-                    static_ipv4_address: TryInto::<[u8; 4]>::try_into(&bytes[66..=69])?.into(),
-                    static_ipv6_address: TryInto::<[u8; 16]>::try_into(&bytes[70..=85])?.into(),
+                    static_ipv4_address: <[u8; 4]>::try_from(&bytes[66..=69])?.into(),
+                    static_ipv6_address: <[u8; 16]>::try_from(&bytes[70..=85])?.into(),
                     static_port: u16::from_be_bytes(bytes[2..=3].try_into()?),
                 })
             }
@@ -2354,8 +2340,8 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::TcpCommsStatus) => {
                 Ok(Self::GetTcpCommsStatus {
                     scope_string: decode_string_bytes(&bytes[0..=62])?,
-                    broker_ipv4_address: TryInto::<[u8; 4]>::try_into(&bytes[63..=66])?.into(),
-                    broker_ipv6_address: TryInto::<[u8; 16]>::try_into(&bytes[67..=82])?.into(),
+                    broker_ipv4_address: <[u8; 4]>::try_from(&bytes[63..=66])?.into(),
+                    broker_ipv6_address: <[u8; 16]>::try_from(&bytes[67..=82])?.into(),
                     broker_port: u16::from_be_bytes(bytes[83..=84].try_into()?),
                     unhealthy_tcp_events: u16::from_be_bytes(bytes[85..=86].try_into()?),
                 })
@@ -2479,13 +2465,9 @@ impl RdmFrameResponse {
             return Err(RdmError::InvalidChecksum(decoded_checksum, packet_checksum));
         }
 
-        let destination_manufacturer_id = u16::from_be_bytes(bytes[3..=4].try_into()?);
-        let destination_device_id = u32::from_be_bytes(bytes[5..=8].try_into()?);
-        let destination_uid = DeviceUID::new(destination_manufacturer_id, destination_device_id);
+        let destination_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[3..=8])?);
 
-        let source_manufacturer_id = u16::from_be_bytes(bytes[9..=10].try_into()?);
-        let source_device_id = u32::from_be_bytes(bytes[11..=14].try_into()?);
-        let source_uid = DeviceUID::new(source_manufacturer_id, source_device_id);
+        let source_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[9..=14])?);
 
         let transaction_number = bytes[15];
 
