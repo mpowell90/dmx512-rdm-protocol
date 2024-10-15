@@ -1395,7 +1395,7 @@ impl RequestParameter {
                 buf.reserve(0x09);
 
                 buf.extend((*interface_id).to_be_bytes());
-                buf.extend::<[u8; 4]>((*address).into());
+                buf.extend(<[u8; 4]>::from(*address));
 
                 #[cfg(feature = "alloc")]
                 buf.push(*netmask);
@@ -1429,7 +1429,7 @@ impl RequestParameter {
                 buf.reserve(0x08);
 
                 buf.extend((*interface_id).to_be_bytes());
-                buf.extend::<[u8; 4]>((*ipv4_default_route).into());
+                buf.extend(<[u8; 4]>::from(*ipv4_default_route));
             }
             Self::GetDnsIpV4NameServer { name_server_index } => {
                 #[cfg(feature = "alloc")]
@@ -1452,7 +1452,7 @@ impl RequestParameter {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*name_server_index).unwrap();
 
-                buf.extend::<[u8; 4]>((*name_server_address).into());
+                buf.extend(<[u8; 4]>::from(*name_server_address));
             }
             Self::GetDnsHostName => {}
             Self::SetDnsHostName { host_name } => {
@@ -1494,8 +1494,8 @@ impl RequestParameter {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*static_config_type as u8).unwrap();
 
-                buf.extend::<[u8; 4]>((*static_broker_ipv4_address).into());
-                buf.extend::<[u8; 16]>((*static_broker_ipv6_address).into());
+                buf.extend(<[u8; 4]>::from(*static_broker_ipv4_address));
+                buf.extend(<[u8; 16]>::from(*static_broker_ipv6_address));
                 buf.extend((*static_broker_port).to_be_bytes());
             }
             Self::GetSearchDomain => {}
