@@ -1966,7 +1966,7 @@ impl ResponseParameterData {
                 buf.extend(list_change_number.to_be_bytes());
 
                 for responder in responders {
-                    buf.extend::<[u8; 6]>((*responder).into());
+                    buf.extend(<[u8; 6]>::from(*responder));
                 }
             }
             Self::GetEndpointResponderListChange {
@@ -1989,9 +1989,9 @@ impl ResponseParameterData {
                 buf.reserve(3);
 
                 buf.extend(u16::from(*endpoint_id).to_be_bytes());
-                buf.extend::<[u8; 6]>((*uid).into());
+                buf.extend(<[u8; 6]>::from(*uid));
                 buf.extend((*control_field).to_be_bytes());
-                buf.extend::<[u8; 6]>((*binding_uid).into());
+                buf.extend(<[u8; 6]>::from(*binding_uid));
             }
             Self::GetBackgroundQueuedStatusPolicy {
                 current_policy_id,
