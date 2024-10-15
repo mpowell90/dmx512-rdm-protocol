@@ -1558,14 +1558,10 @@ impl RequestParameter {
                 if bytes.len() < 12 {
                     return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
                 }
-                let lower_bound_uid = DeviceUID::new(
-                    u16::from_be_bytes([bytes[0], bytes[1]]),
-                    u32::from_be_bytes([bytes[2], bytes[3], bytes[4], bytes[5]]),
-                );
-                let upper_bound_uid = DeviceUID::new(
-                    u16::from_be_bytes([bytes[6], bytes[7]]),
-                    u32::from_be_bytes([bytes[8], bytes[9], bytes[10], bytes[11]]),
-                );
+                
+                let lower_bound_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[0..=5])?);
+                let upper_bound_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[6..=11])?);
+
                 Ok(Self::DiscUniqueBranch {
                     lower_bound_uid,
                     upper_bound_uid,
@@ -2428,15 +2424,8 @@ impl RdmRequest {
             return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
         }
 
-        let destination_uid = DeviceUID::new(
-            u16::from_be_bytes([bytes[3], bytes[4]]),
-            u32::from_be_bytes([bytes[5], bytes[6], bytes[7], bytes[8]]),
-        );
-
-        let source_uid = DeviceUID::new(
-            u16::from_be_bytes([bytes[9], bytes[10]]),
-            u32::from_be_bytes([bytes[11], bytes[12], bytes[13], bytes[14]]),
-        );
+        let destination_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[3..=8])?);
+        let source_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[9..=14])?);
 
         let transaction_number = bytes[15];
         let port_id = bytes[16];

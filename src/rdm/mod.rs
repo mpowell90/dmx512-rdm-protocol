@@ -209,7 +209,7 @@ mod tests {
     #[test]
     fn should_array_to_convert_device_uid() {
         assert_eq!(
-            Into::<DeviceUID>::into([0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]),
+            DeviceUID::from([0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]),
             DeviceUID::new(0x1234, 0x56789abc)
         );
     }
@@ -217,7 +217,7 @@ mod tests {
     #[test]
     fn should_convert_device_uid_to_array() {
         assert_eq!(
-            Into::<[u8; 6]>::into(DeviceUID::new(0x1234, 0x56789abc)),
+            <[u8; 6]>::from(DeviceUID::new(0x1234, 0x56789abc)),
             [0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc]
         );
     }

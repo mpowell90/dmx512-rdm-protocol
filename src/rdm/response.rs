@@ -1738,9 +1738,7 @@ impl ResponseParameterData {
         match (command_class, parameter_id) {
             (CommandClass::DiscoveryCommandResponse, ParameterId::DiscMute) => {
                 let binding_uid = if bytes.len() > 2 {
-                    let manufacturer_id = u16::from_be_bytes(bytes[2..=3].try_into()?);
-                    let device_id = u32::from_be_bytes(bytes[4..=7].try_into()?);
-                    Some(DeviceUID::new(manufacturer_id, device_id))
+                    Some(DeviceUID::from(<[u8; 6]>::try_from(&bytes[2..=7])?))
                 } else {
                     None
                 };
@@ -1752,9 +1750,7 @@ impl ResponseParameterData {
             }
             (CommandClass::DiscoveryCommandResponse, ParameterId::DiscUnMute) => {
                 let binding_uid = if bytes.len() > 2 {
-                    let manufacturer_id = u16::from_be_bytes(bytes[2..=3].try_into()?);
-                    let device_id = u32::from_be_bytes(bytes[4..=7].try_into()?);
-                    Some(DeviceUID::new(manufacturer_id, device_id))
+                    Some(DeviceUID::from(<[u8; 6]>::try_from(&bytes[2..=7])?))
                 } else {
                     None
                 };
@@ -1775,22 +1771,12 @@ impl ResponseParameterData {
                     #[cfg(feature = "alloc")]
                     bytes
                         .chunks(6)
-                        .map(|chunk| {
-                            Ok(DeviceUID::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?),
-                                u32::from_be_bytes(chunk[2..=5].try_into()?),
-                            ))
-                        })
+                        .map(|chunk| Ok(DeviceUID::from(<[u8; 6]>::try_from(&chunk[0..=5])?)))
                         .collect::<Result<Vec<DeviceUID>, RdmError>>()?,
                     #[cfg(not(feature = "alloc"))]
                     bytes
                         .chunks(6)
-                        .map(|chunk| {
-                            Ok(DeviceUID::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?),
-                                u32::from_be_bytes(chunk[2..=5].try_into()?),
-                            ))
-                        })
+                        .map(|chunk| Ok(DeviceUID::from(<[u8; 6]>::try_from(&chunk[0..=5])?)))
                         .collect::<Result<Vec<DeviceUID, 38>, RdmError>>()?,
                 ))
             }
@@ -2479,14 +2465,10 @@ impl RdmFrameResponse {
             return Err(RdmError::InvalidChecksum(decoded_checksum, packet_checksum));
         }
 
-        let destination_manufacturer_id = u16::from_be_bytes(bytes[3..=4].try_into()?);
-        let destination_device_id = u32::from_be_bytes(bytes[5..=8].try_into()?);
-        let destination_uid = DeviceUID::new(destination_manufacturer_id, destination_device_id);
-
-        let source_manufacturer_id = u16::from_be_bytes(bytes[9..=10].try_into()?);
-        let source_device_id = u32::from_be_bytes(bytes[11..=14].try_into()?);
-        let source_uid = DeviceUID::new(source_manufacturer_id, source_device_id);
-
+        let destination_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[3..=8])?);
+        
+        let source_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[9..=14])?);
+        
         let transaction_number = bytes[15];
 
         let response_type = ResponseType::try_from(bytes[16])?;
