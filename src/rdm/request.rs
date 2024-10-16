@@ -43,9 +43,10 @@ use super::{
     bsd_16_crc,
     error::RdmError,
     parameter::{
-        decode_string_bytes, BrokerState, DisplayInvertMode, FadeTimes, Ipv4Address, Ipv4Route,
-        Ipv6Address, LampOnMode, LampState, MergeMode, ParameterId, PinCode, PowerState,
-        PresetPlaybackMode, ResetDeviceMode, SelfTest, StaticConfigType, StatusType, TimeMode,
+        decode_string_bytes, BrokerState, DiscoveryState, DisplayInvertMode, EndpointId,
+        EndpointMode, FadeTimes, Ipv4Address, Ipv4Route, Ipv6Address, LampOnMode, LampState,
+        MergeMode, ParameterId, PinCode, PowerState, PresetPlaybackMode, ResetDeviceMode, SelfTest,
+        StaticConfigType, StatusType, TimeMode,
     },
     CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, SubDeviceId, RDM_START_CODE_BYTE,
     RDM_SUB_START_CODE_BYTE,
@@ -372,6 +373,88 @@ pub enum RequestParameter {
         #[cfg(not(feature = "alloc"))]
         domain_name: String<231>,
     },
+    // E1.37-7
+    GetEndpointList,
+    GetEndpointListChange,
+    GetIdentifyEndpoint {
+        endpoint_id: EndpointId,
+    },
+    SetIdentifyEndpoint {
+        endpoint_id: EndpointId,
+        identify: bool,
+    },
+    GetEndpointToUniverse {
+        endpoint_id: EndpointId,
+    },
+    SetEndpointToUniverse {
+        endpoint_id: EndpointId,
+        universe: u16,
+    },
+    GetEndpointMode {
+        endpoint_id: EndpointId,
+    },
+    SetEndpointMode {
+        endpoint_id: EndpointId,
+        mode: EndpointMode,
+    },
+    GetEndpointLabel {
+        endpoint_id: EndpointId,
+    },
+    SetEndpointLabel {
+        endpoint_id: EndpointId,
+        #[cfg(feature = "alloc")]
+        label: String,
+        #[cfg(not(feature = "alloc"))]
+        label: String<32>,
+    },
+    GetRdmTrafficEnable {
+        endpoint_id: EndpointId,
+    },
+    SetRdmTrafficEnable {
+        endpoint_id: EndpointId,
+        enable: bool,
+    },
+    GetDiscoveryState {
+        endpoint_id: EndpointId,
+    },
+    SetDiscoveryState {
+        endpoint_id: EndpointId,
+        state: DiscoveryState,
+    },
+    GetBackgroundDiscovery {
+        endpoint_id: EndpointId,
+    },
+    SetBackgroundDiscovery {
+        endpoint_id: EndpointId,
+        enable: bool,
+    },
+    GetEndpointTiming {
+        endpoint_id: EndpointId,
+    },
+    SetEndpointTiming {
+        endpoint_id: EndpointId,
+        setting_id: u8,
+    },
+    GetEndpointTimingDescription {
+        setting_id: u8,
+    },
+    GetEndpointResponders {
+        endpoint_id: EndpointId,
+    },
+    GetEndpointResponderListChange {
+        endpoint_id: EndpointId,
+    },
+    GetBindingControlFields {
+        endpoint_id: EndpointId,
+        uid: DeviceUID,
+    },
+    GetBackgroundQueuedStatusPolicy,
+    SetBackgroundQueuedStatusPolicy {
+        policy_id: u8,
+    },
+    GetBackgroundQueuedStatusPolicyDescription {
+        policy_id: u8,
+    },
     // E1.33
     GetSearchDomain,
     SetSearchDomain(
@@ -505,6 +588,23 @@ impl RequestParameter {
             | Self::GetDnsIpV4NameServer { .. }
             | Self::GetDnsHostName
             | Self::GetDnsDomainName
+            // E1.37-7
+            | Self::GetEndpointList
+            | Self::GetEndpointListChange
+            | Self::GetIdentifyEndpoint { .. }
+            | Self::GetEndpointToUniverse { .. }
+            | Self::GetEndpointMode { .. }
+            | Self::GetEndpointLabel { .. }
+            | Self::GetRdmTrafficEnable { .. }
+            | Self::GetDiscoveryState { .. }
+            | Self::GetBackgroundDiscovery { .. }
+            | Self::GetEndpointTiming { .. }
+            | Self::GetEndpointTimingDescription { .. }
+            | Self::GetEndpointResponders { .. }
+            | Self::GetEndpointResponderListChange { .. }
+            | Self::GetBindingControlFields { .. }
+            | Self::GetBackgroundQueuedStatusPolicy
+            | Self::GetBackgroundQueuedStatusPolicyDescription { .. }
             // E1.33
             | Self::GetComponentScope { .. }
             | Self::GetSearchDomain
@@ -567,6 +667,16 @@ impl RequestParameter {
             | Self::SetDnsIpV4NameServer { .. }
             | Self::SetDnsHostName { .. }
             | Self::SetDnsDomainName { .. }
+            // E1.37-7
+            | Self::SetIdentifyEndpoint { .. }
+            | Self::SetEndpointToUniverse { .. }
+            | Self::SetEndpointMode { .. }
+            | Self::SetEndpointLabel { .. }
+            | Self::SetRdmTrafficEnable { .. }
+            | Self::SetDiscoveryState { .. }
+            | Self::SetBackgroundDiscovery { .. }
+            | Self::SetEndpointTiming { .. }
+            | Self::SetBackgroundQueuedStatusPolicy { .. }
             // E1.33
             | Self::SetComponentScope { .. }
             | Self::SetSearchDomain(..)
@@ -705,6 +815,44 @@ impl RequestParameter {
             }
             Self::GetDnsHostName | Self::SetDnsHostName { .. } => ParameterId::DnsHostName,
             Self::GetDnsDomainName | Self::SetDnsDomainName { .. } => ParameterId::DnsDomainName,
+            // E1.37-7
+            Self::GetEndpointList => ParameterId::EndpointList,
+            Self::GetEndpointListChange => ParameterId::EndpointListChange,
+            Self::GetIdentifyEndpoint { .. } | Self::SetIdentifyEndpoint { .. } => {
+                ParameterId::IdentifyEndpoint
+            }
+            Self::GetEndpointToUniverse { .. } | Self::SetEndpointToUniverse { .. } => {
+                ParameterId::EndpointToUniverse
+            }
+            Self::GetEndpointMode { .. } | Self::SetEndpointMode { .. } => {
+                ParameterId::EndpointMode
+            }
+            Self::GetEndpointLabel { .. } | Self::SetEndpointLabel { .. } => {
+                ParameterId::EndpointLabel
+            }
+            Self::GetRdmTrafficEnable { .. } | Self::SetRdmTrafficEnable { .. } => {
+                ParameterId::RdmTrafficEnable
+            }
+            Self::GetDiscoveryState { .. } | Self::SetDiscoveryState { .. } => {
+                ParameterId::DiscoveryState
+            }
+            Self::GetBackgroundDiscovery { .. } | Self::SetBackgroundDiscovery { .. } => {
+                ParameterId::BackgroundDiscovery
+            }
+            Self::GetEndpointTiming { .. } | Self::SetEndpointTiming { .. } => {
+                ParameterId::EndpointTiming
+            }
+            Self::GetEndpointTimingDescription { .. } => ParameterId::EndpointTimingDescription,
+            Self::GetEndpointResponders { .. } => ParameterId::EndpointResponders,
+            Self::GetEndpointResponderListChange { .. } => ParameterId::EndpointResponderListChange,
+            Self::GetBindingControlFields { .. } => ParameterId::BindingControlFields,
+            Self::GetBackgroundQueuedStatusPolicy => ParameterId::BackgroundQueuedStatusPolicy,
+            Self::SetBackgroundQueuedStatusPolicy { .. } => {
+                ParameterId::BackgroundQueuedStatusPolicy
+            }
+            Self::GetBackgroundQueuedStatusPolicyDescription { .. } => {
+                ParameterId::BackgroundQueuedStatusPolicyDescription
+            }
             // E1.33
             Self::GetComponentScope { .. } | Self::SetComponentScope { .. } => {
                 ParameterId::ComponentScope
@@ -1468,6 +1616,194 @@ impl RequestParameter {
 
                 buf.extend(domain_name.bytes())
             }
+            // E1.37-7
+            Self::GetEndpointList => {}
+            Self::GetEndpointListChange => {}
+            Self::GetIdentifyEndpoint { endpoint_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+            }
+            Self::SetIdentifyEndpoint {
+                endpoint_id,
+                identify,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x03);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.push(*identify as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*identify as u8).unwrap();
+            }
+            Self::GetEndpointToUniverse { endpoint_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+            }
+            Self::SetEndpointToUniverse {
+                endpoint_id,
+                universe,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x04);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+                buf.extend((*universe).to_be_bytes());
+            }
+            Self::GetEndpointMode { endpoint_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+            }
+            Self::SetEndpointMode { endpoint_id, mode } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x03);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.push(*mode as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*mode as u8).unwrap();
+            }
+            Self::GetEndpointLabel { endpoint_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+            }
+            Self::SetEndpointLabel { endpoint_id, label } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02 + label.len());
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+                buf.extend(label.bytes());
+            }
+            Self::GetRdmTrafficEnable { endpoint_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+            }
+            Self::SetRdmTrafficEnable {
+                endpoint_id,
+                enable,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x03);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.push(*enable as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*enable as u8).unwrap();
+            }
+            Self::GetDiscoveryState { endpoint_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+            }
+            Self::SetDiscoveryState { endpoint_id, state } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x03);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.push((*state).into());
+                #[cfg(not(feature = "alloc"))]
+                buf.push((*state).into()).unwrap();
+            }
+            Self::GetBackgroundDiscovery { endpoint_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+            }
+            Self::SetBackgroundDiscovery {
+                endpoint_id,
+                enable,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x03);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.push(*enable as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*enable as u8).unwrap();
+            }
+            Self::GetEndpointTiming { endpoint_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+            }
+            Self::SetEndpointTiming {
+                endpoint_id,
+                setting_id,
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x03);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.push(*setting_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*setting_id).unwrap();
+            }
+            Self::GetEndpointTimingDescription { setting_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*setting_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*setting_id).unwrap();
+            }
+            Self::GetEndpointResponders { endpoint_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+            }
+            Self::GetEndpointResponderListChange { endpoint_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+            }
+            Self::GetBindingControlFields { endpoint_id, uid } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x0a);
+
+                buf.extend(u16::from(*endpoint_id).to_be_bytes());
+                buf.extend(uid.manufacturer_id.to_be_bytes());
+                buf.extend(uid.device_id.to_be_bytes());
+            }
+            Self::GetBackgroundQueuedStatusPolicy => {}
+            Self::SetBackgroundQueuedStatusPolicy { policy_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*policy_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*policy_id).unwrap();
+            }
+            Self::GetBackgroundQueuedStatusPolicyDescription { policy_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*policy_id);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*policy_id).unwrap();
+            }
             // E1.33
             Self::GetComponentScope { scope_slot } => {
                 #[cfg(feature = "alloc")]
@@ -1918,6 +2254,7 @@ impl RequestParameter {
                     level: bytes[2],
                 })
             }
+            // E1.37-1
             (CommandClass::GetCommand, ParameterId::DmxBlockAddress) => {
                 Ok(Self::GetDmxBlockAddress)
             }
@@ -2107,6 +2444,7 @@ impl RequestParameter {
                     merge_mode: bytes[0].try_into()?,
                 })
             }
+            // E1.37-2
             (CommandClass::GetCommand, ParameterId::ListInterfaces) => Ok(Self::GetListInterfaces),
             (CommandClass::GetCommand, ParameterId::InterfaceLabel) => {
                 if bytes.len() < 4 {
@@ -2247,6 +2585,129 @@ impl RequestParameter {
             (CommandClass::SetCommand, ParameterId::DnsDomainName) => Ok(Self::SetDnsDomainName {
                 domain_name: decode_string_bytes(bytes)?,
             }),
+            // E1.37-7
+            (CommandClass::GetCommand, ParameterId::EndpointList) => Ok(Self::GetEndpointList),
+            (CommandClass::GetCommand, ParameterId::EndpointListChange) => {
+                Ok(Self::GetEndpointListChange)
+            }
+            (CommandClass::GetCommand, ParameterId::IdentifyEndpoint) => {
+                Ok(Self::GetIdentifyEndpoint {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::IdentifyEndpoint) => {
+                Ok(Self::SetIdentifyEndpoint {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    identify: bytes[2] != 0,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::EndpointToUniverse) => {
+                Ok(Self::GetEndpointToUniverse {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::EndpointToUniverse) => {
+                Ok(Self::SetEndpointToUniverse {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    universe: u16::from_be_bytes(bytes[2..=3].try_into()?),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::EndpointMode) => Ok(Self::GetEndpointMode {
+                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+            }),
+            (CommandClass::SetCommand, ParameterId::EndpointMode) => Ok(Self::SetEndpointMode {
+                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                mode: bytes[2].try_into()?,
+            }),
+            (CommandClass::GetCommand, ParameterId::EndpointLabel) => Ok(Self::GetEndpointLabel {
+                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+            }),
+            (CommandClass::SetCommand, ParameterId::EndpointLabel) => Ok(Self::SetEndpointLabel {
+                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                label: decode_string_bytes(&bytes[2..])?,
+            }),
+            (CommandClass::GetCommand, ParameterId::RdmTrafficEnable) => {
+                Ok(Self::GetRdmTrafficEnable {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::RdmTrafficEnable) => {
+                Ok(Self::SetRdmTrafficEnable {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    enable: bytes[2] == 1,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DiscoveryState) => {
+                Ok(Self::GetDiscoveryState {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::DiscoveryState) => {
+                Ok(Self::SetDiscoveryState {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    state: bytes[2].try_into()?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::BackgroundDiscovery) => {
+                Ok(Self::GetBackgroundDiscovery {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::BackgroundDiscovery) => {
+                Ok(Self::SetBackgroundDiscovery {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    enable: bytes[2] == 1,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::EndpointTiming) => {
+                Ok(Self::GetEndpointTiming {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::EndpointTiming) => {
+                Ok(Self::SetEndpointTiming {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    setting_id: bytes[2],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::EndpointTimingDescription) => {
+                Ok(Self::GetEndpointTimingDescription {
+                    setting_id: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::EndpointResponders) => {
+                Ok(Self::GetEndpointResponders {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::EndpointResponderListChange) => {
+                Ok(Self::GetEndpointResponderListChange {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::BindingControlFields) => {
+                Ok(Self::GetBindingControlFields {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    uid: DeviceUID::new(
+                        u16::from_be_bytes(bytes[2..=3].try_into()?),
+                        u32::from_be_bytes(bytes[4..=7].try_into()?),
+                    ),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::BackgroundQueuedStatusPolicy) => {
+                Ok(Self::GetBackgroundQueuedStatusPolicy)
+            }
+            (CommandClass::SetCommand, ParameterId::BackgroundQueuedStatusPolicy) => {
+                Ok(Self::SetBackgroundQueuedStatusPolicy {
+                    policy_id: bytes[0],
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::BackgroundQueuedStatusPolicyDescription) => {
+                Ok(Self::GetBackgroundQueuedStatusPolicyDescription {
+                    policy_id: bytes[0],
+                })
+            }
+            // E1.33
             (CommandClass::GetCommand, ParameterId::ComponentScope) => {
                 Ok(Self::GetComponentScope {
                     scope_slot: u16::from_be_bytes([bytes[0], bytes[1]]),
