@@ -13,8 +13,8 @@ keywords = ["dmx", "rdm", "lighting", "protocol", "control"]
 [features]
 default = ["rdm", "alloc"]
 rdm = []
-alloc = []
+alloc = ["macaddr/std"]
 
 [dependencies]
 heapless = "0.8.0"
-macaddr = "1.0.1"
+macaddr = { version = "1.0.1", default-features = false }
