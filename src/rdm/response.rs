@@ -3011,6 +3011,10 @@ impl RdmFrameResponse {
             return Err(RdmError::InvalidMessageLength(message_length));
         }
 
+        if bytes.len() < message_length as usize + 2 {
+            return Err(RdmError::InvalidMessageLength(message_length));
+        }
+
         let packet_checksum = u16::from_be_bytes(
             bytes[message_length as usize..=message_length as usize + 1].try_into()?,
         );
