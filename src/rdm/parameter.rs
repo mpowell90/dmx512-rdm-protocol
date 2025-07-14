@@ -1386,8 +1386,7 @@ impl StatusMessage {
                 0x0021 => Some(
                     #[cfg(feature = "alloc")]
                     format!(
-                        "Sensor {} over temp at {} degrees C",
-                        data_value1, data_value2
+                        "Sensor {data_value1} over temp at {data_value2} degrees C"
                     ),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
@@ -1403,8 +1402,7 @@ impl StatusMessage {
                 0x0022 => Some(
                     #[cfg(feature = "alloc")]
                     format!(
-                        "Sensor {} under temp at {} degrees C",
-                        data_value1, data_value2
+                        "Sensor {data_value1} under temp at {data_value2} degrees C"
                     ),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
@@ -1419,7 +1417,7 @@ impl StatusMessage {
                 ),
                 0x0023 => Some(
                     #[cfg(feature = "alloc")]
-                    format!("Sensor {} out of range", data_value1),
+                    format!("Sensor {data_value1} out of range"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Sensor {} out of range", data_value1)
@@ -1430,7 +1428,7 @@ impl StatusMessage {
                 ),
                 0x0031 => Some(
                     #[cfg(feature = "alloc")]
-                    format!("Phase {} over voltage at {} V", data_value1, data_value2),
+                    format!("Phase {data_value1} over voltage at {data_value2} V"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} over voltage at {} V", data_value1, data_value2)
@@ -1441,7 +1439,7 @@ impl StatusMessage {
                 ),
                 0x0032 => Some(
                     #[cfg(feature = "alloc")]
-                    format!("Phase {} under voltage at {} V", data_value1, data_value2),
+                    format!("Phase {data_value1} under voltage at {data_value2} V"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} under voltage at {} V", data_value1, data_value2)
@@ -1452,7 +1450,7 @@ impl StatusMessage {
                 ),
                 0x0033 => Some(
                     #[cfg(feature = "alloc")]
-                    format!("Phase {} over current at {} A", data_value1, data_value2),
+                    format!("Phase {data_value1} over current at {data_value2} A"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} over current at {} A", data_value1, data_value2)
@@ -1463,7 +1461,7 @@ impl StatusMessage {
                 ),
                 0x0034 => Some(
                     #[cfg(feature = "alloc")]
-                    format!("Phase {} under current at {} A", data_value1, data_value2),
+                    format!("Phase {data_value1} under current at {data_value2} A"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} under current at {} A", data_value1, data_value2)
@@ -1474,7 +1472,7 @@ impl StatusMessage {
                 ),
                 0x0035 => Some(
                     #[cfg(feature = "alloc")]
-                    format!("Phase {} is at {} degrees", data_value1, data_value2),
+                    format!("Phase {data_value1} is at {data_value2} degrees"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} is at {} degrees", data_value1, data_value2)
@@ -1485,7 +1483,7 @@ impl StatusMessage {
                 ),
                 0x0036 => Some(
                     #[cfg(feature = "alloc")]
-                    format!("Phase {} Error", data_value1),
+                    format!("Phase {data_value1} Error"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!("Phase {} Error", data_value1)
@@ -1496,14 +1494,14 @@ impl StatusMessage {
                 ),
                 0x0037 => Some(
                     #[cfg(feature = "alloc")]
-                    format!("{} Amps", data_value1),
+                    format!("{data_value1} Amps"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(format_args!("{} Amps", data_value1).as_str().unwrap())
                         .unwrap(),
                 ),
                 0x0038 => Some(
                     #[cfg(feature = "alloc")]
-                    format!("{} Volts", data_value1),
+                    format!("{data_value1} Volts"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(format_args!("{} Volts", data_value1).as_str().unwrap())
                         .unwrap(),
@@ -1522,7 +1520,7 @@ impl StatusMessage {
                 ),
                 0x0043 => Some(
                     #[cfg(feature = "alloc")]
-                    format!("{} Watts", data_value1),
+                    format!("{data_value1} Watts"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(format_args!("{} Watts", data_value1).as_str().unwrap())
                         .unwrap(),
@@ -1812,9 +1810,9 @@ impl core::fmt::Display for SlotIdDefinition {
             Self::Macro => "Macro",
             Self::Undefined => "Undefined",
             Self::ManufacturerSpecific(value) => {
-                return write!(f, "Manufacturer Specific: {}", value)
+                return write!(f, "Manufacturer Specific: {value}")
             }
-            Self::Unknown(value) => return write!(f, "Unknown Slot Id Definition: {}", value),
+            Self::Unknown(value) => return write!(f, "Unknown Slot Id Definition: {value}"),
         };
 
         f.write_str(definition)
