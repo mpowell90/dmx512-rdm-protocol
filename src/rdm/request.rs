@@ -489,7 +489,7 @@ pub enum RequestParameter<'a> {
     SetBrokerStatus {
         broker_state: BrokerState,
     },
-    // also use for unsupported standard and manufacturer specific parameters
+    // use for unsupported standard and manufacturer specific parameters
     RawParameter {
         command_class: CommandClass,
         parameter_id: u16,
@@ -852,9 +852,7 @@ impl<'a> RequestParameter<'a> {
             Self::GetSearchDomain | Self::SetSearchDomain(..) => ParameterId::SearchDomain,
             Self::GetTcpCommsStatus | Self::SetTcpCommsStatus { .. } => ParameterId::TcpCommsStatus,
             Self::GetBrokerStatus | Self::SetBrokerStatus { .. } => ParameterId::BrokerStatus,
-            Self::RawParameter { parameter_id, .. } => {
-                ParameterId::ManufacturerSpecific(*parameter_id)
-            }
+            Self::RawParameter { parameter_id, .. } => ParameterId::RawParameterId(*parameter_id),
         }
     }
 

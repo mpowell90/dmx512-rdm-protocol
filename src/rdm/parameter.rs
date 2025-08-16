@@ -147,8 +147,8 @@ pub enum ParameterId {
     SearchDomain,
     TcpCommsStatus,
     BrokerStatus,
-    ManufacturerSpecific(u16),
-    Unsupported(u16),
+    // use for unsupported standard and manufacturer specific parameters
+    RawParameterId(u16),
 }
 
 impl From<u16> for ParameterId {
@@ -266,8 +266,7 @@ impl From<u16> for ParameterId {
             0x8001 => Self::SearchDomain,
             0x8002 => Self::TcpCommsStatus,
             0x8003 => Self::BrokerStatus,
-            n if (0x8000..=0xffdf).contains(&n) => Self::ManufacturerSpecific(n),
-            n => Self::Unsupported(n),
+            n => Self::RawParameterId(n),
         }
     }
 }
@@ -387,8 +386,7 @@ impl From<ParameterId> for u16 {
             ParameterId::SearchDomain => 0x0801,
             ParameterId::TcpCommsStatus => 0x0802,
             ParameterId::BrokerStatus => 0x0803,
-            ParameterId::ManufacturerSpecific(pid) => pid,
-            ParameterId::Unsupported(pid) => pid,
+            ParameterId::RawParameterId(pid) => pid,
         }
     }
 }
