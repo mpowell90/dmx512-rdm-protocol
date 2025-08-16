@@ -2740,7 +2740,7 @@ impl TryFrom<u8> for EndpointMode {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum EndpointId {
     Null,
     Device(u16),
