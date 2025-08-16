@@ -1385,9 +1385,7 @@ impl StatusMessage {
                 ),
                 0x0021 => Some(
                     #[cfg(feature = "alloc")]
-                    format!(
-                        "Sensor {data_value1} over temp at {data_value2} degrees C"
-                    ),
+                    format!("Sensor {data_value1} over temp at {data_value2} degrees C"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!(
@@ -1401,9 +1399,7 @@ impl StatusMessage {
                 ),
                 0x0022 => Some(
                     #[cfg(feature = "alloc")]
-                    format!(
-                        "Sensor {data_value1} under temp at {data_value2} degrees C"
-                    ),
+                    format!("Sensor {data_value1} under temp at {data_value2} degrees C"),
                     #[cfg(not(feature = "alloc"))]
                     String::<32>::from_str(
                         format_args!(
@@ -2697,7 +2693,7 @@ impl From<DiscoveryState> for u8 {
 pub enum DiscoveryCountStatus {
     Incomplete,
     Count(u16),
-    Unknown
+    Unknown,
 }
 
 impl From<u16> for DiscoveryCountStatus {
@@ -2773,7 +2769,7 @@ impl From<EndpointId> for u16 {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum EndpointType {
     Virtual = 0x00,
-    Physical = 0x01
+    Physical = 0x01,
 }
 
 impl TryFrom<u8> for EndpointType {

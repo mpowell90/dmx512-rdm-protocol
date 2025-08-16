@@ -8,7 +8,7 @@
 //! // Create a 512 channel universe
 //! let dmx_universe = DmxUniverse::default();
 //! // or create a smaller universe
-//! 
+//!
 //! // If you use the heap allocation implementations, you can create smaller universes
 //! #[cfg(feature = "alloc")]
 //! let dmx_universe = DmxUniverse::new(4).unwrap();
