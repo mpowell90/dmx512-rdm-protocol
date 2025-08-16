@@ -144,7 +144,7 @@ impl From<DeviceUID> for [u8; 6] {
 pub fn bsd_16_crc(packet: &[u8]) -> u16 {
     packet
         .iter()
-        .fold(0_u16, |sum, byte| (sum.overflowing_add(*byte as u16).0))
+        .fold(0_u16, |sum, byte| (sum.wrapping_add(*byte as u16)))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
