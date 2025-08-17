@@ -47,10 +47,16 @@
 use super::{
     error::RdmError,
     parameter::{
-        decode_string_bytes, BrokerState, DiscoveryState, DisplayInvertMode, EndpointId,
-        EndpointMode, FadeTimes, Ipv4Address, Ipv4Route, Ipv6Address, LampOnMode, LampState,
-        MergeMode, ParameterId, PinCode, PowerState, PresetPlaybackMode, ResetDeviceMode, SelfTest,
-        StaticConfigType, StatusType, TimeMode,
+        decode_string_bytes,
+        e120::{
+            DisplayInvertMode, FadeTimes, LampOnMode, LampState, PowerState, PresetPlaybackMode,
+            ResetDeviceMode, SelfTest, StatusType,
+        },
+        e133::{BrokerState, StaticConfigType},
+        e137_1::{MergeMode, PinCode, TimeMode},
+        e137_2::{Ipv4Address, Ipv4Route, Ipv6Address},
+        e137_7::{DiscoveryState, EndpointId, EndpointMode},
+        ParameterId,
     },
     CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
