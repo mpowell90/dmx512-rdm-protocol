@@ -478,12 +478,7 @@ pub enum RequestParameter<'a> {
         static_broker_port: u16,
     },
     GetTcpCommsStatus,
-    SetTcpCommsStatus {
-        #[cfg(feature = "alloc")]
-        scope_string: String,
-        #[cfg(not(feature = "alloc"))]
-        scope_string: String<63>,
-    },
+    SetTcpCommsStatus(ScopeString<'a>),
     GetBrokerStatus,
     SetBrokerStatus {
         broker_state: BrokerState,
@@ -1025,7 +1020,7 @@ impl<'a> RequestParameter<'a> {
             Self::SetDnsDomainName { domain_name } => domain_name.len(),
             Self::SetEndpointLabel { label, .. } => 2 + label.len(),
             Self::SetSearchDomain(search_domain) => search_domain.len(),
-            Self::SetTcpCommsStatus { scope_string } => scope_string.len(),
+            Self::SetTcpCommsStatus(_) => ScopeString::MAX_LENGTH,
             Self::SetComponentScope { .. } => 25 + ScopeString::MAX_LENGTH,
             Self::RawParameter { parameter_data, .. } => parameter_data.len(),
         }
@@ -1528,8 +1523,8 @@ impl<'a> RequestParameter<'a> {
                 search_domain.encode(buf)?;
             }
             Self::GetTcpCommsStatus => {}
-            Self::SetTcpCommsStatus { scope_string } => {
-                buf[0..scope_string.len()].copy_from_slice(scope_string.as_bytes());
+            Self::SetTcpCommsStatus(scope_string) => {
+                scope_string.encode(buf)?;
             }
             Self::GetBrokerStatus => {}
             Self::SetBrokerStatus { broker_state } => {
@@ -2397,12 +2392,7 @@ impl<'a> RequestParameter<'a> {
             }
             (CommandClass::GetCommand, ParameterId::TcpCommsStatus) => Ok(Self::GetTcpCommsStatus),
             (CommandClass::SetCommand, ParameterId::TcpCommsStatus) => {
-                if bytes.len() < 2 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetTcpCommsStatus {
-                    scope_string: decode_string_bytes(bytes)?,
-                })
+                Ok(Self::SetTcpCommsStatus(ScopeString::decode(bytes)?))
             }
             (CommandClass::GetCommand, ParameterId::BrokerStatus) => Ok(Self::GetBrokerStatus),
             (CommandClass::SetCommand, ParameterId::BrokerStatus) => {

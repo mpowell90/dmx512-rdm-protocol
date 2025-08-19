@@ -658,10 +658,7 @@ pub enum ResponseParameterData<'a> {
     },
     GetSearchDomain(SearchDomain<'a>),
     GetTcpCommsStatus {
-        #[cfg(feature = "alloc")]
-        scope_string: String,
-        #[cfg(not(feature = "alloc"))]
-        scope_string: String<231>,
+        scope_string: ScopeString<'a>,
         broker_ipv4_address: Ipv4Address,
         broker_ipv6_address: Ipv6Address,
         broker_port: u16,
@@ -825,9 +822,7 @@ impl<'a> ResponseParameterData<'a> {
             } => 2 + description.len(),
             ResponseParameterData::GetComponentScope { .. } => 25 + ScopeString::MAX_LENGTH,
             ResponseParameterData::GetSearchDomain(search_domain) => search_domain.len(),
-            ResponseParameterData::GetTcpCommsStatus { scope_string, .. } => {
-                24 + scope_string.len()
-            }
+            ResponseParameterData::GetTcpCommsStatus { .. } => 24 + ScopeString::MAX_LENGTH,
             ResponseParameterData::GetBrokerStatus { .. } => 2,
             ResponseParameterData::RawParameter(data) => data.len(),
         }
@@ -1568,14 +1563,14 @@ impl<'a> ResponseParameterData<'a> {
                 broker_port,
                 unhealthy_tcp_events,
             } => {
-                buf[0..scope_string.len()].copy_from_slice(scope_string.as_bytes());
-                buf[scope_string.len()..scope_string.len() + 4]
+                scope_string.encode(&mut buf[0..ScopeString::MAX_LENGTH])?;
+                buf[ScopeString::MAX_LENGTH..ScopeString::MAX_LENGTH + 4]
                     .copy_from_slice(&u32::from(*broker_ipv4_address).to_be_bytes());
-                buf[scope_string.len() + 4..scope_string.len() + 20]
+                buf[ScopeString::MAX_LENGTH + 4..ScopeString::MAX_LENGTH + 20]
                     .copy_from_slice(&<[u8; 16]>::from(*broker_ipv6_address));
-                buf[scope_string.len() + 20..scope_string.len() + 22]
+                buf[ScopeString::MAX_LENGTH + 20..ScopeString::MAX_LENGTH + 22]
                     .copy_from_slice(&broker_port.to_be_bytes());
-                buf[scope_string.len() + 22..scope_string.len() + 24]
+                buf[ScopeString::MAX_LENGTH + 22..ScopeString::MAX_LENGTH + 24]
                     .copy_from_slice(&unhealthy_tcp_events.to_be_bytes());
             }
             Self::GetBrokerStatus {
@@ -2364,12 +2359,21 @@ impl<'a> ResponseParameterData<'a> {
             // E1.33
             (CommandClass::GetCommandResponse, ParameterId::ComponentScope) => {
                 Ok(Self::GetComponentScope {
-                    scope_slot: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    scope_string: ScopeString::decode(&bytes[2..=64])?,
-                    static_config_type: bytes[65].try_into()?,
-                    static_ipv4_address: <[u8; 4]>::try_from(&bytes[66..=69])?.into(),
-                    static_ipv6_address: <[u8; 16]>::try_from(&bytes[70..=85])?.into(),
-                    static_port: u16::from_be_bytes(bytes[2..=3].try_into()?),
+                    scope_slot: u16::from_be_bytes(bytes[0..2].try_into()?),
+                    scope_string: ScopeString::decode(&bytes[2..2 + ScopeString::MAX_LENGTH])?,
+                    static_config_type: bytes[3 + ScopeString::MAX_LENGTH].try_into()?,
+                    static_ipv4_address: <[u8; 4]>::try_from(
+                        &bytes[4 + ScopeString::MAX_LENGTH..8 + ScopeString::MAX_LENGTH],
+                    )?
+                    .into(),
+                    static_ipv6_address: <[u8; 16]>::try_from(
+                        &bytes[8 + ScopeString::MAX_LENGTH..24 + ScopeString::MAX_LENGTH],
+                    )?
+                    .into(),
+                    static_port: u16::from_be_bytes(
+                        bytes[24 + ScopeString::MAX_LENGTH..26 + ScopeString::MAX_LENGTH]
+                            .try_into()?,
+                    ),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::SearchDomain) => {
@@ -2377,11 +2381,23 @@ impl<'a> ResponseParameterData<'a> {
             }
             (CommandClass::GetCommandResponse, ParameterId::TcpCommsStatus) => {
                 Ok(Self::GetTcpCommsStatus {
-                    scope_string: decode_string_bytes(&bytes[0..=62])?,
-                    broker_ipv4_address: <[u8; 4]>::try_from(&bytes[63..=66])?.into(),
-                    broker_ipv6_address: <[u8; 16]>::try_from(&bytes[67..=82])?.into(),
-                    broker_port: u16::from_be_bytes(bytes[83..=84].try_into()?),
-                    unhealthy_tcp_events: u16::from_be_bytes(bytes[85..=86].try_into()?),
+                    scope_string: ScopeString::decode(&bytes[0..ScopeString::MAX_LENGTH])?,
+                    broker_ipv4_address: <[u8; 4]>::try_from(
+                        &bytes[ScopeString::MAX_LENGTH..ScopeString::MAX_LENGTH + 4],
+                    )?
+                    .into(),
+                    broker_ipv6_address: <[u8; 16]>::try_from(
+                        &bytes[ScopeString::MAX_LENGTH + 4..ScopeString::MAX_LENGTH + 20],
+                    )?
+                    .into(),
+                    broker_port: u16::from_be_bytes(
+                        bytes[ScopeString::MAX_LENGTH + 20..ScopeString::MAX_LENGTH + 22]
+                            .try_into()?,
+                    ),
+                    unhealthy_tcp_events: u16::from_be_bytes(
+                        bytes[ScopeString::MAX_LENGTH + 22..ScopeString::MAX_LENGTH + 24]
+                            .try_into()?,
+                    ),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::BrokerStatus) => {
