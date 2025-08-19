@@ -60,7 +60,7 @@ use super::{
     },
     CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
-use crate::rdm::bsd_16_crc;
+use crate::rdm::{bsd_16_crc, parameter::e133::SearchDomain};
 #[cfg(not(feature = "alloc"))]
 use heapless::String;
 
@@ -466,10 +466,7 @@ pub enum RequestParameter<'a> {
     },
     // E1.33
     GetSearchDomain,
-    SetSearchDomain(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<231>,
-    ),
+    SetSearchDomain(SearchDomain<'a>),
     GetComponentScope {
         scope_slot: u16,
     },
@@ -2400,7 +2397,7 @@ impl<'a> RequestParameter<'a> {
             }
             (CommandClass::GetCommand, ParameterId::SearchDomain) => Ok(Self::GetSearchDomain),
             (CommandClass::SetCommand, ParameterId::SearchDomain) => {
-                Ok(Self::SetSearchDomain(decode_string_bytes(bytes)?))
+                Ok(Self::SetSearchDomain(bytes.try_into()?))
             }
             (CommandClass::GetCommand, ParameterId::TcpCommsStatus) => Ok(Self::GetTcpCommsStatus),
             (CommandClass::SetCommand, ParameterId::TcpCommsStatus) => {

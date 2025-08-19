@@ -1,7 +1,5 @@
 use super::RdmError;
-use core::{
-    net::{Ipv4Addr, Ipv6Addr},
-};
+use core::net::{Ipv4Addr, Ipv6Addr};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DhcpMode {

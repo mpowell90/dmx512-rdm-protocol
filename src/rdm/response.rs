@@ -45,6 +45,8 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
+use crate::rdm::parameter::e133::SearchDomain;
+
 use super::{
     bsd_16_crc,
     parameter::{
@@ -660,10 +662,7 @@ pub enum ResponseParameterData<'a> {
         static_ipv6_address: Ipv6Address,
         static_port: u16,
     },
-    GetSearchDomain(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<231>,
-    ),
+    GetSearchDomain(SearchDomain<'a>),
     GetTcpCommsStatus {
         #[cfg(feature = "alloc")]
         scope_string: String,
@@ -2382,7 +2381,7 @@ impl<'a> ResponseParameterData<'a> {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::SearchDomain) => {
-                Ok(Self::GetSearchDomain(decode_string_bytes(bytes)?))
+                Ok(Self::GetSearchDomain(bytes.try_into()?))
             }
             (CommandClass::GetCommandResponse, ParameterId::TcpCommsStatus) => {
                 Ok(Self::GetTcpCommsStatus {

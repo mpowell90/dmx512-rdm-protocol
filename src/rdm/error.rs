@@ -37,6 +37,7 @@ pub enum RdmError {
     InvalidDiscoveryState(u8),
     InvalidEndpointMode(u8),
     InvalidEndpointType(u8),
+    InvalidStringLength(u8, u8),
     MalformedPacket,
 }
 
@@ -141,6 +142,9 @@ impl fmt::Display for RdmError {
             }
             Self::InvalidEndpointType(endpoint_type) => {
                 write!(f, "Invalid EndpointType: {endpoint_type}")
+            }
+            Self::InvalidStringLength(actual, max) => {
+                write!(f, "Invalid string length: {actual}, must be <= {max}")
             }
             Self::MalformedPacket => write!(f, "Malformed packet"),
         }
