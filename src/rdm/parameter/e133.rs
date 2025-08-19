@@ -111,6 +111,10 @@ impl<'a> ScopeString<'a> {
         self.0
     }
 
+    pub fn is_valid(&self) -> bool {
+        !self.0.is_empty()
+    }
+
     pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
         if buf.len() < Self::MAX_LENGTH {
             return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
