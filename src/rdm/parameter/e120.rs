@@ -1,4 +1,7 @@
-use super::{super::utils::decode_string_bytes, RdmError, SubDeviceId};
+use super::{
+    super::utils::{decode_string_bytes, truncate_at_null},
+    RdmError, SubDeviceId,
+};
 use core::fmt;
 
 #[cfg(not(feature = "alloc"))]
@@ -380,8 +383,72 @@ pub enum ConvertedParameterValue {
     Raw([u8; 4]),
 }
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ParameterDescriptionLabel<'a>(&'a str);
+
+impl<'a> ParameterDescriptionLabel<'a> {
+    pub const MAX_LENGTH: usize = 32;
+
+    pub fn new(description: &'a str) -> Result<Self, RdmError> {
+        if description.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                description.len(),
+                Self::MAX_LENGTH,
+            ));
+        }
+        Ok(Self(description))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::MAX_LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+        }
+        let len = self.0.len();
+
+        buf[0..len].copy_from_slice(self.0.as_bytes());
+
+        Ok(len)
+    }
+
+    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
+        }
+
+        let scope_string = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+
+        Ok(Self(scope_string))
+    }
+}
+
+impl<'a> TryFrom<&'a str> for ParameterDescriptionLabel<'a> {
+    type Error = RdmError;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl<'a> From<ParameterDescriptionLabel<'a>> for &'a str {
+    fn from(value: ParameterDescriptionLabel<'a>) -> Self {
+        value.0
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
-pub struct ParameterDescription {
+pub struct ParameterDescription<'a> {
     pub parameter_id: u16,
     pub parameter_data_length: u8,
     pub data_type: ParameterDataType,
@@ -391,13 +458,10 @@ pub struct ParameterDescription {
     pub raw_minimum_valid_value: [u8; 4],
     pub raw_maximum_valid_value: [u8; 4],
     pub raw_default_value: [u8; 4],
-    #[cfg(feature = "alloc")]
-    pub description: String,
-    #[cfg(not(feature = "alloc"))]
-    pub description: String<32>,
+    pub description: ParameterDescriptionLabel<'a>,
 }
 
-impl ParameterDescription {
+impl<'a> ParameterDescription<'a> {
     fn convert_parameter_value(
         parameter_data_type: ParameterDataType,
         value: [u8; 4],

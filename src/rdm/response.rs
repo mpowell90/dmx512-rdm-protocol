@@ -51,6 +51,7 @@ use super::{
             DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription,
             PowerState, PresetPlaybackMode, ProductCategory, ProductDetail, ProtocolVersion,
             SelfTest, SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
+            ParameterDescriptionLabel
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
@@ -268,7 +269,7 @@ pub enum ResponseParameterData<'a> {
         #[cfg(feature = "alloc")] Vec<u16>,
         #[cfg(not(feature = "alloc"))] Vec<u16, 115>,
     ),
-    GetParameterDescription(ParameterDescription),
+    GetParameterDescription(ParameterDescription<'a>),
     GetDeviceInfo {
         protocol_version: ProtocolVersion,
         model_id: u16,
@@ -917,10 +918,7 @@ impl<'a> ResponseParameterData<'a> {
                 buf[8..12].copy_from_slice(&description.raw_minimum_valid_value);
                 buf[12..16].copy_from_slice(&description.raw_maximum_valid_value);
                 buf[16..20].copy_from_slice(&description.raw_default_value);
-
-                #[cfg(feature = "alloc")]
-                buf[20..20 + description.description.len()]
-                    .copy_from_slice(description.description.as_bytes());
+                description.description.encode(&mut buf[20..20 + description.description.len()])?;
             }
             Self::GetDeviceInfo {
                 protocol_version,
@@ -1707,7 +1705,7 @@ impl<'a> ResponseParameterData<'a> {
                     raw_minimum_valid_value: bytes[8..=11].try_into()?,
                     raw_maximum_valid_value: bytes[12..=15].try_into()?,
                     raw_default_value: bytes[16..=19].try_into()?,
-                    description: decode_string_bytes(&bytes[20..])?,
+                    description: ParameterDescriptionLabel::decode(&bytes[20..])?,
                 }))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => {

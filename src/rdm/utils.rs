@@ -33,9 +33,16 @@ pub fn bsd_16_crc(packet: &[u8]) -> u16 {
 }
 
 pub fn trim_trailing_nulls(slice: &[u8]) -> &[u8] {
-    match slice.iter().rposition(|&b| b != 0) {
-        Some(pos) => &slice[..=pos],
+    match slice.iter().rposition(|&byte| byte != 0) {
+        Some(index) => &slice[..=index],
         None => &[],
+    }
+}
+
+pub fn truncate_at_null(slice: &[u8]) -> &[u8] {
+    match slice.iter().position(|&byte| byte == 0) {
+        Some(index) => &slice[..index],
+        None => slice,
     }
 }
 
