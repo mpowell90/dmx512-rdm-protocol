@@ -44,7 +44,7 @@
 //!
 //! See tests for more examples.
 
-use crate::rdm::parameter::e137_2::DnsHostName;
+use crate::rdm::parameter::e137_2::{DnsDomainName, DnsHostName};
 
 use super::{
     error::RdmError,
@@ -367,12 +367,7 @@ pub enum RequestParameter<'a> {
     GetDnsHostName,
     SetDnsHostName(DnsHostName<'a>),
     GetDnsDomainName,
-    SetDnsDomainName {
-        #[cfg(feature = "alloc")]
-        domain_name: String,
-        #[cfg(not(feature = "alloc"))]
-        domain_name: String<231>,
-    },
+    SetDnsDomainName(DnsDomainName<'a>),
     // E1.37-7
     GetEndpointList,
     GetEndpointListChange,
@@ -1009,7 +1004,7 @@ impl<'a> RequestParameter<'a> {
             Self::SetDeviceLabel(device_label) => device_label.len(),
             Self::SetLanguage { language } => language.len(),
             Self::SetDnsHostName(dns_hostname) => dns_hostname.len(),
-            Self::SetDnsDomainName { domain_name } => domain_name.len(),
+            Self::SetDnsDomainName(domain_name) => domain_name.len(),
             Self::SetEndpointLabel { label, .. } => 2 + label.len(),
             Self::SetSearchDomain(search_domain) => search_domain.len(),
             Self::SetTcpCommsStatus(_) => ScopeString::MAX_LENGTH,
@@ -1391,8 +1386,8 @@ impl<'a> RequestParameter<'a> {
                 dns_hostname.encode(buf)?;
             }
             Self::GetDnsDomainName => {}
-            Self::SetDnsDomainName { domain_name } => {
-                buf[0..domain_name.len()].copy_from_slice(domain_name.as_bytes());
+            Self::SetDnsDomainName(domain_name) => {
+                domain_name.encode(buf)?;
             }
             // E1.37-7
             Self::GetEndpointList => {}
@@ -2228,9 +2223,9 @@ impl<'a> RequestParameter<'a> {
                 Ok(Self::SetDnsHostName(DnsHostName::decode(bytes)?))
             }
             (CommandClass::GetCommand, ParameterId::DnsDomainName) => Ok(Self::GetDnsDomainName),
-            (CommandClass::SetCommand, ParameterId::DnsDomainName) => Ok(Self::SetDnsDomainName {
-                domain_name: decode_string_bytes(bytes)?,
-            }),
+            (CommandClass::SetCommand, ParameterId::DnsDomainName) => {
+                Ok(Self::SetDnsDomainName(DnsDomainName::decode(bytes)?))
+            }
             // E1.37-7
             (CommandClass::GetCommand, ParameterId::EndpointList) => Ok(Self::GetEndpointList),
             (CommandClass::GetCommand, ParameterId::EndpointListChange) => {

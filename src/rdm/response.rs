@@ -45,6 +45,8 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
+use crate::rdm::parameter::e137_2::DnsDomainName;
+
 use super::{
     parameter::{
         e120::{
@@ -530,10 +532,7 @@ pub enum ResponseParameterData<'a> {
         address: Ipv4Address,
     },
     GetDnsHostName(DnsHostName<'a>),
-    GetDnsDomainName(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<32>,
-    ),
+    GetDnsDomainName(DnsDomainName<'a>),
     // E1.37-7
     GetEndpointList {
         list_change_number: u32,
@@ -1380,7 +1379,7 @@ impl<'a> ResponseParameterData<'a> {
                 dns_hostname.encode(buf)?;
             }
             Self::GetDnsDomainName(domain_name) => {
-                buf[0..domain_name.len()].copy_from_slice(domain_name.as_bytes());
+                domain_name.encode(buf)?;
             }
             // E1.37-7
             Self::GetEndpointList {
@@ -2177,6 +2176,9 @@ impl<'a> ResponseParameterData<'a> {
             }
             (CommandClass::GetCommandResponse, ParameterId::DnsHostName) => {
                 Ok(Self::GetDnsHostName(DnsHostName::decode(&bytes[0..])?))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DnsDomainName) => {
+                Ok(Self::GetDnsDomainName(DnsDomainName::decode(&bytes[0..])?))
             }
             // E1.37-7
             (CommandClass::GetCommand, ParameterId::EndpointList) => Ok(Self::GetEndpointList {

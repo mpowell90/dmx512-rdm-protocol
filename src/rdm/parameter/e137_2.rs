@@ -390,3 +390,67 @@ impl<'a> From<DnsHostName<'a>> for &'a str {
         value.0
     }
 }
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct DnsDomainName<'a>(&'a str);
+
+impl<'a> DnsDomainName<'a> {
+    pub const MAX_LENGTH: usize = 231;
+
+    pub fn new(dns_hostname: &'a str) -> Result<Self, RdmError> {
+        if dns_hostname.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                dns_hostname.len(),
+                Self::MAX_LENGTH,
+            ));
+        }
+        Ok(Self(dns_hostname))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0
+    }
+    
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::MAX_LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+        }
+        let len = self.0.len();
+
+        buf[0..len].copy_from_slice(self.0.as_bytes());
+
+        Ok(len)
+    }
+
+    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
+        }
+
+        let dns_hostname = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+
+        Ok(Self(dns_hostname))
+    }
+}
+
+impl<'a> TryFrom<&'a str> for DnsDomainName<'a> {
+    type Error = RdmError;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl<'a> From<DnsDomainName<'a>> for &'a str {
+    fn from(value: DnsDomainName<'a>) -> Self {
+        value.0
+    }
+}
