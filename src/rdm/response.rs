@@ -45,8 +45,6 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
-use crate::rdm::parameter::e137_2::DnsDomainName;
-
 use super::{
     parameter::{
         e120::{
@@ -57,8 +55,14 @@ use super::{
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
-        e137_2::{DhcpMode, DnsHostName, Ipv4Address, Ipv4Route, Ipv6Address, NetworkInterface},
-        e137_7::{DiscoveryCountStatus, DiscoveryState, EndpointId, EndpointMode, EndpointType},
+        e137_2::{
+            DhcpMode, DnsDomainName, DnsHostName, Ipv4Address, Ipv4Route, Ipv6Address,
+            NetworkInterface,
+        },
+        e137_7::{
+            DiscoveryCountStatus, DiscoveryState, EndpointId, EndpointLabel, EndpointMode,
+            EndpointType,
+        },
         ParameterId,
     },
     utils::{bsd_16_crc, decode_string_bytes},
@@ -567,10 +571,7 @@ pub enum ResponseParameterData<'a> {
     },
     GetEndpointLabel {
         endpoint_id: EndpointId,
-        #[cfg(feature = "alloc")]
-        label: String,
-        #[cfg(not(feature = "alloc"))]
-        label: String<32>,
+        label: EndpointLabel<'a>,
     },
     SetEndpointLabel {
         endpoint_id: EndpointId,
@@ -1426,7 +1427,7 @@ impl<'a> ResponseParameterData<'a> {
             }
             Self::GetEndpointLabel { endpoint_id, label } => {
                 buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                buf[2..2 + label.len()].copy_from_slice(label.as_bytes());
+                label.encode(&mut buf[2..2 + label.len()])?;
             }
             Self::SetEndpointLabel { endpoint_id } => {
                 buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
@@ -2239,8 +2240,8 @@ impl<'a> ResponseParameterData<'a> {
                 endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
             }),
             (CommandClass::GetCommand, ParameterId::EndpointLabel) => Ok(Self::GetEndpointLabel {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                label: decode_string_bytes(&bytes[2..])?,
+                endpoint_id: u16::from_be_bytes(bytes[0..2].try_into()?).into(),
+                label: EndpointLabel::decode(&bytes[2..])?,
             }),
             (CommandClass::SetCommand, ParameterId::EndpointLabel) => Ok(Self::SetEndpointLabel {
                 endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),

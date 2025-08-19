@@ -44,8 +44,6 @@
 //!
 //! See tests for more examples.
 
-use crate::rdm::parameter::e137_2::{DnsDomainName, DnsHostName};
-
 use super::{
     error::RdmError,
     parameter::{
@@ -55,8 +53,8 @@ use super::{
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, TimeMode},
-        e137_2::{Ipv4Address, Ipv4Route, Ipv6Address},
-        e137_7::{DiscoveryState, EndpointId, EndpointMode},
+        e137_2::{DnsDomainName, DnsHostName, Ipv4Address, Ipv4Route, Ipv6Address},
+        e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode},
         ParameterId,
     },
     utils::{bsd_16_crc, decode_string_bytes},
@@ -397,10 +395,7 @@ pub enum RequestParameter<'a> {
     },
     SetEndpointLabel {
         endpoint_id: EndpointId,
-        #[cfg(feature = "alloc")]
-        label: String,
-        #[cfg(not(feature = "alloc"))]
-        label: String<32>,
+        label: EndpointLabel<'a>,
     },
     GetRdmTrafficEnable {
         endpoint_id: EndpointId,
@@ -1424,7 +1419,7 @@ impl<'a> RequestParameter<'a> {
             }
             Self::SetEndpointLabel { endpoint_id, label } => {
                 buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                buf[2..2 + label.len()].copy_from_slice(label.as_bytes());
+                label.encode(&mut buf[2..2 + label.len()])?;
             }
             Self::GetRdmTrafficEnable { endpoint_id } => {
                 buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
@@ -2264,8 +2259,8 @@ impl<'a> RequestParameter<'a> {
                 endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
             }),
             (CommandClass::SetCommand, ParameterId::EndpointLabel) => Ok(Self::SetEndpointLabel {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                label: decode_string_bytes(&bytes[2..])?,
+                endpoint_id: u16::from_be_bytes(bytes[0..2].try_into()?).into(),
+                label: EndpointLabel::decode(&bytes[2..])?,
             }),
             (CommandClass::GetCommand, ParameterId::RdmTrafficEnable) => {
                 Ok(Self::GetRdmTrafficEnable {
