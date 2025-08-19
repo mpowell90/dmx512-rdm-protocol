@@ -45,23 +45,20 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
-use crate::rdm::parameter::e133::SearchDomain;
-
 use super::{
-    bsd_16_crc,
     parameter::{
-        decode_string_bytes,
         e120::{
             DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription,
             PowerState, PresetPlaybackMode, ProductCategory, ProductDetail, ProtocolVersion,
             SelfTest, SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
         },
-        e133::{BrokerState, StaticConfigType},
+        e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
         e137_2::{DhcpMode, Ipv4Address, Ipv4Route, Ipv6Address, NetworkInterface},
         e137_7::{DiscoveryCountStatus, DiscoveryState, EndpointId, EndpointMode, EndpointType},
         ParameterId,
     },
+    utils::{bsd_16_crc, decode_string_bytes},
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
@@ -653,10 +650,7 @@ pub enum ResponseParameterData<'a> {
     // E1.33
     GetComponentScope {
         scope_slot: u16,
-        #[cfg(feature = "alloc")]
-        scope_string: String,
-        #[cfg(not(feature = "alloc"))]
-        scope_string: String<63>,
+        scope_string: ScopeString<'a>,
         static_config_type: StaticConfigType,
         static_ipv4_address: Ipv4Address,
         static_ipv6_address: Ipv6Address,
@@ -1557,13 +1551,13 @@ impl<'a> ResponseParameterData<'a> {
                 static_port,
             } => {
                 buf[0..2].copy_from_slice(&scope_slot.to_be_bytes());
-                buf[2..2 + scope_string.len()].copy_from_slice(scope_string.as_bytes());
-                buf[2 + scope_string.len()] = *static_config_type as u8;
-                buf[3 + scope_string.len()..7 + scope_string.len()]
+                scope_string.encode(&mut buf[2..2 + ScopeString::MAX_LENGTH])?;
+                buf[2 + ScopeString::MAX_LENGTH] = *static_config_type as u8;
+                buf[3 + ScopeString::MAX_LENGTH..7 + ScopeString::MAX_LENGTH]
                     .copy_from_slice(&u32::from(*static_ipv4_address).to_be_bytes());
-                buf[7 + scope_string.len()..23 + scope_string.len()]
+                buf[7 + ScopeString::MAX_LENGTH..23 + ScopeString::MAX_LENGTH]
                     .copy_from_slice(&<[u8; 16]>::from(*static_ipv6_address));
-                buf[23 + scope_string.len()..25 + scope_string.len()]
+                buf[23 + ScopeString::MAX_LENGTH..25 + ScopeString::MAX_LENGTH]
                     .copy_from_slice(&static_port.to_be_bytes());
             }
             Self::GetSearchDomain(search_domain) => {
@@ -2373,7 +2367,7 @@ impl<'a> ResponseParameterData<'a> {
             (CommandClass::GetCommandResponse, ParameterId::ComponentScope) => {
                 Ok(Self::GetComponentScope {
                     scope_slot: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    scope_string: decode_string_bytes(&bytes[2..=64])?,
+                    scope_string: ScopeString::decode(&bytes[2..=64])?,
                     static_config_type: bytes[65].try_into()?,
                     static_ipv4_address: <[u8; 4]>::try_from(&bytes[66..=69])?.into(),
                     static_ipv6_address: <[u8; 16]>::try_from(&bytes[70..=85])?.into(),

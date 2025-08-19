@@ -1,4 +1,4 @@
-use super::{decode_string_bytes, RdmError, SubDeviceId};
+use super::{super::utils::decode_string_bytes, RdmError, SubDeviceId};
 use core::fmt;
 
 #[cfg(not(feature = "alloc"))]

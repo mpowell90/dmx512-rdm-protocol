@@ -47,20 +47,19 @@
 use super::{
     error::RdmError,
     parameter::{
-        decode_string_bytes,
         e120::{
             DisplayInvertMode, FadeTimes, LampOnMode, LampState, PowerState, PresetPlaybackMode,
             ResetDeviceMode, SelfTest, StatusType,
         },
-        e133::{BrokerState, StaticConfigType},
+        e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, TimeMode},
         e137_2::{Ipv4Address, Ipv4Route, Ipv6Address},
         e137_7::{DiscoveryState, EndpointId, EndpointMode},
         ParameterId,
     },
+    utils::{bsd_16_crc, decode_string_bytes},
     CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
-use crate::rdm::{bsd_16_crc, parameter::e133::SearchDomain};
 #[cfg(not(feature = "alloc"))]
 use heapless::String;
 
@@ -472,10 +471,7 @@ pub enum RequestParameter<'a> {
     },
     SetComponentScope {
         scope_slot: u16,
-        #[cfg(feature = "alloc")]
-        scope_string: String,
-        #[cfg(not(feature = "alloc"))]
-        scope_string: String<63>,
+        scope_string: ScopeString<'a>,
         static_config_type: StaticConfigType,
         static_broker_ipv4_address: Ipv4Address,
         static_broker_ipv6_address: Ipv6Address,
@@ -2382,7 +2378,7 @@ impl<'a> RequestParameter<'a> {
             (CommandClass::SetCommand, ParameterId::ComponentScope) => {
                 Ok(Self::SetComponentScope {
                     scope_slot: u16::from_be_bytes([bytes[0], bytes[1]]),
-                    scope_string: decode_string_bytes(&bytes[2..=65])?,
+                    scope_string: ScopeString::decode(&bytes[2..66])?,
                     static_config_type: bytes[66].try_into()?,
                     static_broker_ipv4_address: Ipv4Address::from([
                         bytes[67], bytes[68], bytes[69], bytes[70],

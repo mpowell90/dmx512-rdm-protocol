@@ -4,8 +4,10 @@ pub mod error;
 pub mod parameter;
 pub mod request;
 pub mod response;
+pub mod utils;
 
 use error::RdmError;
+
 pub use macaddr;
 
 pub const RDM_START_CODE_BYTE: u8 = 0xcc;
@@ -139,12 +141,6 @@ impl From<DeviceUID> for [u8; 6] {
             device_id_bytes[3],
         ]
     }
-}
-
-pub fn bsd_16_crc(packet: &[u8]) -> u16 {
-    packet
-        .iter()
-        .fold(0_u16, |sum, byte| (sum.wrapping_add(*byte as u16)))
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
