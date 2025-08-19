@@ -1026,7 +1026,7 @@ impl<'a> RequestParameter<'a> {
             Self::SetEndpointLabel { label, .. } => 2 + label.len(),
             Self::SetSearchDomain(search_domain) => search_domain.len(),
             Self::SetTcpCommsStatus { scope_string } => scope_string.len(),
-            Self::SetComponentScope { scope_string, .. } => 25 + scope_string.len(),
+            Self::SetComponentScope { .. } => 25 + ScopeString::MAX_LENGTH,
             Self::RawParameter { parameter_data, .. } => parameter_data.len(),
         }
     }
@@ -1514,18 +1514,18 @@ impl<'a> RequestParameter<'a> {
                 static_broker_port,
             } => {
                 buf[0..2].copy_from_slice(&scope_slot.to_be_bytes());
-                buf[2..2 + scope_string.len()].copy_from_slice(scope_string.as_bytes());
-                buf[2 + scope_string.len()] = *static_config_type as u8;
-                buf[3 + scope_string.len()..7 + scope_string.len()]
+                scope_string.encode(&mut buf[2..2 + ScopeString::MAX_LENGTH])?;
+                buf[2 + ScopeString::MAX_LENGTH] = *static_config_type as u8;
+                buf[3 + ScopeString::MAX_LENGTH..7 + ScopeString::MAX_LENGTH]
                     .copy_from_slice(&<[u8; 4]>::from(*static_broker_ipv4_address));
-                buf[7 + scope_string.len()..23 + scope_string.len()]
+                buf[7 + ScopeString::MAX_LENGTH..23 + ScopeString::MAX_LENGTH]
                     .copy_from_slice(&<[u8; 16]>::from(*static_broker_ipv6_address));
-                buf[23 + scope_string.len()..25 + scope_string.len()]
+                buf[23 + ScopeString::MAX_LENGTH..25 + ScopeString::MAX_LENGTH]
                     .copy_from_slice(&(*static_broker_port).to_be_bytes());
             }
             Self::GetSearchDomain => {}
             Self::SetSearchDomain(search_domain) => {
-                buf[0..search_domain.len()].copy_from_slice(search_domain.as_bytes());
+                search_domain.encode(buf)?;
             }
             Self::GetTcpCommsStatus => {}
             Self::SetTcpCommsStatus { scope_string } => {
@@ -2393,7 +2393,7 @@ impl<'a> RequestParameter<'a> {
             }
             (CommandClass::GetCommand, ParameterId::SearchDomain) => Ok(Self::GetSearchDomain),
             (CommandClass::SetCommand, ParameterId::SearchDomain) => {
-                Ok(Self::SetSearchDomain(bytes.try_into()?))
+                Ok(Self::SetSearchDomain(SearchDomain::decode(bytes)?))
             }
             (CommandClass::GetCommand, ParameterId::TcpCommsStatus) => Ok(Self::GetTcpCommsStatus),
             (CommandClass::SetCommand, ParameterId::TcpCommsStatus) => {

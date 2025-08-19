@@ -823,9 +823,7 @@ impl<'a> ResponseParameterData<'a> {
                 description,
                 ..
             } => 2 + description.len(),
-            ResponseParameterData::GetComponentScope { scope_string, .. } => {
-                25 + scope_string.len()
-            }
+            ResponseParameterData::GetComponentScope { .. } => 25 + ScopeString::MAX_LENGTH,
             ResponseParameterData::GetSearchDomain(search_domain) => search_domain.len(),
             ResponseParameterData::GetTcpCommsStatus { scope_string, .. } => {
                 24 + scope_string.len()
@@ -1561,7 +1559,7 @@ impl<'a> ResponseParameterData<'a> {
                     .copy_from_slice(&static_port.to_be_bytes());
             }
             Self::GetSearchDomain(search_domain) => {
-                buf[0..search_domain.len()].copy_from_slice(search_domain.as_bytes());
+                search_domain.encode(buf)?;
             }
             Self::GetTcpCommsStatus {
                 scope_string,
@@ -2375,7 +2373,7 @@ impl<'a> ResponseParameterData<'a> {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::SearchDomain) => {
-                Ok(Self::GetSearchDomain(bytes.try_into()?))
+                Ok(Self::GetSearchDomain(SearchDomain::decode(bytes)?))
             }
             (CommandClass::GetCommandResponse, ParameterId::TcpCommsStatus) => {
                 Ok(Self::GetTcpCommsStatus {

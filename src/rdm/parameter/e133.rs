@@ -1,5 +1,4 @@
 use super::{super::utils::trim_trailing_nulls, RdmError};
-use core::ops::Deref;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StaticConfigType {
@@ -60,34 +59,48 @@ impl<'a> SearchDomain<'a> {
     pub fn as_str(&self) -> &str {
         self.0
     }
-}
 
-impl Deref for SearchDomain<'_> {
-    type Target = str;
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 
-    fn deref(&self) -> &Self::Target {
-        self.0
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::MAX_LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+        }
+        let len = self.0.len();
+
+        buf[0..len].copy_from_slice(self.0.as_bytes());
+
+        Ok(len)
+    }
+
+    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
+        }
+
+        let scope_string = core::str::from_utf8(bytes).map_err(RdmError::from)?;
+
+        Ok(Self(scope_string))
     }
 }
 
-impl<'a> From<SearchDomain<'a>> for &'a [u8] {
-    fn from(value: SearchDomain<'a>) -> Self {
-        value.0.as_bytes()
-    }
-}
-
-impl<'a> TryFrom<&'a [u8]> for SearchDomain<'a> {
+impl<'a> TryFrom<&'a str> for SearchDomain<'a> {
     type Error = RdmError;
 
-    fn try_from(value: &'a [u8]) -> Result<Self, Self::Error> {
-        let search_domain = core::str::from_utf8(value).map_err(RdmError::from)?;
-        if search_domain.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                search_domain.len(),
-                Self::MAX_LENGTH,
-            ));
-        }
-        Ok(Self(search_domain))
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl<'a> From<SearchDomain<'a>> for &'a str {
+    fn from(value: SearchDomain<'a>) -> Self {
+        value.0
     }
 }
 
@@ -139,14 +152,6 @@ impl<'a> ScopeString<'a> {
             core::str::from_utf8(trim_trailing_nulls(bytes)).map_err(RdmError::from)?;
 
         Ok(Self(scope_string))
-    }
-}
-
-impl Deref for ScopeString<'_> {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0
     }
 }
 
