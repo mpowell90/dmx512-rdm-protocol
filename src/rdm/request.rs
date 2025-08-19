@@ -48,8 +48,8 @@ use super::{
     error::RdmError,
     parameter::{
         e120::{
-            DisplayInvertMode, FadeTimes, LampOnMode, LampState, PowerState, PresetPlaybackMode,
-            ResetDeviceMode, SelfTest, StatusType,
+            DeviceLabel, DisplayInvertMode, FadeTimes, LampOnMode, LampState, PowerState,
+            PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType,
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, TimeMode},
@@ -97,12 +97,7 @@ pub enum RequestParameter<'a> {
     GetDeviceModelDescription,
     GetManufacturerLabel,
     GetDeviceLabel,
-    SetDeviceLabel {
-        #[cfg(feature = "alloc")]
-        device_label: String,
-        #[cfg(not(feature = "alloc"))]
-        device_label: String<32>,
-    },
+    SetDeviceLabel(DeviceLabel<'a>),
     GetFactoryDefaults,
     SetFactoryDefaults,
     GetLanguageCapabilities,
@@ -1014,7 +1009,7 @@ impl<'a> RequestParameter<'a> {
                     2
                 }
             }
-            Self::SetDeviceLabel { device_label } => device_label.len(),
+            Self::SetDeviceLabel(device_label) => device_label.len(),
             Self::SetLanguage { language } => language.len(),
             Self::SetDnsHostName { host_name } => host_name.len(),
             Self::SetDnsDomainName { domain_name } => domain_name.len(),
@@ -1063,8 +1058,8 @@ impl<'a> RequestParameter<'a> {
             Self::GetDeviceModelDescription => {}
             Self::GetManufacturerLabel => {}
             Self::GetDeviceLabel => {}
-            Self::SetDeviceLabel { device_label } => {
-                buf[0..device_label.len()].copy_from_slice(device_label.as_bytes());
+            Self::SetDeviceLabel(device_label) => {
+                device_label.encode(buf)?;
             }
             Self::GetFactoryDefaults => {}
             Self::SetFactoryDefaults => {}
@@ -1620,12 +1615,9 @@ impl<'a> RequestParameter<'a> {
                 Ok(Self::GetManufacturerLabel)
             }
             (CommandClass::GetCommand, ParameterId::DeviceLabel) => Ok(Self::GetDeviceLabel),
-            (CommandClass::SetCommand, ParameterId::DeviceLabel) => Ok(Self::SetDeviceLabel {
-                #[cfg(feature = "alloc")]
-                device_label: decode_string_bytes(bytes)?,
-                #[cfg(not(feature = "alloc"))]
-                device_label: decode_string_bytes(bytes)?,
-            }),
+            (CommandClass::SetCommand, ParameterId::DeviceLabel) => {
+                Ok(Self::SetDeviceLabel(DeviceLabel::decode(bytes)?))
+            }
             (CommandClass::GetCommand, ParameterId::FactoryDefaults) => {
                 Ok(Self::GetFactoryDefaults)
             }

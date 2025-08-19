@@ -427,9 +427,9 @@ impl<'a> ParameterDescriptionLabel<'a> {
             return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
         }
 
-        let scope_string = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+        let description = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
 
-        Ok(Self(scope_string))
+        Ok(Self(description))
     }
 }
 
@@ -505,6 +505,70 @@ impl<'a> ParameterDescription<'a> {
     }
     pub fn default_value(&self) -> Result<ConvertedParameterValue, RdmError> {
         Self::convert_parameter_value(self.data_type, self.raw_default_value)
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct DeviceLabel<'a>(&'a str);
+
+impl<'a> DeviceLabel<'a> {
+    pub const MAX_LENGTH: usize = 32;
+
+    pub fn new(device_label: &'a str) -> Result<Self, RdmError> {
+        if device_label.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                device_label.len(),
+                Self::MAX_LENGTH,
+            ));
+        }
+        Ok(Self(device_label))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::MAX_LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+        }
+        let len = self.0.len();
+
+        buf[0..len].copy_from_slice(self.0.as_bytes());
+
+        Ok(len)
+    }
+
+    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
+        }
+
+        let device_label = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+
+        Ok(Self(device_label))
+    }
+}
+
+impl<'a> TryFrom<&'a str> for DeviceLabel<'a> {
+    type Error = RdmError;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl<'a> From<DeviceLabel<'a>> for &'a str {
+    fn from(value: DeviceLabel<'a>) -> Self {
+        value.0
     }
 }
 

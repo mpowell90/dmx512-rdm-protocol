@@ -48,10 +48,10 @@
 use super::{
     parameter::{
         e120::{
-            DefaultSlotValue, DisplayInvertMode, LampOnMode, LampState, ParameterDescription,
-            PowerState, PresetPlaybackMode, ProductCategory, ProductDetail, ProtocolVersion,
-            SelfTest, SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
-            ParameterDescriptionLabel
+            DefaultSlotValue, DeviceLabel, DisplayInvertMode, LampOnMode, LampState,
+            ParameterDescription, ParameterDescriptionLabel, PowerState, PresetPlaybackMode,
+            ProductCategory, ProductDetail, ProtocolVersion, SelfTest, SensorDefinition,
+            SensorValue, SlotInfo, StatusMessage, StatusType,
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
@@ -294,10 +294,7 @@ pub enum ResponseParameterData<'a> {
         #[cfg(feature = "alloc")] String,
         #[cfg(not(feature = "alloc"))] String<32>,
     ),
-    GetDeviceLabel(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<32>,
-    ),
+    GetDeviceLabel(DeviceLabel<'a>),
     GetFactoryDefaults(bool),
     GetLanguageCapabilities(
         #[cfg(feature = "alloc")] Vec<String>,
@@ -918,7 +915,9 @@ impl<'a> ResponseParameterData<'a> {
                 buf[8..12].copy_from_slice(&description.raw_minimum_valid_value);
                 buf[12..16].copy_from_slice(&description.raw_maximum_valid_value);
                 buf[16..20].copy_from_slice(&description.raw_default_value);
-                description.description.encode(&mut buf[20..20 + description.description.len()])?;
+                description
+                    .description
+                    .encode(&mut buf[20..20 + description.description.len()])?;
             }
             Self::GetDeviceInfo {
                 protocol_version,
@@ -954,8 +953,8 @@ impl<'a> ResponseParameterData<'a> {
             Self::GetManufacturerLabel(label) => {
                 buf[0..label.len()].copy_from_slice(label.as_bytes());
             }
-            Self::GetDeviceLabel(label) => {
-                buf[0..label.len()].copy_from_slice(label.as_bytes());
+            Self::GetDeviceLabel(device_label) => {
+                device_label.encode(buf)?;
             }
             Self::GetFactoryDefaults(defaults) => {
                 buf[0] = *defaults as u8;
@@ -1743,7 +1742,7 @@ impl<'a> ResponseParameterData<'a> {
                 Ok(Self::GetManufacturerLabel(decode_string_bytes(bytes)?))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceLabel) => {
-                Ok(Self::GetDeviceLabel(decode_string_bytes(bytes)?))
+                Ok(Self::GetDeviceLabel(DeviceLabel::decode(bytes)?))
             }
             (CommandClass::GetCommandResponse, ParameterId::FactoryDefaults) => {
                 Ok(Self::GetFactoryDefaults(bytes[0] == 1))
