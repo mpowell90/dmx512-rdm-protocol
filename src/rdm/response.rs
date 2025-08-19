@@ -55,7 +55,7 @@ use super::{
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
-        e137_2::{DhcpMode, Ipv4Address, Ipv4Route, Ipv6Address, NetworkInterface},
+        e137_2::{DhcpMode, DnsHostName, Ipv4Address, Ipv4Route, Ipv6Address, NetworkInterface},
         e137_7::{DiscoveryCountStatus, DiscoveryState, EndpointId, EndpointMode, EndpointType},
         ParameterId,
     },
@@ -529,10 +529,7 @@ pub enum ResponseParameterData<'a> {
         name_server_index: u8,
         address: Ipv4Address,
     },
-    GetDnsHostName(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<63>,
-    ),
+    GetDnsHostName(DnsHostName<'a>),
     GetDnsDomainName(
         #[cfg(feature = "alloc")] String,
         #[cfg(not(feature = "alloc"))] String<32>,
@@ -1379,8 +1376,8 @@ impl<'a> ResponseParameterData<'a> {
                 buf[0] = *name_server_index;
                 buf[1..5].copy_from_slice(&u32::from(*address).to_be_bytes());
             }
-            Self::GetDnsHostName(host_name) => {
-                buf[0..host_name.len()].copy_from_slice(host_name.as_bytes());
+            Self::GetDnsHostName(dns_hostname) => {
+                dns_hostname.encode(buf)?;
             }
             Self::GetDnsDomainName(domain_name) => {
                 buf[0..domain_name.len()].copy_from_slice(domain_name.as_bytes());
@@ -2177,6 +2174,9 @@ impl<'a> ResponseParameterData<'a> {
                     name_server_index: bytes[0],
                     address: <[u8; 4]>::try_from(&bytes[1..=4])?.into(),
                 })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DnsHostName) => {
+                Ok(Self::GetDnsHostName(DnsHostName::decode(&bytes[0..])?))
             }
             // E1.37-7
             (CommandClass::GetCommand, ParameterId::EndpointList) => Ok(Self::GetEndpointList {

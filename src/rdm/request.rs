@@ -44,6 +44,8 @@
 //!
 //! See tests for more examples.
 
+use crate::rdm::parameter::e137_2::DnsHostName;
+
 use super::{
     error::RdmError,
     parameter::{
@@ -363,12 +365,7 @@ pub enum RequestParameter<'a> {
         name_server_address: Ipv4Address,
     },
     GetDnsHostName,
-    SetDnsHostName {
-        #[cfg(feature = "alloc")]
-        host_name: String,
-        #[cfg(not(feature = "alloc"))]
-        host_name: String<63>,
-    },
+    SetDnsHostName(DnsHostName<'a>),
     GetDnsDomainName,
     SetDnsDomainName {
         #[cfg(feature = "alloc")]
@@ -1011,7 +1008,7 @@ impl<'a> RequestParameter<'a> {
             }
             Self::SetDeviceLabel(device_label) => device_label.len(),
             Self::SetLanguage { language } => language.len(),
-            Self::SetDnsHostName { host_name } => host_name.len(),
+            Self::SetDnsHostName(dns_hostname) => dns_hostname.len(),
             Self::SetDnsDomainName { domain_name } => domain_name.len(),
             Self::SetEndpointLabel { label, .. } => 2 + label.len(),
             Self::SetSearchDomain(search_domain) => search_domain.len(),
@@ -1390,8 +1387,8 @@ impl<'a> RequestParameter<'a> {
                 buf[1..5].copy_from_slice(&<[u8; 4]>::from(*name_server_address));
             }
             Self::GetDnsHostName => {}
-            Self::SetDnsHostName { host_name } => {
-                buf[0..host_name.len()].copy_from_slice(host_name.as_bytes());
+            Self::SetDnsHostName(dns_hostname) => {
+                dns_hostname.encode(buf)?;
             }
             Self::GetDnsDomainName => {}
             Self::SetDnsDomainName { domain_name } => {
@@ -2227,9 +2224,9 @@ impl<'a> RequestParameter<'a> {
                 })
             }
             (CommandClass::GetCommand, ParameterId::DnsHostName) => Ok(Self::GetDnsHostName),
-            (CommandClass::SetCommand, ParameterId::DnsHostName) => Ok(Self::SetDnsHostName {
-                host_name: decode_string_bytes(bytes)?,
-            }),
+            (CommandClass::SetCommand, ParameterId::DnsHostName) => {
+                Ok(Self::SetDnsHostName(DnsHostName::decode(bytes)?))
+            }
             (CommandClass::GetCommand, ParameterId::DnsDomainName) => Ok(Self::GetDnsDomainName),
             (CommandClass::SetCommand, ParameterId::DnsDomainName) => Ok(Self::SetDnsDomainName {
                 domain_name: decode_string_bytes(bytes)?,

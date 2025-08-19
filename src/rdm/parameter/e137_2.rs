@@ -1,4 +1,4 @@
-use super::RdmError;
+use super::{super::utils::truncate_at_null, RdmError};
 use core::net::{Ipv4Addr, Ipv6Addr};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -321,4 +321,72 @@ impl From<HardwareType> for u16 {
 pub struct NetworkInterface {
     pub interface_id: u32,
     pub hardware_type: HardwareType,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct DnsHostName<'a>(&'a str);
+
+impl<'a> DnsHostName<'a> {
+    pub const MAX_LENGTH: usize = 63;
+
+    pub fn new(dns_hostname: &'a str) -> Result<Self, RdmError> {
+        if dns_hostname.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                dns_hostname.len(),
+                Self::MAX_LENGTH,
+            ));
+        }
+        Ok(Self(dns_hostname))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0
+    }
+
+    pub fn is_valid(&self) -> bool {
+        !self.0.is_empty() && self.0.len() <= Self::MAX_LENGTH
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::MAX_LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+        }
+        let len = self.0.len();
+
+        buf[0..len].copy_from_slice(self.0.as_bytes());
+
+        Ok(len)
+    }
+
+    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
+        }
+
+        let dns_hostname = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+
+        Ok(Self(dns_hostname))
+    }
+}
+
+impl<'a> TryFrom<&'a str> for DnsHostName<'a> {
+    type Error = RdmError;
+
+    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl<'a> From<DnsHostName<'a>> for &'a str {
+    fn from(value: DnsHostName<'a>) -> Self {
+        value.0
+    }
 }
