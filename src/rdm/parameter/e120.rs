@@ -1906,3 +1906,605 @@ impl SensorValue {
         }
     }
 }
+
+// ISO 639-1 Language Codes copied from https://github.com/AlbanMinassian/iso639
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum Iso639_1<'a> {
+    Aa, // Afar
+    Ab, // Abkhaz
+    Ae, // Avestan
+    Af, // Afrikaans
+    Ak, // Akan
+    Am, // Amharic
+    An, // Aragonese
+    Ar, // Arabic
+    As, // Assamese
+    Av, // Avaric
+    Ay, // Aymara
+    Az, // Azerbaijani
+    Ba, // Bashkir
+    Be, // Belarusian
+    Bg, // Bulgarian
+    Bh, // Bihari
+    Bi, // Bislama
+    Bm, // Bambara
+    Bn, // Bengali, Bangla
+    Bo, // Tibetan Standard, Tibetan, Central
+    Br, // Breton
+    Bs, // Bosnian
+    Ca, // Catalan
+    Ce, // Chechen
+    Ch, // Chamorro
+    Co, // Corsican
+    Cr, // Cree
+    Cs, // Czech
+    Cu, // Old Church Slavonic, Church Slavonic, Old Bulgarian
+    Cv, // Chuvash
+    Cy, // Welsh
+    Da, // Danish
+    De, // German
+    Dv, // Divehi, Dhivehi, Maldivian
+    Dz, // Dzongkha
+    Ee, // Ewe
+    El, // Greek
+    En, // English
+    Eo, // Esperanto
+    Es, // Spanish
+    Et, // Estonian
+    Eu, // Basque
+    Fa, // Persian
+    Ff, // Fula, Fulah, Pulaar, Pular
+    Fi, // Finnish
+    Fj, // Fijian
+    Fo, // Faroese
+    Fr, // French
+    Fy, // Western Frisian
+    Ga, // Irish
+    Gd, // Scottish Gaelic, Gaelic
+    Gl, // Galician
+    Gn, // Guaraní
+    Gu, // Gujarati
+    Gv, // Manx
+    Ha, // Hausa
+    He, // Hebrew
+    Hi, // Hindi
+    Ho, // Hiri Motu
+    Hr, // Croatian
+    Ht, // Haitian, Haitian Creole
+    Hu, // Hungarian
+    Hy, // Armenian
+    Hz, // Herero
+    Ia, // Interlingua
+    Id, // Indonesian
+    Ie, // Interlingue
+    Ig, // Igbo
+    Ii, // Nuosu
+    Ik, // Inupiaq
+    Io, // Ido
+    Is, // Icelandic
+    It, // Italian
+    Iu, // Inuktitut
+    Ja, // Japanese
+    Jv, // Javanese
+    Ka, // Georgian
+    Kg, // Kongo
+    Ki, // Kikuyu, Gikuyu
+    Kj, // Kwanyama, Kuanyama
+    Kk, // Kazakh
+    Kl, // Kalaallisut, Greenlandic
+    Km, // Khmer
+    Kn, // Kannada
+    Ko, // Korean
+    Kr, // Kanuri
+    Ks, // Kashmiri
+    Ku, // Kurdish
+    Kv, // Komi
+    Kw, // Cornish
+    Ky, // Kyrgyz
+    La, // Latin
+    Lb, // Luxembourgish, Letzeburgesch
+    Lg, // Ganda
+    Li, // Limburgish, Limburgan, Limburger
+    Ln, // Lingala
+    Lo, // Lao
+    Lt, // Lithuanian
+    Lu, // Luba-Katanga
+    Lv, // Latvian
+    Mg, // Malagasy
+    Mh, // Marshallese
+    Mi, // Māori
+    Mk, // Macedonian
+    Ml, // Malayalam
+    Mn, // Mongolian
+    Mr, // Marathi
+    Ms, // Malay
+    Mt, // Maltese
+    My, // Burmese
+    Na, // Nauruan
+    Nb, // Norwegian Bokmål
+    Nd, // Northern Ndebele
+    Ne, // Nepali
+    Ng, // Ndonga
+    Nl, // Dutch
+    Nn, // Norwegian Nynorsk
+    No, // Norwegian
+    Nr, // Southern Ndebele
+    Nv, // Navajo, Navaho
+    Ny, // Chichewa, Chewa, Nyanja
+    Oc, // Occitan
+    Oj, // Ojibwe, Ojibwa
+    Om, // Oromo
+    Or, // Oriya
+    Os, // Ossetian, Ossetic
+    Pa, // Eastern Punjab
+    Pi, // Pāli
+    Pl, // Polish
+    Ps, // Pashto, Pushto
+    Pt, // Portuguese
+    Qu, // Quechua
+    Rm, // Romansh
+    Rn, // Kirundi
+    Ro, // Romanian
+    Ru, // Russian
+    Rw, // Kinyarwanda
+    Sa, // Sanskrit
+    Sc, // Sardinian
+    Sd, // Sindhi
+    Se, // Northern Sami
+    Sg, // Sango
+    Si, // Sinhalese, Sinhala
+    Sk, // Slovak
+    Sl, // Slovene
+    Sm, // Samoan
+    Sn, // Shona
+    So, // Somali
+    Sq, // Albanian
+    Sr, // Serbian
+    Ss, // Swati
+    St, // Southern Sotho
+    Su, // Sundanese
+    Sv, // Swedish
+    Sw, // Swahili
+    Ta, // Tamil
+    Te, // Telugu
+    Tg, // Tajik
+    Th, // Thai
+    Ti, // Tigrinya
+    Tk, // Turkmen
+    Tl, // Tagalog
+    Tn, // Tswana
+    To, // Tonga
+    Tr, // Turkish
+    Ts, // Tsonga
+    Tt, // Tatar
+    Tw, // Twi
+    Ty, // Tahitian
+    Ug, // Uyghur
+    Uk, // Ukrainian
+    Ur, // Urdu
+    Uz, // Uzbek
+    Ve, // Venda
+    Vi, // Vietnamese
+    Vo, // Volapük
+    Wa, // Walloon
+    Wo, // Wolof
+    Xh, // Xhosa
+    Yi, // Yiddish
+    Yo, // Yoruba
+    Za, // Zhuang, Chuang
+    Zh, // Chinese
+    Zu, // Zulu
+    Unsupported(&'a str),
+}
+
+impl<'a> Iso639_1<'a> {
+    pub const LENGTH: usize = 2;
+
+    pub fn as_str(&self) -> &'a str {
+        match self {
+            Iso639_1::Aa => "aa",
+            Iso639_1::Ab => "ab",
+            Iso639_1::Ae => "ae",
+            Iso639_1::Af => "af",
+            Iso639_1::Ak => "ak",
+            Iso639_1::Am => "am",
+            Iso639_1::An => "an",
+            Iso639_1::Ar => "ar",
+            Iso639_1::As => "as",
+            Iso639_1::Av => "av",
+            Iso639_1::Ay => "ay",
+            Iso639_1::Az => "az",
+            Iso639_1::Ba => "ba",
+            Iso639_1::Be => "be",
+            Iso639_1::Bg => "bg",
+            Iso639_1::Bh => "bh",
+            Iso639_1::Bi => "bi",
+            Iso639_1::Bm => "bm",
+            Iso639_1::Bn => "bn",
+            Iso639_1::Bo => "bo",
+            Iso639_1::Br => "br",
+            Iso639_1::Bs => "bs",
+            Iso639_1::Ca => "ca",
+            Iso639_1::Ce => "ce",
+            Iso639_1::Ch => "ch",
+            Iso639_1::Co => "co",
+            Iso639_1::Cr => "cr",
+            Iso639_1::Cs => "cs",
+            Iso639_1::Cu => "cu",
+            Iso639_1::Cv => "cv",
+            Iso639_1::Cy => "cy",
+            Iso639_1::Da => "da",
+            Iso639_1::De => "de",
+            Iso639_1::Dv => "dv",
+            Iso639_1::Dz => "dz",
+            Iso639_1::Ee => "ee",
+            Iso639_1::El => "el",
+            Iso639_1::En => "en",
+            Iso639_1::Eo => "eo",
+            Iso639_1::Es => "es",
+            Iso639_1::Et => "et",
+            Iso639_1::Eu => "eu",
+            Iso639_1::Fa => "fa",
+            Iso639_1::Ff => "ff",
+            Iso639_1::Fi => "fi",
+            Iso639_1::Fj => "fj",
+            Iso639_1::Fo => "fo",
+            Iso639_1::Fr => "fr",
+            Iso639_1::Fy => "fy",
+            Iso639_1::Ga => "ga",
+            Iso639_1::Gd => "gd",
+            Iso639_1::Gl => "gl",
+            Iso639_1::Gn => "gn",
+            Iso639_1::Gu => "gu",
+            Iso639_1::Gv => "gv",
+            Iso639_1::Ha => "ha",
+            Iso639_1::He => "he",
+            Iso639_1::Hi => "hi",
+            Iso639_1::Ho => "ho",
+            Iso639_1::Hr => "hr",
+            Iso639_1::Ht => "ht",
+            Iso639_1::Hu => "hu",
+            Iso639_1::Hy => "hy",
+            Iso639_1::Hz => "hz",
+            Iso639_1::Ia => "ia",
+            Iso639_1::Id => "id",
+            Iso639_1::Ie => "ie",
+            Iso639_1::Ig => "ig",
+            Iso639_1::Ii => "ii",
+            Iso639_1::Ik => "ik",
+            Iso639_1::Io => "io",
+            Iso639_1::Is => "is",
+            Iso639_1::It => "it",
+            Iso639_1::Iu => "iu",
+            Iso639_1::Ja => "ja",
+            Iso639_1::Jv => "jv",
+            Iso639_1::Ka => "ka",
+            Iso639_1::Kg => "kg",
+            Iso639_1::Ki => "ki",
+            Iso639_1::Kj => "kj",
+            Iso639_1::Kk => "kk",
+            Iso639_1::Kl => "kl",
+            Iso639_1::Km => "km",
+            Iso639_1::Kn => "kn",
+            Iso639_1::Ko => "ko",
+            Iso639_1::Kr => "kr",
+            Iso639_1::Ks => "ks",
+            Iso639_1::Ku => "ku",
+            Iso639_1::Kv => "kv",
+            Iso639_1::Kw => "kw",
+            Iso639_1::Ky => "ky",
+            Iso639_1::La => "la",
+            Iso639_1::Lb => "lb",
+            Iso639_1::Lg => "lg",
+            Iso639_1::Li => "li",
+            Iso639_1::Ln => "ln",
+            Iso639_1::Lo => "lo",
+            Iso639_1::Lt => "lt",
+            Iso639_1::Lu => "lu",
+            Iso639_1::Lv => "lv",
+            Iso639_1::Mg => "mg",
+            Iso639_1::Mh => "mh",
+            Iso639_1::Mi => "mi",
+            Iso639_1::Mk => "mk",
+            Iso639_1::Ml => "ml",
+            Iso639_1::Mn => "mn",
+            Iso639_1::Mr => "mr",
+            Iso639_1::Ms => "ms",
+            Iso639_1::Mt => "mt",
+            Iso639_1::My => "my",
+            Iso639_1::Na => "na",
+            Iso639_1::Nb => "nb",
+            Iso639_1::Nd => "nd",
+            Iso639_1::Ne => "ne",
+            Iso639_1::Ng => "ng",
+            Iso639_1::Nl => "nl",
+            Iso639_1::Nn => "nn",
+            Iso639_1::No => "no",
+            Iso639_1::Nr => "nr",
+            Iso639_1::Nv => "nv",
+            Iso639_1::Ny => "ny",
+            Iso639_1::Oc => "oc",
+            Iso639_1::Oj => "oj",
+            Iso639_1::Om => "om",
+            Iso639_1::Or => "or",
+            Iso639_1::Os => "os",
+            Iso639_1::Pa => "pa",
+            Iso639_1::Pi => "pi",
+            Iso639_1::Pl => "pl",
+            Iso639_1::Ps => "ps",
+            Iso639_1::Pt => "pt",
+            Iso639_1::Qu => "qu",
+            Iso639_1::Rm => "rm",
+            Iso639_1::Rn => "rn",
+            Iso639_1::Ro => "ro",
+            Iso639_1::Ru => "ru",
+            Iso639_1::Rw => "rw",
+            Iso639_1::Sa => "sa",
+            Iso639_1::Sc => "sc",
+            Iso639_1::Sd => "sd",
+            Iso639_1::Se => "se",
+            Iso639_1::Sg => "sg",
+            Iso639_1::Si => "si",
+            Iso639_1::Sk => "sk",
+            Iso639_1::Sl => "sl",
+            Iso639_1::Sm => "sm",
+            Iso639_1::Sn => "sn",
+            Iso639_1::So => "so",
+            Iso639_1::Sq => "sq",
+            Iso639_1::Sr => "sr",
+            Iso639_1::Ss => "ss",
+            Iso639_1::St => "st",
+            Iso639_1::Su => "su",
+            Iso639_1::Sv => "sv",
+            Iso639_1::Sw => "sw",
+            Iso639_1::Ta => "ta",
+            Iso639_1::Te => "te",
+            Iso639_1::Tg => "tg",
+            Iso639_1::Th => "th",
+            Iso639_1::Ti => "ti",
+            Iso639_1::Tk => "tk",
+            Iso639_1::Tl => "tl",
+            Iso639_1::Tn => "tn",
+            Iso639_1::To => "to",
+            Iso639_1::Tr => "tr",
+            Iso639_1::Ts => "ts",
+            Iso639_1::Tt => "tt",
+            Iso639_1::Tw => "tw",
+            Iso639_1::Ty => "ty",
+            Iso639_1::Ug => "ug",
+            Iso639_1::Uk => "uk",
+            Iso639_1::Ur => "ur",
+            Iso639_1::Uz => "uz",
+            Iso639_1::Ve => "ve",
+            Iso639_1::Vi => "vi",
+            Iso639_1::Vo => "vo",
+            Iso639_1::Wa => "wa",
+            Iso639_1::Wo => "wo",
+            Iso639_1::Xh => "xh",
+            Iso639_1::Yi => "yi",
+            Iso639_1::Yo => "yo",
+            Iso639_1::Za => "za",
+            Iso639_1::Zh => "zh",
+            Iso639_1::Zu => "zu",
+            Iso639_1::Unsupported(value) => value,
+        }
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::LENGTH));
+        }
+
+        buf[0..Self::LENGTH].copy_from_slice(self.as_str().as_bytes());
+
+        Ok(Self::LENGTH)
+    }
+
+    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::LENGTH));
+        }
+
+        let iso639_1 = core::str::from_utf8(&bytes[0..Self::LENGTH]).map_err(RdmError::from)?;
+
+        Ok(iso639_1.into())
+    }
+}
+
+impl<'a> From<&'a str> for Iso639_1<'a> {
+    fn from(code: &'a str) -> Self {
+        match code {
+            "aa" => Iso639_1::Aa,
+            "ab" => Iso639_1::Ab,
+            "ae" => Iso639_1::Ae,
+            "af" => Iso639_1::Af,
+            "ak" => Iso639_1::Ak,
+            "am" => Iso639_1::Am,
+            "an" => Iso639_1::An,
+            "ar" => Iso639_1::Ar,
+            "as" => Iso639_1::As,
+            "av" => Iso639_1::Av,
+            "ay" => Iso639_1::Ay,
+            "az" => Iso639_1::Az,
+            "ba" => Iso639_1::Ba,
+            "be" => Iso639_1::Be,
+            "bg" => Iso639_1::Bg,
+            "bh" => Iso639_1::Bh,
+            "bi" => Iso639_1::Bi,
+            "bm" => Iso639_1::Bm,
+            "bn" => Iso639_1::Bn,
+            "bo" => Iso639_1::Bo,
+            "br" => Iso639_1::Br,
+            "bs" => Iso639_1::Bs,
+            "ca" => Iso639_1::Ca,
+            "ce" => Iso639_1::Ce,
+            "ch" => Iso639_1::Ch,
+            "co" => Iso639_1::Co,
+            "cr" => Iso639_1::Cr,
+            "cs" => Iso639_1::Cs,
+            "cu" => Iso639_1::Cu,
+            "cv" => Iso639_1::Cv,
+            "cy" => Iso639_1::Cy,
+            "da" => Iso639_1::Da,
+            "de" => Iso639_1::De,
+            "dv" => Iso639_1::Dv,
+            "dz" => Iso639_1::Dz,
+            "ee" => Iso639_1::Ee,
+            "el" => Iso639_1::El,
+            "en" => Iso639_1::En,
+            "eo" => Iso639_1::Eo,
+            "es" => Iso639_1::Es,
+            "et" => Iso639_1::Et,
+            "eu" => Iso639_1::Eu,
+            "fa" => Iso639_1::Fa,
+            "ff" => Iso639_1::Ff,
+            "fi" => Iso639_1::Fi,
+            "fj" => Iso639_1::Fj,
+            "fo" => Iso639_1::Fo,
+            "fr" => Iso639_1::Fr,
+            "fy" => Iso639_1::Fy,
+            "ga" => Iso639_1::Ga,
+            "gd" => Iso639_1::Gd,
+            "gl" => Iso639_1::Gl,
+            "gn" => Iso639_1::Gn,
+            "gu" => Iso639_1::Gu,
+            "gv" => Iso639_1::Gv,
+            "ha" => Iso639_1::Ha,
+            "he" => Iso639_1::He,
+            "hi" => Iso639_1::Hi,
+            "ho" => Iso639_1::Ho,
+            "hr" => Iso639_1::Hr,
+            "ht" => Iso639_1::Ht,
+            "hu" => Iso639_1::Hu,
+            "hy" => Iso639_1::Hy,
+            "hz" => Iso639_1::Hz,
+            "ia" => Iso639_1::Ia,
+            "id" => Iso639_1::Id,
+            "ie" => Iso639_1::Ie,
+            "ig" => Iso639_1::Ig,
+            "ii" => Iso639_1::Ii,
+            "ik" => Iso639_1::Ik,
+            "io" => Iso639_1::Io,
+            "is" => Iso639_1::Is,
+            "it" => Iso639_1::It,
+            "iu" => Iso639_1::Iu,
+            "ja" => Iso639_1::Ja,
+            "jv" => Iso639_1::Jv,
+            "ka" => Iso639_1::Ka,
+            "kg" => Iso639_1::Kg,
+            "ki" => Iso639_1::Ki,
+            "kj" => Iso639_1::Kj,
+            "kk" => Iso639_1::Kk,
+            "kl" => Iso639_1::Kl,
+            "km" => Iso639_1::Km,
+            "kn" => Iso639_1::Kn,
+            "ko" => Iso639_1::Ko,
+            "kr" => Iso639_1::Kr,
+            "ks" => Iso639_1::Ks,
+            "ku" => Iso639_1::Ku,
+            "kv" => Iso639_1::Kv,
+            "kw" => Iso639_1::Kw,
+            "ky" => Iso639_1::Ky,
+            "la" => Iso639_1::La,
+            "lb" => Iso639_1::Lb,
+            "lg" => Iso639_1::Lg,
+            "li" => Iso639_1::Li,
+            "ln" => Iso639_1::Ln,
+            "lo" => Iso639_1::Lo,
+            "lt" => Iso639_1::Lt,
+            "lu" => Iso639_1::Lu,
+            "lv" => Iso639_1::Lv,
+            "mg" => Iso639_1::Mg,
+            "mh" => Iso639_1::Mh,
+            "mi" => Iso639_1::Mi,
+            "mk" => Iso639_1::Mk,
+            "ml" => Iso639_1::Ml,
+            "mn" => Iso639_1::Mn,
+            "mr" => Iso639_1::Mr,
+            "ms" => Iso639_1::Ms,
+            "mt" => Iso639_1::Mt,
+            "my" => Iso639_1::My,
+            "na" => Iso639_1::Na,
+            "nb" => Iso639_1::Nb,
+            "nd" => Iso639_1::Nd,
+            "ne" => Iso639_1::Ne,
+            "ng" => Iso639_1::Ng,
+            "nl" => Iso639_1::Nl,
+            "nn" => Iso639_1::Nn,
+            "no" => Iso639_1::No,
+            "nr" => Iso639_1::Nr,
+            "nv" => Iso639_1::Nv,
+            "ny" => Iso639_1::Ny,
+            "oc" => Iso639_1::Oc,
+            "oj" => Iso639_1::Oj,
+            "om" => Iso639_1::Om,
+            "or" => Iso639_1::Or,
+            "os" => Iso639_1::Os,
+            "pa" => Iso639_1::Pa,
+            "pi" => Iso639_1::Pi,
+            "pl" => Iso639_1::Pl,
+            "ps" => Iso639_1::Ps,
+            "pt" => Iso639_1::Pt,
+            "qu" => Iso639_1::Qu,
+            "rm" => Iso639_1::Rm,
+            "rn" => Iso639_1::Rn,
+            "ro" => Iso639_1::Ro,
+            "ru" => Iso639_1::Ru,
+            "rw" => Iso639_1::Rw,
+            "sa" => Iso639_1::Sa,
+            "sc" => Iso639_1::Sc,
+            "sd" => Iso639_1::Sd,
+            "se" => Iso639_1::Se,
+            "sg" => Iso639_1::Sg,
+            "si" => Iso639_1::Si,
+            "sk" => Iso639_1::Sk,
+            "sl" => Iso639_1::Sl,
+            "sm" => Iso639_1::Sm,
+            "sn" => Iso639_1::Sn,
+            "so" => Iso639_1::So,
+            "sq" => Iso639_1::Sq,
+            "sr" => Iso639_1::Sr,
+            "ss" => Iso639_1::Ss,
+            "st" => Iso639_1::St,
+            "su" => Iso639_1::Su,
+            "sv" => Iso639_1::Sv,
+            "sw" => Iso639_1::Sw,
+            "ta" => Iso639_1::Ta,
+            "te" => Iso639_1::Te,
+            "tg" => Iso639_1::Tg,
+            "th" => Iso639_1::Th,
+            "ti" => Iso639_1::Ti,
+            "tk" => Iso639_1::Tk,
+            "tl" => Iso639_1::Tl,
+            "tn" => Iso639_1::Tn,
+            "to" => Iso639_1::To,
+            "tr" => Iso639_1::Tr,
+            "ts" => Iso639_1::Ts,
+            "tt" => Iso639_1::Tt,
+            "tw" => Iso639_1::Tw,
+            "ty" => Iso639_1::Ty,
+            "ug" => Iso639_1::Ug,
+            "uk" => Iso639_1::Uk,
+            "ur" => Iso639_1::Ur,
+            "uz" => Iso639_1::Uz,
+            "ve" => Iso639_1::Ve,
+            "vi" => Iso639_1::Vi,
+            "vo" => Iso639_1::Vo,
+            "wa" => Iso639_1::Wa,
+            "wo" => Iso639_1::Wo,
+            "xh" => Iso639_1::Xh,
+            "yi" => Iso639_1::Yi,
+            "yo" => Iso639_1::Yo,
+            "za" => Iso639_1::Za,
+            "zh" => Iso639_1::Zh,
+            "zu" => Iso639_1::Zu,
+            value => Iso639_1::Unsupported(value),
+        }
+    }
+}
+
+impl<'a> From<Iso639_1<'a>> for &'a str {
+    fn from(iso639_1: Iso639_1<'a>) -> Self {
+        iso639_1.as_str()
+    }
+}

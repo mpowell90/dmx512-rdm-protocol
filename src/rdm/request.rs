@@ -48,7 +48,7 @@ use super::{
     error::RdmError,
     parameter::{
         e120::{
-            DeviceLabel, DisplayInvertMode, FadeTimes, LampOnMode, LampState, PowerState,
+            DeviceLabel, DisplayInvertMode, FadeTimes, Iso639_1, LampOnMode, LampState, PowerState,
             PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType,
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
@@ -57,11 +57,9 @@ use super::{
         e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode},
         ParameterId,
     },
-    utils::{bsd_16_crc, decode_string_bytes},
+    utils::bsd_16_crc,
     CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
-#[cfg(not(feature = "alloc"))]
-use heapless::String;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter<'a> {
@@ -102,12 +100,7 @@ pub enum RequestParameter<'a> {
     SetFactoryDefaults,
     GetLanguageCapabilities,
     GetLanguage,
-    SetLanguage {
-        #[cfg(feature = "alloc")]
-        language: String,
-        #[cfg(not(feature = "alloc"))]
-        language: String<32>,
-    },
+    SetLanguage(Iso639_1<'a>),
     GetSoftwareVersionLabel,
     GetBootSoftwareVersionId,
     GetBootSoftwareVersionLabel,
@@ -997,7 +990,7 @@ impl<'a> RequestParameter<'a> {
                 }
             }
             Self::SetDeviceLabel(device_label) => device_label.len(),
-            Self::SetLanguage { language } => language.len(),
+            Self::SetLanguage(_) => 2,
             Self::SetDnsHostName(dns_hostname) => dns_hostname.len(),
             Self::SetDnsDomainName(domain_name) => domain_name.len(),
             Self::SetEndpointLabel { label, .. } => 2 + label.len(),
@@ -1052,8 +1045,8 @@ impl<'a> RequestParameter<'a> {
             Self::SetFactoryDefaults => {}
             Self::GetLanguageCapabilities => {}
             Self::GetLanguage => {}
-            Self::SetLanguage { language } => {
-                buf[0..language.len()].copy_from_slice(language.as_bytes());
+            Self::SetLanguage(language) => {
+                language.encode(buf)?;
             }
             Self::GetSoftwareVersionLabel => {}
             Self::GetBootSoftwareVersionId => {}
@@ -1615,12 +1608,9 @@ impl<'a> RequestParameter<'a> {
                 Ok(Self::GetLanguageCapabilities)
             }
             (CommandClass::GetCommand, ParameterId::Language) => Ok(Self::GetLanguage),
-            (CommandClass::SetCommand, ParameterId::Language) => Ok(Self::SetLanguage {
-                #[cfg(feature = "alloc")]
-                language: decode_string_bytes(bytes)?,
-                #[cfg(not(feature = "alloc"))]
-                language: decode_string_bytes(bytes)?,
-            }),
+            (CommandClass::SetCommand, ParameterId::Language) => {
+                Ok(Self::SetLanguage(Iso639_1::decode(bytes)?))
+            }
             (CommandClass::GetCommand, ParameterId::SoftwareVersionLabel) => {
                 Ok(Self::GetSoftwareVersionLabel)
             }

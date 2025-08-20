@@ -45,6 +45,8 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
+use crate::rdm::parameter::e120::Iso639_1;
+
 use super::{
     parameter::{
         e120::{
@@ -306,10 +308,7 @@ pub enum ResponseParameterData<'a> {
         #[cfg(feature = "alloc")] Vec<String>,
         #[cfg(not(feature = "alloc"))] Vec<String<2>, 115>,
     ),
-    GetLanguage(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<2>,
-    ),
+    GetLanguage(Iso639_1<'a>),
     GetSoftwareVersionLabel(
         #[cfg(feature = "alloc")] String,
         #[cfg(not(feature = "alloc"))] String<32>,
@@ -962,7 +961,7 @@ impl<'a> ResponseParameterData<'a> {
                 }
             }
             Self::GetLanguage(language) => {
-                buf[0..2].copy_from_slice(language.as_bytes());
+                language.encode(buf)?;
             }
             Self::GetSoftwareVersionLabel(label) => {
                 buf[0..label.len()].copy_from_slice(label.as_bytes());
@@ -1760,12 +1759,7 @@ impl<'a> ResponseParameterData<'a> {
                         .collect::<Result<Vec<String<2>, 115>, RdmError>>()?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(
-                #[cfg(feature = "alloc")]
-                core::str::from_utf8(&bytes[0..=1])?.to_string(),
-                #[cfg(not(feature = "alloc"))]
-                String::from_utf8(Vec::<u8, 2>::from_slice(&bytes[0..=1]).unwrap())?,
-            )),
+            (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(Iso639_1::decode(bytes)?)),
             (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => {
                 Ok(Self::GetSoftwareVersionLabel(decode_string_bytes(bytes)?))
             }
