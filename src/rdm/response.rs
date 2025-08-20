@@ -45,15 +45,13 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
-use crate::rdm::parameter::e120::Iso639_1;
-
 use super::{
     parameter::{
         e120::{
-            DefaultSlotValue, DeviceLabel, DisplayInvertMode, LampOnMode, LampState,
-            ParameterDescription, ParameterDescriptionLabel, PowerState, PresetPlaybackMode,
-            ProductCategory, ProductDetail, ProtocolVersion, SelfTest, SensorDefinition,
-            SensorValue, SlotInfo, StatusMessage, StatusType,
+            DefaultSlotValue, DeviceLabel, DisplayInvertMode, Iso639_1, LampOnMode, LampState,
+            LanguageCapabilitiesIter, ParameterDescription, ParameterDescriptionLabel, PowerState,
+            PresetPlaybackMode, ProductCategory, ProductDetail, ProtocolVersion, SelfTest,
+            SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
@@ -304,10 +302,7 @@ pub enum ResponseParameterData<'a> {
     ),
     GetDeviceLabel(DeviceLabel<'a>),
     GetFactoryDefaults(bool),
-    GetLanguageCapabilities(
-        #[cfg(feature = "alloc")] Vec<String>,
-        #[cfg(not(feature = "alloc"))] Vec<String<2>, 115>,
-    ),
+    GetLanguageCapabilities(LanguageCapabilitiesIter<'a>),
     GetLanguage(Iso639_1<'a>),
     GetSoftwareVersionLabel(
         #[cfg(feature = "alloc")] String,
@@ -956,8 +951,8 @@ impl<'a> ResponseParameterData<'a> {
                 buf[0] = *defaults as u8;
             }
             Self::GetLanguageCapabilities(languages) => {
-                for (idx, language) in languages.iter().enumerate() {
-                    buf[idx * 2..(idx + 2) * 2].copy_from_slice(language.as_bytes());
+                for (idx, language) in languages.enumerate() {
+                    buf[idx * 2..(idx + 2) * 2].copy_from_slice(language.as_str().as_bytes());
                 }
             }
             Self::GetLanguage(language) => {
@@ -1743,23 +1738,12 @@ impl<'a> ResponseParameterData<'a> {
             (CommandClass::GetCommandResponse, ParameterId::FactoryDefaults) => {
                 Ok(Self::GetFactoryDefaults(bytes[0] == 1))
             }
-            (CommandClass::GetCommandResponse, ParameterId::LanguageCapabilities) => {
-                Ok(Self::GetLanguageCapabilities(
-                    #[cfg(feature = "alloc")]
-                    bytes
-                        .chunks(2)
-                        .map(|chunk| Ok(core::str::from_utf8(chunk)?.to_string()))
-                        .collect::<Result<Vec<String>, RdmError>>()?,
-                    #[cfg(not(feature = "alloc"))]
-                    bytes
-                        .chunks(2)
-                        .map(|chunk| {
-                            Ok(String::from_utf8(Vec::<u8, 2>::from_slice(chunk).unwrap())?)
-                        })
-                        .collect::<Result<Vec<String<2>, 115>, RdmError>>()?,
-                ))
+            (CommandClass::GetCommandResponse, ParameterId::LanguageCapabilities) => Ok(
+                Self::GetLanguageCapabilities(LanguageCapabilitiesIter::new(bytes)),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::Language) => {
+                Ok(Self::GetLanguage(Iso639_1::decode(bytes)?))
             }
-            (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(Iso639_1::decode(bytes)?)),
             (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => {
                 Ok(Self::GetSoftwareVersionLabel(decode_string_bytes(bytes)?))
             }
