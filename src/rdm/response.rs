@@ -45,6 +45,8 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
+use crate::rdm::parameter::e120::ProxiedDeviceIter;
+
 use super::{
     parameter::{
         e120::{
@@ -253,10 +255,7 @@ pub enum ResponseParameterData<'a> {
         device_count: u16,
         list_change: bool,
     },
-    GetProxiedDevices(
-        #[cfg(feature = "alloc")] Vec<DeviceUID>,
-        #[cfg(not(feature = "alloc"))] Vec<DeviceUID, 38>,
-    ),
+    GetProxiedDevices(ProxiedDeviceIter<'a>),
     GetCommsStatus {
         short_message: u16,
         length_mismatch: u16,
@@ -847,8 +846,8 @@ impl<'a> ResponseParameterData<'a> {
                 buf[2] = *list_change as u8;
             }
             Self::GetProxiedDevices(devices) => {
-                for (idx, device) in devices.iter().enumerate() {
-                    buf[idx * 6..(idx + 1) * 6].copy_from_slice(&<[u8; 6]>::from(*device));
+                for (idx, device_uid) in devices.enumerate() {
+                    buf[idx * 6..(idx + 1) * 6].copy_from_slice(&<[u8; 6]>::from(device_uid));
                 }
             }
             Self::GetCommsStatus {
@@ -1613,18 +1612,7 @@ impl<'a> ResponseParameterData<'a> {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ProxiedDevices) => {
-                Ok(Self::GetProxiedDevices(
-                    #[cfg(feature = "alloc")]
-                    bytes
-                        .chunks(6)
-                        .map(|chunk| Ok(DeviceUID::from(<[u8; 6]>::try_from(&chunk[0..=5])?)))
-                        .collect::<Result<Vec<DeviceUID>, RdmError>>()?,
-                    #[cfg(not(feature = "alloc"))]
-                    bytes
-                        .chunks(6)
-                        .map(|chunk| Ok(DeviceUID::from(<[u8; 6]>::try_from(&chunk[0..=5])?)))
-                        .collect::<Result<Vec<DeviceUID, 38>, RdmError>>()?,
-                ))
+                Ok(Self::GetProxiedDevices(ProxiedDeviceIter::new(bytes)))
             }
             (CommandClass::GetCommandResponse, ParameterId::CommsStatus) => {
                 Ok(Self::GetCommsStatus {

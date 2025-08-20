@@ -1,3 +1,5 @@
+use crate::rdm::DeviceUID;
+
 use super::{
     super::utils::{decode_string_bytes, truncate_at_null},
     RdmError, SubDeviceId,
@@ -2532,5 +2534,38 @@ impl<'a> Iterator for LanguageCapabilitiesIter<'a> {
         let code = &self.buf[self.pos..self.pos + 2];
         self.pos += 2;
         Iso639_1::decode(code).ok()
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ProxiedDeviceIter<'a> {
+    buf: &'a [u8],
+    pos: usize,
+}
+
+impl<'a> ProxiedDeviceIter<'a> {
+    pub fn new(buf: &'a [u8]) -> Self {
+        Self { buf, pos: 0 }
+    }
+
+    pub fn len(&self) -> usize {
+        self.buf.len() / 6
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.buf.is_empty()
+    }
+}
+
+impl<'a> Iterator for ProxiedDeviceIter<'a> {
+    type Item = DeviceUID;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos + 6 > self.buf.len() {
+            return None;
+        }
+        let device_uid = &self.buf[self.pos..self.pos + 6];
+        self.pos += 6;
+        Some(DeviceUID::from(<[u8; 6]>::try_from(device_uid).ok()?))
     }
 }
