@@ -1,14 +1,5 @@
-use crate::rdm::DeviceUID;
-
-use super::{
-    super::utils::{decode_string_bytes, truncate_at_null},
-    RdmError, SubDeviceId,
-};
-use core::fmt;
-
-#[cfg(not(feature = "alloc"))]
-use core::str::FromStr;
-#[cfg(not(feature = "alloc"))]
+use super::{super::utils::truncate_at_null, RdmError, SubDeviceId};
+use core::{fmt, str::FromStr};
 use heapless::String;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -371,11 +362,8 @@ impl From<ParameterDataType> for u8 {
 }
 
 pub enum ConvertedParameterValue {
-    BitField(u8),
-    Ascii(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<4>,
-    ),
+    BitField(u32),
+    Ascii(String<4>),
     UnsignedByte(u8),
     SignedByte(i8),
     UnsignedWord(u16),
@@ -385,24 +373,24 @@ pub enum ConvertedParameterValue {
     Raw([u8; 4]),
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct ParameterDescriptionLabel<'a>(&'a str);
+#[derive(Clone, Debug, PartialEq)]
+pub struct ParameterDescriptionLabel(String<32>);
 
-impl<'a> ParameterDescriptionLabel<'a> {
+impl ParameterDescriptionLabel {
     pub const MAX_LENGTH: usize = 32;
 
-    pub fn new(description: &'a str) -> Result<Self, RdmError> {
+    pub fn new(description: &str) -> Result<Self, RdmError> {
         if description.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(
                 description.len(),
                 Self::MAX_LENGTH,
             ));
         }
-        Ok(Self(description))
+        Ok(Self(String::<32>::from_str(description).unwrap()))
     }
 
     pub fn as_str(&self) -> &str {
-        self.0
+        self.0.as_str()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -424,33 +412,19 @@ impl<'a> ParameterDescriptionLabel<'a> {
         Ok(len)
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
         }
 
         let description = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
 
-        Ok(Self(description))
-    }
-}
-
-impl<'a> TryFrom<&'a str> for ParameterDescriptionLabel<'a> {
-    type Error = RdmError;
-
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl<'a> From<ParameterDescriptionLabel<'a>> for &'a str {
-    fn from(value: ParameterDescriptionLabel<'a>) -> Self {
-        value.0
+        Ok(Self(String::<32>::from_str(description).unwrap()))
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct ParameterDescription<'a> {
+pub struct ParameterDescription {
     pub parameter_id: u16,
     pub parameter_data_length: u8,
     pub data_type: ParameterDataType,
@@ -460,19 +434,21 @@ pub struct ParameterDescription<'a> {
     pub raw_minimum_valid_value: [u8; 4],
     pub raw_maximum_valid_value: [u8; 4],
     pub raw_default_value: [u8; 4],
-    pub description: ParameterDescriptionLabel<'a>,
+    pub description: ParameterDescriptionLabel,
 }
 
-impl<'a> ParameterDescription<'a> {
+impl ParameterDescription {
     fn convert_parameter_value(
         parameter_data_type: ParameterDataType,
         value: [u8; 4],
     ) -> Result<ConvertedParameterValue, RdmError> {
         match parameter_data_type {
-            ParameterDataType::BitField => Ok(ConvertedParameterValue::BitField(value[3])),
-            ParameterDataType::Ascii => {
-                Ok(ConvertedParameterValue::Ascii(decode_string_bytes(&value)?))
+            ParameterDataType::BitField => {
+                Ok(ConvertedParameterValue::BitField(u32::from_be_bytes(value)))
             }
+            ParameterDataType::Ascii => Ok(ConvertedParameterValue::Ascii(
+                String::<4>::from_str(core::str::from_utf8(&value)?).unwrap(),
+            )),
             ParameterDataType::UnsignedByte => Ok(ConvertedParameterValue::UnsignedByte(value[3])),
             ParameterDataType::SignedByte => {
                 Ok(ConvertedParameterValue::SignedByte(value[3] as i8))
@@ -510,24 +486,27 @@ impl<'a> ParameterDescription<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct DeviceLabel<'a>(&'a str);
+#[derive(Clone, Debug, PartialEq)]
+pub struct DeviceLabel(String<32>);
 
-impl<'a> DeviceLabel<'a> {
+impl DeviceLabel {
     pub const MAX_LENGTH: usize = 32;
 
-    pub fn new(device_label: &'a str) -> Result<Self, RdmError> {
+    pub fn new<T: AsRef<str>>(device_label: T) -> Result<Self, RdmError> {
+        let device_label = device_label.as_ref();
+
         if device_label.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(
                 device_label.len(),
                 Self::MAX_LENGTH,
             ));
         }
-        Ok(Self(device_label))
+
+        Ok(Self(String::<32>::from_str(device_label).unwrap()))
     }
 
     pub fn as_str(&self) -> &str {
-        self.0
+        self.0.as_str()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -549,28 +528,242 @@ impl<'a> DeviceLabel<'a> {
         Ok(len)
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
         }
 
         let device_label = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
 
-        Ok(Self(device_label))
+        Self::new(device_label)
     }
 }
 
-impl<'a> TryFrom<&'a str> for DeviceLabel<'a> {
-    type Error = RdmError;
+#[derive(Clone, Debug, PartialEq)]
+pub struct DeviceModelDescription(String<32>);
 
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Self::new(value)
+impl DeviceModelDescription {
+    pub const MAX_LENGTH: usize = 32;
+
+    pub fn new<T: AsRef<str>>(device_model_description: T) -> Result<Self, RdmError> {
+        let device_model_description = device_model_description.as_ref();
+
+        if device_model_description.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                device_model_description.len(),
+                Self::MAX_LENGTH,
+            ));
+        }
+
+        Ok(Self(
+            String::<32>::from_str(device_model_description).unwrap(),
+        ))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::MAX_LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+        }
+        let len = self.0.len();
+
+        buf[0..len].copy_from_slice(self.0.as_bytes());
+
+        Ok(len)
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
+        }
+
+        let device_model_description =
+            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+
+        Ok(Self(
+            String::<32>::from_str(device_model_description).unwrap(),
+        ))
     }
 }
 
-impl<'a> From<DeviceLabel<'a>> for &'a str {
-    fn from(value: DeviceLabel<'a>) -> Self {
-        value.0
+#[derive(Clone, Debug, PartialEq)]
+pub struct ManufacturerLabel(String<32>);
+
+impl ManufacturerLabel {
+    pub const MAX_LENGTH: usize = 32;
+
+    pub fn new<T: AsRef<str>>(manufacturer_label: T) -> Result<Self, RdmError> {
+        let manufacturer_label = manufacturer_label.as_ref();
+
+        if manufacturer_label.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                manufacturer_label.len(),
+                Self::MAX_LENGTH,
+            ));
+        }
+
+        Ok(Self(String::<32>::from_str(manufacturer_label).unwrap()))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::MAX_LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+        }
+        let len = self.0.len();
+
+        buf[0..len].copy_from_slice(self.0.as_bytes());
+
+        Ok(len)
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
+        }
+
+        let manufacturer_label =
+            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+
+        Ok(Self(String::<32>::from_str(manufacturer_label).unwrap()))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SoftwareVersionLabel(String<32>);
+
+impl SoftwareVersionLabel {
+    pub const MAX_LENGTH: usize = 32;
+
+    pub fn new<T: AsRef<str>>(software_version_label: T) -> Result<Self, RdmError> {
+        let software_version_label = software_version_label.as_ref();
+
+        if software_version_label.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                software_version_label.len(),
+                Self::MAX_LENGTH,
+            ));
+        }
+
+        Ok(Self(
+            String::<32>::from_str(software_version_label).unwrap(),
+        ))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::MAX_LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+        }
+        let len = self.0.len();
+
+        buf[0..len].copy_from_slice(self.0.as_bytes());
+
+        Ok(len)
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
+        }
+
+        let software_version_label =
+            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+
+        Ok(Self(
+            String::<32>::from_str(software_version_label).unwrap(),
+        ))
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BootSoftwareVersionLabel(String<32>);
+
+impl BootSoftwareVersionLabel {
+    pub const MAX_LENGTH: usize = 32;
+
+    pub fn new<T: AsRef<str>>(boot_software_version_label: T) -> Result<Self, RdmError> {
+        let boot_software_version_label = boot_software_version_label.as_ref();
+
+        if boot_software_version_label.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                boot_software_version_label.len(),
+                Self::MAX_LENGTH,
+            ));
+        }
+
+        Ok(Self(
+            String::<32>::from_str(boot_software_version_label).unwrap(),
+        ))
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::MAX_LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+        }
+        let len = self.0.len();
+
+        buf[0..len].copy_from_slice(self.0.as_bytes());
+
+        Ok(len)
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
+        }
+
+        let boot_software_version_label =
+            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+
+        Ok(Self(
+            String::<32>::from_str(boot_software_version_label).unwrap(),
+        ))
     }
 }
 
@@ -1058,6 +1251,62 @@ pub enum StatusMessageIdDefinition {
     LowFluid = 0x0052,
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StatusIdDescription(String<32>);
+
+impl StatusIdDescription {
+    pub const MAX_LENGTH: usize = 32;
+
+    pub fn new<T: AsRef<str>>(status_id_description: T) -> Result<Self, RdmError> {
+        let status_id_description = status_id_description.as_ref();
+
+        if status_id_description.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                status_id_description.len(),
+                Self::MAX_LENGTH,
+            ));
+        }
+
+        Ok(String::<32>::from_str(status_id_description)
+            .map(Self)
+            .unwrap())
+    }
+
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        if buf.len() < Self::MAX_LENGTH {
+            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+        }
+        let len = self.0.len();
+
+        buf[0..len].copy_from_slice(self.0.as_bytes());
+
+        Ok(len)
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
+        if bytes.len() > Self::MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
+        }
+
+        let status_id_description =
+            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+
+        Ok(Self(String::<32>::from_str(status_id_description).unwrap()))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct StatusMessage {
     pub sub_device_id: SubDeviceId,
@@ -1065,9 +1314,6 @@ pub struct StatusMessage {
     pub status_message_id: u16,
     pub data_value1: u16,
     pub data_value2: u16,
-    #[cfg(feature = "alloc")]
-    pub description: Option<String>,
-    #[cfg(not(feature = "alloc"))]
     pub description: Option<String<32>>,
 }
 
@@ -1080,237 +1326,71 @@ impl StatusMessage {
         data_value2: u16,
     ) -> Self {
         let description = if status_message_id < 0x8000 {
-            match status_message_id {
-                0x0001 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("{} failed calibration", SlotIdDefinition::from(data_value1)),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("{} failed calibration", SlotIdDefinition::from(data_value1))
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0002 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("{} sensor not found", SlotIdDefinition::from(data_value1)),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("{} sensor not found", SlotIdDefinition::from(data_value1))
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0003 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("{} sensor always on", SlotIdDefinition::from(data_value1)),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("{} sensor always on", SlotIdDefinition::from(data_value1))
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0011 => Some(
-                    #[cfg(feature = "alloc")]
-                    "Lamp Doused".to_string(),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("Lamp Doused").unwrap(),
-                ),
-                0x0012 => Some(
-                    #[cfg(feature = "alloc")]
-                    "Lamp Strike".to_string(),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("Lamp Strike").unwrap(),
-                ),
-                0x0021 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("Sensor {data_value1} over temp at {data_value2} degrees C"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!(
-                            "Sensor {} over temp at {} degrees C",
-                            data_value1, data_value2
-                        )
+            let message = match status_message_id {
+                0x0001 => {
+                    format_args!("{} failed calibration", SlotIdDefinition::from(data_value1))
                         .as_str()
-                        .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0022 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("Sensor {data_value1} under temp at {data_value2} degrees C"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!(
-                            "Sensor {} under temp at {} degrees C",
-                            data_value1, data_value2
-                        )
-                        .as_str()
-                        .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0023 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("Sensor {data_value1} out of range"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("Sensor {} out of range", data_value1)
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0031 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("Phase {data_value1} over voltage at {data_value2} V"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("Phase {} over voltage at {} V", data_value1, data_value2)
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0032 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("Phase {data_value1} under voltage at {data_value2} V"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("Phase {} under voltage at {} V", data_value1, data_value2)
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0033 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("Phase {data_value1} over current at {data_value2} A"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("Phase {} over current at {} A", data_value1, data_value2)
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0034 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("Phase {data_value1} under current at {data_value2} A"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("Phase {} under current at {} A", data_value1, data_value2)
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0035 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("Phase {data_value1} is at {data_value2} degrees"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("Phase {} is at {} degrees", data_value1, data_value2)
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0036 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("Phase {data_value1} Error"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("Phase {} Error", data_value1)
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0037 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("{data_value1} Amps"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(format_args!("{} Amps", data_value1).as_str().unwrap())
-                        .unwrap(),
-                ),
-                0x0038 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("{data_value1} Volts"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(format_args!("{} Volts", data_value1).as_str().unwrap())
-                        .unwrap(),
-                ),
-                0x0041 => Some(
-                    #[cfg(feature = "alloc")]
-                    "No Dimmer".to_string(),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("No Dimmer").unwrap(),
-                ),
-                0x0042 => Some(
-                    #[cfg(feature = "alloc")]
-                    "Tripped Breaker".to_string(),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("Tripped Breaker").unwrap(),
-                ),
-                0x0043 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("{data_value1} Watts"),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(format_args!("{} Watts", data_value1).as_str().unwrap())
-                        .unwrap(),
-                ),
-                0x0044 => Some(
-                    #[cfg(feature = "alloc")]
-                    "Dimmer Failure".to_string(),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("Dimmer Failure").unwrap(),
-                ),
-                0x0045 => Some(
-                    #[cfg(feature = "alloc")]
-                    "Panic Mode".to_string(),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("Panic Mode").unwrap(),
-                ),
-                0x0050 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("{} ready", SlotIdDefinition::from(data_value1)),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("{} ready", SlotIdDefinition::from(data_value1))
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0051 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("{} not ready", SlotIdDefinition::from(data_value1)),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("{} not ready", SlotIdDefinition::from(data_value1))
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
-                0x0052 => Some(
-                    #[cfg(feature = "alloc")]
-                    format!("{} low fluid", SlotIdDefinition::from(data_value1)),
-                    #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
-                        format_args!("{} low fluid", SlotIdDefinition::from(data_value1))
-                            .as_str()
-                            .unwrap(),
-                    )
-                    .unwrap(),
-                ),
+                }
+                0x0002 => format_args!("{} sensor not found", SlotIdDefinition::from(data_value1))
+                    .as_str(),
+
+                0x0003 => format_args!("{} sensor always on", SlotIdDefinition::from(data_value1))
+                    .as_str(),
+
+                0x0011 => Some("Lamp Doused"),
+                0x0012 => Some("Lamp Strike"),
+                0x0021 => format_args!(
+                    "Sensor {} over temp at {} degrees C",
+                    data_value1, data_value2
+                )
+                .as_str(),
+
+                0x0022 => format_args!(
+                    "Sensor {} under temp at {} degrees C",
+                    data_value1, data_value2
+                )
+                .as_str(),
+
+                0x0023 => format_args!("Sensor {} out of range", data_value1).as_str(),
+
+                0x0031 => {
+                    format_args!("Phase {} over voltage at {} V", data_value1, data_value2).as_str()
+                }
+
+                0x0032 => format_args!("Phase {} under voltage at {} V", data_value1, data_value2)
+                    .as_str(),
+
+                0x0033 => {
+                    format_args!("Phase {} over current at {} A", data_value1, data_value2).as_str()
+                }
+
+                0x0034 => format_args!("Phase {} under current at {} A", data_value1, data_value2)
+                    .as_str(),
+
+                0x0035 => {
+                    format_args!("Phase {} is at {} degrees", data_value1, data_value2).as_str()
+                }
+                0x0036 => format_args!("Phase {} Error", data_value1).as_str(),
+                0x0037 => format_args!("{} Amps", data_value1).as_str(),
+                0x0038 => format_args!("{} Volts", data_value1).as_str(),
+                0x0041 => Some("No Dimmer"),
+                0x0042 => Some("Tripped Breaker"),
+                0x0043 => format_args!("{} Watts", data_value1).as_str(),
+                0x0044 => Some("Dimmer Failure"),
+                0x0045 => Some("Panic Mode"),
+                0x0050 => format_args!("{} ready", SlotIdDefinition::from(data_value1)).as_str(),
+                0x0051 => {
+                    format_args!("{} not ready", SlotIdDefinition::from(data_value1)).as_str()
+                }
+
+                0x0052 => {
+                    format_args!("{} low fluid", SlotIdDefinition::from(data_value1)).as_str()
+                }
+
                 _ => None,
-            }
+            };
+
+            message.and_then(|s| String::<32>::from_str(s).ok())
         } else {
             None
         };
@@ -1326,7 +1406,7 @@ impl StatusMessage {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SlotType {
     Primary,
@@ -1876,9 +1956,6 @@ pub struct SensorDefinition {
     pub normal_maximum_value: i16,
     pub is_lowest_highest_detected_value_supported: bool,
     pub is_recorded_value_supported: bool,
-    #[cfg(feature = "alloc")]
-    pub description: String,
-    #[cfg(not(feature = "alloc"))]
     pub description: String<32>,
 }
 
@@ -1911,7 +1988,7 @@ impl SensorValue {
 
 // ISO 639-1 Language Codes copied from https://github.com/AlbanMinassian/iso639
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub enum Iso639_1<'a> {
+pub enum Iso639_1 {
     Aa, // Afar
     Ab, // Abkhaz
     Ae, // Avestan
@@ -2096,13 +2173,13 @@ pub enum Iso639_1<'a> {
     Za, // Zhuang, Chuang
     Zh, // Chinese
     Zu, // Zulu
-    Unsupported(&'a str),
+    Unsupported([u8; 2]),
 }
 
-impl<'a> Iso639_1<'a> {
+impl Iso639_1 {
     pub const LENGTH: usize = 2;
 
-    pub fn as_str(&self) -> &'a str {
+    pub fn as_str(&self) -> &str {
         match self {
             Iso639_1::Aa => "aa",
             Iso639_1::Ab => "ab",
@@ -2288,12 +2365,12 @@ impl<'a> Iso639_1<'a> {
             Iso639_1::Za => "za",
             Iso639_1::Zh => "zh",
             Iso639_1::Zu => "zu",
-            Iso639_1::Unsupported(value) => value,
+            Iso639_1::Unsupported(value) => core::str::from_utf8(value).unwrap(),
         }
     }
 
     #[allow(clippy::should_implement_trait)]
-    pub fn from_str(code: &'a str) -> Self {
+    pub fn from_str(code: &str) -> Self {
         match code {
             "aa" => Self::Aa,
             "ab" => Self::Ab,
@@ -2479,7 +2556,10 @@ impl<'a> Iso639_1<'a> {
             "za" => Self::Za,
             "zh" => Self::Zh,
             "zu" => Self::Zu,
-            value => Self::Unsupported(value),
+            value => {
+                let value = value.as_bytes();
+                Self::Unsupported([value[0], value[1]])
+            }
         }
     }
 
@@ -2493,7 +2573,7 @@ impl<'a> Iso639_1<'a> {
         Ok(Self::LENGTH)
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes.len() > Self::LENGTH {
             return Err(RdmError::InvalidStringLength(bytes.len(), Self::LENGTH));
         }
@@ -2501,71 +2581,5 @@ impl<'a> Iso639_1<'a> {
         let iso639_1 = core::str::from_utf8(&bytes[0..Self::LENGTH]).map_err(RdmError::from)?;
 
         Ok(Iso639_1::from_str(iso639_1))
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct LanguageCapabilitiesIter<'a> {
-    buf: &'a [u8],
-    pos: usize,
-}
-
-impl<'a> LanguageCapabilitiesIter<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
-        Self { buf, pos: 0 }
-    }
-
-    pub fn len(&self) -> usize {
-        self.buf.len() / Iso639_1::LENGTH
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.buf.is_empty()
-    }
-}
-
-impl<'a> Iterator for LanguageCapabilitiesIter<'a> {
-    type Item = Iso639_1<'a>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos + 2 > self.buf.len() {
-            return None;
-        }
-        let code = &self.buf[self.pos..self.pos + 2];
-        self.pos += 2;
-        Iso639_1::decode(code).ok()
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct ProxiedDeviceIter<'a> {
-    buf: &'a [u8],
-    pos: usize,
-}
-
-impl<'a> ProxiedDeviceIter<'a> {
-    pub fn new(buf: &'a [u8]) -> Self {
-        Self { buf, pos: 0 }
-    }
-
-    pub fn len(&self) -> usize {
-        self.buf.len() / 6
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.buf.is_empty()
-    }
-}
-
-impl<'a> Iterator for ProxiedDeviceIter<'a> {
-    type Item = DeviceUID;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        if self.pos + 6 > self.buf.len() {
-            return None;
-        }
-        let device_uid = &self.buf[self.pos..self.pos + 6];
-        self.pos += 6;
-        Some(DeviceUID::from(<[u8; 6]>::try_from(device_uid).ok()?))
     }
 }

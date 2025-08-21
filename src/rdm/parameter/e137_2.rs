@@ -1,5 +1,10 @@
+use heapless::String;
+
 use super::{super::utils::truncate_at_null, RdmError};
-use core::net::{Ipv4Addr, Ipv6Addr};
+use core::{
+    net::{Ipv4Addr, Ipv6Addr},
+    str::FromStr,
+};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DhcpMode {
@@ -323,24 +328,27 @@ pub struct NetworkInterface {
     pub hardware_type: HardwareType,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct DnsHostName<'a>(&'a str);
+#[derive(Clone, Debug, PartialEq)]
+pub struct DnsHostName(String<63>);
 
-impl<'a> DnsHostName<'a> {
+impl DnsHostName {
     pub const MAX_LENGTH: usize = 63;
 
-    pub fn new(dns_hostname: &'a str) -> Result<Self, RdmError> {
+    pub fn new<T: AsRef<str>>(dns_hostname: T) -> Result<Self, RdmError> {
+        let dns_hostname = dns_hostname.as_ref();
+
         if dns_hostname.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(
                 dns_hostname.len(),
                 Self::MAX_LENGTH,
             ));
         }
-        Ok(Self(dns_hostname))
+
+        Ok(Self(String::<63>::from_str(dns_hostname).unwrap()))
     }
 
     pub fn as_str(&self) -> &str {
-        self.0
+        self.0.as_str()
     }
 
     pub fn is_valid(&self) -> bool {
@@ -366,49 +374,40 @@ impl<'a> DnsHostName<'a> {
         Ok(len)
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
         }
 
-        let dns_hostname = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+        let dns_hostname =
+            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
 
-        Ok(Self(dns_hostname))
+        Ok(Self(
+            String::<63>::from_str(dns_hostname).unwrap(),
+        ))
     }
 }
 
-impl<'a> TryFrom<&'a str> for DnsHostName<'a> {
-    type Error = RdmError;
+#[derive(Clone, Debug, PartialEq)]
+pub struct DnsDomainName(String<231>);
 
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl<'a> From<DnsHostName<'a>> for &'a str {
-    fn from(value: DnsHostName<'a>) -> Self {
-        value.0
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct DnsDomainName<'a>(&'a str);
-
-impl<'a> DnsDomainName<'a> {
+impl DnsDomainName {
     pub const MAX_LENGTH: usize = 231;
 
-    pub fn new(dns_hostname: &'a str) -> Result<Self, RdmError> {
+    pub fn new<T: AsRef<str>>(dns_hostname: T) -> Result<Self, RdmError> {
+        let dns_hostname = dns_hostname.as_ref();
+
         if dns_hostname.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(
                 dns_hostname.len(),
                 Self::MAX_LENGTH,
             ));
         }
-        Ok(Self(dns_hostname))
-    }
 
+        Ok(Self(String::<231>::from_str(dns_hostname).unwrap()))
+    }
     pub fn as_str(&self) -> &str {
-        self.0
+        self.0.as_str()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -430,27 +429,16 @@ impl<'a> DnsDomainName<'a> {
         Ok(len)
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
         }
 
-        let dns_hostname = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
+        let dns_domain_name =
+            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
 
-        Ok(Self(dns_hostname))
-    }
-}
-
-impl<'a> TryFrom<&'a str> for DnsDomainName<'a> {
-    type Error = RdmError;
-
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl<'a> From<DnsDomainName<'a>> for &'a str {
-    fn from(value: DnsDomainName<'a>) -> Self {
-        value.0
+        Ok(Self(
+            String::<231>::from_str(dns_domain_name).unwrap(),
+        ))
     }
 }

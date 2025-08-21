@@ -44,6 +44,8 @@
 //!
 //! See tests for more examples.
 
+use heapless::Vec;
+
 use super::{
     error::RdmError,
     parameter::{
@@ -62,7 +64,7 @@ use super::{
 };
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum RequestParameter<'a> {
+pub enum RequestParameter {
     // E1.20
     DiscMute,
     DiscUnMute,
@@ -95,12 +97,12 @@ pub enum RequestParameter<'a> {
     GetDeviceModelDescription,
     GetManufacturerLabel,
     GetDeviceLabel,
-    SetDeviceLabel(DeviceLabel<'a>),
+    SetDeviceLabel(DeviceLabel),
     GetFactoryDefaults,
     SetFactoryDefaults,
     GetLanguageCapabilities,
     GetLanguage,
-    SetLanguage(Iso639_1<'a>),
+    SetLanguage(Iso639_1),
     GetSoftwareVersionLabel,
     GetBootSoftwareVersionId,
     GetBootSoftwareVersionLabel,
@@ -356,9 +358,9 @@ pub enum RequestParameter<'a> {
         name_server_address: Ipv4Address,
     },
     GetDnsHostName,
-    SetDnsHostName(DnsHostName<'a>),
+    SetDnsHostName(DnsHostName),
     GetDnsDomainName,
-    SetDnsDomainName(DnsDomainName<'a>),
+    SetDnsDomainName(DnsDomainName),
     // E1.37-7
     GetEndpointList,
     GetEndpointListChange,
@@ -388,7 +390,7 @@ pub enum RequestParameter<'a> {
     },
     SetEndpointLabel {
         endpoint_id: EndpointId,
-        label: EndpointLabel<'a>,
+        label: EndpointLabel,
     },
     GetRdmTrafficEnable {
         endpoint_id: EndpointId,
@@ -440,20 +442,20 @@ pub enum RequestParameter<'a> {
     },
     // E1.33
     GetSearchDomain,
-    SetSearchDomain(SearchDomain<'a>),
+    SetSearchDomain(SearchDomain),
     GetComponentScope {
         scope_slot: u16,
     },
     SetComponentScope {
         scope_slot: u16,
-        scope_string: ScopeString<'a>,
+        scope_string: ScopeString,
         static_config_type: StaticConfigType,
         static_broker_ipv4_address: Ipv4Address,
         static_broker_ipv6_address: Ipv6Address,
         static_broker_port: u16,
     },
     GetTcpCommsStatus,
-    SetTcpCommsStatus(ScopeString<'a>),
+    SetTcpCommsStatus(ScopeString),
     GetBrokerStatus,
     SetBrokerStatus {
         broker_state: BrokerState,
@@ -462,11 +464,11 @@ pub enum RequestParameter<'a> {
     RawParameter {
         command_class: CommandClass,
         parameter_id: u16,
-        parameter_data: &'a [u8],
+        parameter_data: Vec<u8, 231>,
     },
 }
 
-impl<'a> RequestParameter<'a> {
+impl RequestParameter {
     pub fn command_class(&self) -> CommandClass {
         match self {
             Self::DiscMute | Self::DiscUnMute | Self::DiscUniqueBranch { .. } => {
@@ -1516,7 +1518,7 @@ impl<'a> RequestParameter<'a> {
     pub fn decode(
         command_class: CommandClass,
         parameter_id: ParameterId,
-        bytes: &'a [u8],
+        bytes: &[u8],
     ) -> Result<Self, RdmError> {
         match (command_class, parameter_id) {
             // E1.20
@@ -2375,30 +2377,30 @@ impl<'a> RequestParameter<'a> {
             (command_class, parameter_id) => Ok(Self::RawParameter {
                 command_class,
                 parameter_id: parameter_id.into(),
-                parameter_data: bytes,
+                parameter_data: Vec::from_slice(bytes).unwrap(),
             }),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct RdmRequest<'a> {
+pub struct RdmRequest {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub port_id: u8,
     pub sub_device_id: SubDeviceId,
-    pub parameter: RequestParameter<'a>,
+    pub parameter: RequestParameter,
 }
 
-impl<'a> RdmRequest<'a> {
+impl RdmRequest {
     pub fn new(
         destination_uid: DeviceUID,
         source_uid: DeviceUID,
         transaction_number: u8,
         port_id: u8,
         sub_device_id: SubDeviceId,
-        parameter: RequestParameter<'a>,
+        parameter: RequestParameter,
     ) -> Self {
         RdmRequest {
             destination_uid,
@@ -2447,7 +2449,7 @@ impl<'a> RdmRequest<'a> {
         Ok(message_length + 2)
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes.len() < 24 {
             return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
         }
@@ -2640,7 +2642,7 @@ mod tests {
             RequestParameter::RawParameter {
                 command_class: CommandClass::SetCommand,
                 parameter_id: 0x8080,
-                parameter_data: &[0x01, 0x02, 0x03, 0x04],
+                parameter_data: Vec::from_slice(&[0x01, 0x02, 0x03, 0x04]).unwrap(),
             },
         )
         .encode(&mut encoded)
@@ -2695,7 +2697,7 @@ mod tests {
             RequestParameter::RawParameter {
                 command_class: CommandClass::SetCommand,
                 parameter_id: 0x8080,
-                parameter_data: &[0x01, 0x02, 0x03, 0x04],
+                parameter_data: Vec::from_slice(&[0x01, 0x02, 0x03, 0x04]).unwrap(),
             },
         );
 

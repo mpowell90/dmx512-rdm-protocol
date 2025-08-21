@@ -1,3 +1,7 @@
+use core::str::FromStr;
+
+use heapless::String;
+
 use super::{super::utils::trim_trailing_nulls, RdmError};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -40,24 +44,27 @@ impl TryFrom<u8> for BrokerState {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct SearchDomain<'a>(&'a str);
+#[derive(Clone, Debug, PartialEq)]
+pub struct SearchDomain(String<231>);
 
-impl<'a> SearchDomain<'a> {
+impl SearchDomain {
     pub const MAX_LENGTH: usize = 231;
 
-    pub fn new(search_domain: &'a str) -> Result<Self, RdmError> {
+    pub fn new<T: AsRef<str>>(search_domain: T) -> Result<Self, RdmError> {
+        let search_domain = search_domain.as_ref();
+
         if search_domain.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(
                 search_domain.len(),
                 Self::MAX_LENGTH,
             ));
         }
-        Ok(Self(search_domain))
+
+        Ok(Self(String::<231>::from_str(search_domain).unwrap()))
     }
 
     pub fn as_str(&self) -> &str {
-        self.0
+        self.0.as_str()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -79,49 +86,40 @@ impl<'a> SearchDomain<'a> {
         Ok(len)
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
         }
 
         let scope_string = core::str::from_utf8(bytes).map_err(RdmError::from)?;
 
-        Ok(Self(scope_string))
+        Ok(Self(
+            String::<231>::from_str(scope_string).unwrap(),
+        ))
     }
 }
 
-impl<'a> TryFrom<&'a str> for SearchDomain<'a> {
-    type Error = RdmError;
+#[derive(Clone, Debug, PartialEq)]
+pub struct ScopeString(String<63>);
 
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl<'a> From<SearchDomain<'a>> for &'a str {
-    fn from(value: SearchDomain<'a>) -> Self {
-        value.0
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct ScopeString<'a>(&'a str);
-
-impl<'a> ScopeString<'a> {
+impl ScopeString {
     pub const MAX_LENGTH: usize = 63;
 
-    pub fn new(scope_string: &'a str) -> Result<Self, RdmError> {
+    pub fn new<T: AsRef<str>>(scope_string: T) -> Result<Self, RdmError> {
+        let scope_string = scope_string.as_ref();
+
         if scope_string.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(
                 scope_string.len(),
                 Self::MAX_LENGTH,
             ));
         }
-        Ok(Self(scope_string))
+
+        Ok(Self(String::<63>::from_str(scope_string).unwrap()))
     }
 
     pub fn as_str(&self) -> &str {
-        self.0
+        self.0.as_str()
     }
 
     pub fn is_valid(&self) -> bool {
@@ -143,7 +141,7 @@ impl<'a> ScopeString<'a> {
         Ok(Self::MAX_LENGTH)
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
         }
@@ -151,21 +149,9 @@ impl<'a> ScopeString<'a> {
         let scope_string =
             core::str::from_utf8(trim_trailing_nulls(bytes)).map_err(RdmError::from)?;
 
-        Ok(Self(scope_string))
-    }
-}
-
-impl<'a> TryFrom<&'a str> for ScopeString<'a> {
-    type Error = RdmError;
-
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl<'a> From<ScopeString<'a>> for &'a str {
-    fn from(value: ScopeString<'a>) -> Self {
-        value.0
+        Ok(Self(
+            String::<63>::from_str(scope_string).unwrap(),
+        ))
     }
 }
 

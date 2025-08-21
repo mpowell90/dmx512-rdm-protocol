@@ -1,3 +1,7 @@
+use core::str::FromStr;
+
+use heapless::String;
+
 use super::RdmError;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -131,24 +135,26 @@ impl TryFrom<u8> for EndpointType {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct EndpointLabel<'a>(&'a str);
+#[derive(Clone, Debug, PartialEq)]
+pub struct EndpointLabel(String<32>);
 
-impl<'a> EndpointLabel<'a> {
+impl EndpointLabel {
     pub const MAX_LENGTH: usize = 32;
 
-    pub fn new(endpoint_label: &'a str) -> Result<Self, RdmError> {
+    pub fn new<T: AsRef<str>>(endpoint_label: T) -> Result<Self, RdmError> {
+        let endpoint_label = endpoint_label.as_ref();
+
         if endpoint_label.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(
                 endpoint_label.len(),
                 Self::MAX_LENGTH,
             ));
         }
-        Ok(Self(endpoint_label))
+        Ok(Self(String::<32>::from_str(endpoint_label).unwrap()))
     }
 
     pub fn as_str(&self) -> &str {
-        self.0
+        self.0.as_str()
     }
 
     pub fn is_empty(&self) -> bool {
@@ -170,27 +176,13 @@ impl<'a> EndpointLabel<'a> {
         Ok(len)
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes.len() > Self::MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
         }
 
         let endpoint_label = core::str::from_utf8(bytes).map_err(RdmError::from)?;
 
-        Ok(Self(endpoint_label))
-    }
-}
-
-impl<'a> TryFrom<&'a str> for EndpointLabel<'a> {
-    type Error = RdmError;
-
-    fn try_from(value: &'a str) -> Result<Self, Self::Error> {
-        Self::new(value)
-    }
-}
-
-impl<'a> From<EndpointLabel<'a>> for &'a str {
-    fn from(value: EndpointLabel<'a>) -> Self {
-        value.0
+        Ok(Self(String::<32>::from_str(endpoint_label).unwrap()))
     }
 }

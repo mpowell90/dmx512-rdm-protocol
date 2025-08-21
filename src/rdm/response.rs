@@ -45,15 +45,21 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
-use crate::rdm::parameter::e120::ProxiedDeviceIter;
+use crate::rdm::{
+    parameter::e120::{
+        BootSoftwareVersionLabel, DeviceModelDescription, ManufacturerLabel, SoftwareVersionLabel,
+        StatusIdDescription,
+    },
+    utils::truncate_at_null,
+};
 
 use super::{
     parameter::{
         e120::{
             DefaultSlotValue, DeviceLabel, DisplayInvertMode, Iso639_1, LampOnMode, LampState,
-            LanguageCapabilitiesIter, ParameterDescription, ParameterDescriptionLabel, PowerState,
-            PresetPlaybackMode, ProductCategory, ProductDetail, ProtocolVersion, SelfTest,
-            SensorDefinition, SensorValue, SlotInfo, StatusMessage, StatusType,
+            ParameterDescription, ParameterDescriptionLabel, PowerState, PresetPlaybackMode,
+            ProductCategory, ProductDetail, ProtocolVersion, SelfTest, SensorDefinition,
+            SensorValue, SlotInfo, StatusMessage, StatusType,
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
@@ -67,15 +73,13 @@ use super::{
         },
         ParameterId,
     },
-    utils::{bsd_16_crc, decode_string_bytes},
+    utils::bsd_16_crc,
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
-use core::{fmt::Display, result::Result};
-use macaddr::MacAddr6;
-
-#[cfg(not(feature = "alloc"))]
+use core::{fmt::Display, result::Result, str::FromStr};
 use heapless::{String, Vec};
+use macaddr::MacAddr6;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u16)]
@@ -170,13 +174,13 @@ impl TryFrom<u8> for ResponseType {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
-pub enum ResponseData<'a> {
-    ParameterData(Option<ResponseParameterData<'a>>),
+pub enum ResponseData {
+    ParameterData(Option<ResponseParameterData>),
     EstimateResponseTime(u16),
     NackReason(ResponseNackReasonCode),
 }
 
-impl<'a> ResponseData<'a> {
+impl ResponseData {
     pub fn size(&self) -> usize {
         match self {
             Self::ParameterData(Some(data)) => data.size(),
@@ -208,7 +212,7 @@ impl<'a> ResponseData<'a> {
         command_class: CommandClass,
         parameter_data_length: u8,
         parameter_id: ParameterId,
-        bytes: &'a [u8],
+        bytes: &[u8],
     ) -> Result<Self, RdmError> {
         match response_type {
             ResponseType::Ack | ResponseType::AckOverflow => {
@@ -241,7 +245,7 @@ impl<'a> ResponseData<'a> {
 #[allow(clippy::large_enum_variant)]
 #[non_exhaustive]
 #[derive(Clone, Debug, PartialEq)]
-pub enum ResponseParameterData<'a> {
+pub enum ResponseParameterData {
     // E1.20
     DiscMute {
         control_field: u16,
@@ -255,26 +259,17 @@ pub enum ResponseParameterData<'a> {
         device_count: u16,
         list_change: bool,
     },
-    GetProxiedDevices(ProxiedDeviceIter<'a>),
+    GetProxiedDevices(Vec<DeviceUID, 38>),
     GetCommsStatus {
         short_message: u16,
         length_mismatch: u16,
         checksum_fail: u16,
     },
-    GetStatusMessages(
-        #[cfg(feature = "alloc")] Vec<StatusMessage>,
-        #[cfg(not(feature = "alloc"))] Vec<StatusMessage, 25>,
-    ),
-    GetStatusIdDescription(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<32>,
-    ),
+    GetStatusMessages(Vec<StatusMessage, 25>),
+    GetStatusIdDescription(StatusIdDescription),
     GetSubDeviceIdStatusReportThreshold(StatusType),
-    GetSupportedParameters(
-        #[cfg(feature = "alloc")] Vec<u16>,
-        #[cfg(not(feature = "alloc"))] Vec<u16, 115>,
-    ),
-    GetParameterDescription(ParameterDescription<'a>),
+    GetSupportedParameters(Vec<u16, 115>),
+    GetParameterDescription(ParameterDescription),
     GetDeviceInfo {
         protocol_version: ProtocolVersion,
         model_id: u16,
@@ -287,31 +282,16 @@ pub enum ResponseParameterData<'a> {
         sub_device_count: u16,
         sensor_count: u8,
     },
-    GetProductDetailIdList(
-        #[cfg(feature = "alloc")] Vec<ProductDetail>,
-        #[cfg(not(feature = "alloc"))] Vec<ProductDetail, 115>,
-    ),
-    GetDeviceModelDescription(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<32>,
-    ),
-    GetManufacturerLabel(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<32>,
-    ),
-    GetDeviceLabel(DeviceLabel<'a>),
+    GetProductDetailIdList(Vec<ProductDetail, 115>),
+    GetDeviceModelDescription(DeviceModelDescription),
+    GetManufacturerLabel(ManufacturerLabel),
+    GetDeviceLabel(DeviceLabel),
     GetFactoryDefaults(bool),
-    GetLanguageCapabilities(LanguageCapabilitiesIter<'a>),
-    GetLanguage(Iso639_1<'a>),
-    GetSoftwareVersionLabel(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<32>,
-    ),
+    GetLanguageCapabilities(Vec<Iso639_1, 115>),
+    GetLanguage(Iso639_1),
+    GetSoftwareVersionLabel(SoftwareVersionLabel),
     GetBootSoftwareVersionId(u32),
-    GetBootSoftwareVersionLabel(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<32>,
-    ),
+    GetBootSoftwareVersionLabel(BootSoftwareVersionLabel),
     GetDmxPersonality {
         current_personality: u8,
         personality_count: u8,
@@ -319,27 +299,15 @@ pub enum ResponseParameterData<'a> {
     GetDmxPersonalityDescription {
         id: u8,
         dmx_slots_required: u16,
-        #[cfg(feature = "alloc")]
-        description: String,
-        #[cfg(not(feature = "alloc"))]
         description: String<32>,
     },
     GetDmxStartAddress(u16),
-    GetSlotInfo(
-        #[cfg(feature = "alloc")] Vec<SlotInfo>,
-        #[cfg(not(feature = "alloc"))] Vec<SlotInfo, 46>,
-    ),
+    GetSlotInfo(Vec<SlotInfo, 46>),
     GetSlotDescription {
         slot_id: u16,
-        #[cfg(feature = "alloc")]
-        description: String,
-        #[cfg(not(feature = "alloc"))]
         description: String<32>,
     },
-    GetDefaultSlotValue(
-        #[cfg(feature = "alloc")] Vec<DefaultSlotValue>,
-        #[cfg(not(feature = "alloc"))] Vec<DefaultSlotValue, 77>,
-    ),
+    GetDefaultSlotValue(Vec<DefaultSlotValue, 77>),
     GetSensorDefinition(SensorDefinition),
     GetSensorValue(SensorValue),
     SetSensorValue(SensorValue),
@@ -367,9 +335,7 @@ pub enum ResponseParameterData<'a> {
     GetPerformSelfTest(bool),
     GetSelfTestDescription {
         self_test_id: SelfTest,
-        #[cfg(feature = "alloc")]
-        description: String,
-        #[cfg(not(feature = "alloc"))]
+
         description: String<32>,
     },
     GetPresetPlayback {
@@ -400,9 +366,6 @@ pub enum ResponseParameterData<'a> {
     },
     GetLockStateDescription {
         lock_state_id: u8,
-        #[cfg(feature = "alloc")]
-        description: String,
-        #[cfg(not(feature = "alloc"))]
         description: String<32>,
     },
     GetLockPin(PinCode),
@@ -428,9 +391,6 @@ pub enum ResponseParameterData<'a> {
     },
     GetCurveDescription {
         curve_id: u8,
-        #[cfg(feature = "alloc")]
-        description: String,
-        #[cfg(not(feature = "alloc"))]
         description: String<32>,
     },
     GetOutputResponseTime {
@@ -439,9 +399,6 @@ pub enum ResponseParameterData<'a> {
     },
     GetOutputResponseTimeDescription {
         response_time_id: u8,
-        #[cfg(feature = "alloc")]
-        description: String,
-        #[cfg(not(feature = "alloc"))]
         description: String<32>,
     },
     GetModulationFrequency {
@@ -451,9 +408,6 @@ pub enum ResponseParameterData<'a> {
     GetModulationFrequencyDescription {
         modulation_frequency_id: u8,
         frequency: u32,
-        #[cfg(feature = "alloc")]
-        description: String,
-        #[cfg(not(feature = "alloc"))]
         description: String<32>,
     },
     GetPresetInfo {
@@ -486,15 +440,9 @@ pub enum ResponseParameterData<'a> {
     },
     GetPresetMergeMode(MergeMode),
     // E1.37-2
-    GetListInterfaces(
-        #[cfg(feature = "alloc")] Vec<NetworkInterface>,
-        #[cfg(not(feature = "alloc"))] Vec<NetworkInterface, 38>,
-    ),
+    GetListInterfaces(Vec<NetworkInterface, 38>),
     GetInterfaceLabel {
         interface_id: u32,
-        #[cfg(feature = "alloc")]
-        interface_label: String,
-        #[cfg(not(feature = "alloc"))]
         interface_label: String<32>,
     },
     GetInterfaceHardwareAddressType1 {
@@ -528,14 +476,11 @@ pub enum ResponseParameterData<'a> {
         name_server_index: u8,
         address: Ipv4Address,
     },
-    GetDnsHostName(DnsHostName<'a>),
-    GetDnsDomainName(DnsDomainName<'a>),
+    GetDnsHostName(DnsHostName),
+    GetDnsDomainName(DnsDomainName),
     // E1.37-7
     GetEndpointList {
         list_change_number: u32,
-        #[cfg(feature = "alloc")]
-        endpoint_list: Vec<(EndpointId, EndpointType)>,
-        #[cfg(not(feature = "alloc"))]
         endpoint_list: Vec<(EndpointId, EndpointType), 75>,
     },
     GetEndpointListChange {
@@ -564,7 +509,7 @@ pub enum ResponseParameterData<'a> {
     },
     GetEndpointLabel {
         endpoint_id: EndpointId,
-        label: EndpointLabel<'a>,
+        label: EndpointLabel,
     },
     SetEndpointLabel {
         endpoint_id: EndpointId,
@@ -601,17 +546,11 @@ pub enum ResponseParameterData<'a> {
     },
     GetEndpointTimingDescription {
         setting_id: u8,
-        #[cfg(feature = "alloc")]
-        description: String,
-        #[cfg(not(feature = "alloc"))]
         description: String<32>,
     },
     GetEndpointResponders {
         endpoint_id: EndpointId,
         list_change_number: u32,
-        #[cfg(feature = "alloc")]
-        responders: Vec<DeviceUID>,
-        #[cfg(not(feature = "alloc"))]
         responders: Vec<DeviceUID, 37>,
     },
     GetEndpointResponderListChange {
@@ -630,23 +569,20 @@ pub enum ResponseParameterData<'a> {
     },
     GetBackgroundQueuedStatusPolicyDescription {
         policy_id: u8,
-        #[cfg(feature = "alloc")]
-        description: String,
-        #[cfg(not(feature = "alloc"))]
         description: String<32>,
     },
     // E1.33
     GetComponentScope {
         scope_slot: u16,
-        scope_string: ScopeString<'a>,
+        scope_string: ScopeString,
         static_config_type: StaticConfigType,
         static_ipv4_address: Ipv4Address,
         static_ipv6_address: Ipv6Address,
         static_port: u16,
     },
-    GetSearchDomain(SearchDomain<'a>),
+    GetSearchDomain(SearchDomain),
     GetTcpCommsStatus {
-        scope_string: ScopeString<'a>,
+        scope_string: ScopeString,
         broker_ipv4_address: Ipv4Address,
         broker_ipv6_address: Ipv6Address,
         broker_port: u16,
@@ -656,10 +592,10 @@ pub enum ResponseParameterData<'a> {
         is_allowing_set_commands: bool,
         broker_state: BrokerState,
     },
-    RawParameter(&'a [u8]),
+    RawParameter(Vec<u8, 231>),
 }
 
-impl<'a> ResponseParameterData<'a> {
+impl ResponseParameterData {
     pub fn size(&self) -> usize {
         match self {
             ResponseParameterData::DiscMute { binding_uid, .. }
@@ -845,9 +781,9 @@ impl<'a> ResponseParameterData<'a> {
                 buf[0..2].copy_from_slice(&device_count.to_be_bytes());
                 buf[2] = *list_change as u8;
             }
-            Self::GetProxiedDevices(devices) => {
-                for (idx, device_uid) in devices.enumerate() {
-                    buf[idx * 6..(idx + 1) * 6].copy_from_slice(&<[u8; 6]>::from(device_uid));
+            Self::GetProxiedDevices(device_uids) => {
+                for (idx, device_uid) in device_uids.iter().enumerate() {
+                    buf[idx * 6..(idx + 1) * 6].copy_from_slice(&<[u8; 6]>::from(*device_uid));
                 }
             }
             Self::GetCommsStatus {
@@ -885,7 +821,7 @@ impl<'a> ResponseParameterData<'a> {
                 }
             }
             Self::GetStatusIdDescription(description) => {
-                buf[0..description.len()].copy_from_slice(description.as_bytes());
+                description.encode(buf)?;
             }
             Self::GetSubDeviceIdStatusReportThreshold(status) => {
                 buf[0] = *status as u8;
@@ -938,10 +874,10 @@ impl<'a> ResponseParameterData<'a> {
                 }
             }
             Self::GetDeviceModelDescription(description) => {
-                buf[0..description.len()].copy_from_slice(description.as_bytes());
+                description.encode(buf)?;
             }
             Self::GetManufacturerLabel(label) => {
-                buf[0..label.len()].copy_from_slice(label.as_bytes());
+                label.encode(buf)?;
             }
             Self::GetDeviceLabel(device_label) => {
                 device_label.encode(buf)?;
@@ -950,7 +886,7 @@ impl<'a> ResponseParameterData<'a> {
                 buf[0] = *defaults as u8;
             }
             Self::GetLanguageCapabilities(languages) => {
-                for (idx, language) in languages.enumerate() {
+                for (idx, language) in languages.iter().enumerate() {
                     buf[idx * 2..(idx + 2) * 2].copy_from_slice(language.as_str().as_bytes());
                 }
             }
@@ -958,13 +894,13 @@ impl<'a> ResponseParameterData<'a> {
                 language.encode(buf)?;
             }
             Self::GetSoftwareVersionLabel(label) => {
-                buf[0..label.len()].copy_from_slice(label.as_bytes());
+                label.encode(buf)?;
             }
             Self::GetBootSoftwareVersionId(version_id) => {
                 buf[0..4].copy_from_slice(&version_id.to_be_bytes());
             }
             Self::GetBootSoftwareVersionLabel(label) => {
-                buf[0..label.len()].copy_from_slice(label.as_bytes());
+                label.encode(buf)?;
             }
             Self::GetDmxPersonality {
                 current_personality,
@@ -1578,7 +1514,7 @@ impl<'a> ResponseParameterData<'a> {
     pub fn decode(
         command_class: CommandClass,
         parameter_id: ParameterId,
-        bytes: &'a [u8],
+        bytes: &[u8],
     ) -> Result<Self, RdmError> {
         match (command_class, parameter_id) {
             (CommandClass::DiscoveryCommandResponse, ParameterId::DiscMute) => {
@@ -1612,7 +1548,12 @@ impl<'a> ResponseParameterData<'a> {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ProxiedDevices) => {
-                Ok(Self::GetProxiedDevices(ProxiedDeviceIter::new(bytes)))
+                Ok(Self::GetProxiedDevices(
+                    bytes
+                        .chunks(6)
+                        .map(|chunk| Ok(DeviceUID::from(<[u8; 6]>::try_from(chunk)?)))
+                        .collect::<Result<Vec<DeviceUID, 38>, RdmError>>()?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::CommsStatus) => {
                 Ok(Self::GetCommsStatus {
@@ -1623,20 +1564,6 @@ impl<'a> ResponseParameterData<'a> {
             }
             (CommandClass::GetCommandResponse, ParameterId::StatusMessages) => {
                 Ok(Self::GetStatusMessages(
-                    #[cfg(feature = "alloc")]
-                    bytes
-                        .chunks(9)
-                        .map(|chunk| {
-                            Ok(StatusMessage::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
-                                chunk[2].try_into()?,
-                                u16::from_be_bytes(chunk[3..=4].try_into()?),
-                                u16::from_be_bytes(chunk[5..=6].try_into()?),
-                                u16::from_be_bytes(chunk[7..=8].try_into()?),
-                            ))
-                        })
-                        .collect::<Result<Vec<StatusMessage>, RdmError>>()?,
-                    #[cfg(not(feature = "alloc"))]
                     bytes
                         .chunks(9)
                         .map(|chunk| {
@@ -1651,9 +1578,9 @@ impl<'a> ResponseParameterData<'a> {
                         .collect::<Result<Vec<StatusMessage, 25>, RdmError>>()?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => {
-                Ok(Self::GetStatusIdDescription(decode_string_bytes(bytes)?))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => Ok(
+                Self::GetStatusIdDescription(StatusIdDescription::decode(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::SubDeviceIdStatusReportThreshold) => {
                 Ok(Self::GetSubDeviceIdStatusReportThreshold(
                     bytes[0].try_into()?,
@@ -1666,9 +1593,6 @@ impl<'a> ResponseParameterData<'a> {
                     .filter_map(|parameter_id: Result<u16, RdmError>| parameter_id.ok());
 
                 Ok(Self::GetSupportedParameters(
-                    #[cfg(feature = "alloc")]
-                    parameters.collect::<Vec<u16>>(),
-                    #[cfg(not(feature = "alloc"))]
                     parameters.collect::<Vec<u16, 115>>(),
                 ))
             }
@@ -1702,44 +1626,43 @@ impl<'a> ResponseParameterData<'a> {
             }
             (CommandClass::GetCommandResponse, ParameterId::ProductDetailIdList) => {
                 Ok(Self::GetProductDetailIdList(
-                    #[cfg(feature = "alloc")]
-                    bytes
-                        .chunks(2)
-                        .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?).into()))
-                        .collect::<Result<Vec<ProductDetail>, RdmError>>()?,
-                    #[cfg(not(feature = "alloc"))]
                     bytes
                         .chunks(2)
                         .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?).into()))
                         .collect::<Result<Vec<ProductDetail, 115>, RdmError>>()?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => {
-                Ok(Self::GetDeviceModelDescription(decode_string_bytes(bytes)?))
-            }
-            (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => {
-                Ok(Self::GetManufacturerLabel(decode_string_bytes(bytes)?))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => Ok(
+                Self::GetDeviceModelDescription(DeviceModelDescription::decode(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => Ok(
+                Self::GetManufacturerLabel(ManufacturerLabel::decode(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::DeviceLabel) => {
                 Ok(Self::GetDeviceLabel(DeviceLabel::decode(bytes)?))
             }
             (CommandClass::GetCommandResponse, ParameterId::FactoryDefaults) => {
                 Ok(Self::GetFactoryDefaults(bytes[0] == 1))
             }
-            (CommandClass::GetCommandResponse, ParameterId::LanguageCapabilities) => Ok(
-                Self::GetLanguageCapabilities(LanguageCapabilitiesIter::new(bytes)),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::LanguageCapabilities) => {
+                Ok(Self::GetLanguageCapabilities(
+                    bytes
+                        .chunks(2)
+                        .map(Iso639_1::decode)
+                        .collect::<Result<Vec<Iso639_1, 115>, RdmError>>()?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::Language) => {
                 Ok(Self::GetLanguage(Iso639_1::decode(bytes)?))
             }
-            (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => {
-                Ok(Self::GetSoftwareVersionLabel(decode_string_bytes(bytes)?))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => Ok(
+                Self::GetSoftwareVersionLabel(SoftwareVersionLabel::decode(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => Ok(
                 Self::GetBootSoftwareVersionId(u32::from_be_bytes(bytes.try_into()?)),
             ),
             (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionLabel) => Ok(
-                Self::GetBootSoftwareVersionLabel(decode_string_bytes(bytes)?),
+                Self::GetBootSoftwareVersionLabel(BootSoftwareVersionLabel::decode(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::DmxPersonality) => {
                 Ok(Self::GetDmxPersonality {
@@ -1751,25 +1674,17 @@ impl<'a> ResponseParameterData<'a> {
                 Ok(Self::GetDmxPersonalityDescription {
                     id: bytes[0],
                     dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into()?),
-                    description: decode_string_bytes(&bytes[3..])?,
+                    description: String::<32>::from_str(
+                        core::str::from_utf8(truncate_at_null(&bytes[3..]))
+                            .map_err(RdmError::from)?,
+                    )
+                    .unwrap(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => Ok(
                 Self::GetDmxStartAddress(u16::from_be_bytes(bytes[0..=1].try_into()?)),
             ),
             (CommandClass::GetCommandResponse, ParameterId::SlotInfo) => Ok(Self::GetSlotInfo(
-                #[cfg(feature = "alloc")]
-                bytes
-                    .chunks(5)
-                    .map(|chunk| {
-                        Ok(SlotInfo::new(
-                            u16::from_be_bytes(chunk[0..=1].try_into()?),
-                            chunk[2].into(),
-                            u16::from_be_bytes(chunk[3..=4].try_into()?),
-                        ))
-                    })
-                    .collect::<Result<Vec<SlotInfo>, RdmError>>()?,
-                #[cfg(not(feature = "alloc"))]
                 bytes
                     .chunks(5)
                     .map(|chunk| {
@@ -1784,22 +1699,15 @@ impl<'a> ResponseParameterData<'a> {
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
                 Ok(Self::GetSlotDescription {
                     slot_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    description: decode_string_bytes(&bytes[2..])?,
+                    description: String::<32>::from_str(
+                        core::str::from_utf8(truncate_at_null(&bytes[2..]))
+                            .map_err(RdmError::from)?,
+                    )
+                    .unwrap(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DefaultSlotValue) => {
                 Ok(Self::GetDefaultSlotValue(
-                    #[cfg(feature = "alloc")]
-                    bytes
-                        .chunks(3)
-                        .map(|chunk| {
-                            Ok(DefaultSlotValue::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?),
-                                chunk[2],
-                            ))
-                        })
-                        .collect::<Result<Vec<DefaultSlotValue>, RdmError>>()?,
-                    #[cfg(not(feature = "alloc"))]
                     bytes
                         .chunks(3)
                         .map(|chunk| {
@@ -1823,7 +1731,11 @@ impl<'a> ResponseParameterData<'a> {
                     normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
                     is_lowest_highest_detected_value_supported: bytes[12] >> 1 & 1 == 1,
                     is_recorded_value_supported: bytes[12] & 1 == 1,
-                    description: decode_string_bytes(&bytes[13..])?,
+                    description: String::<32>::from_str(
+                        core::str::from_utf8(truncate_at_null(&bytes[13..]))
+                            .map_err(RdmError::from)?,
+                    )
+                    .unwrap(),
                 }))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorValue) => {
@@ -1899,7 +1811,11 @@ impl<'a> ResponseParameterData<'a> {
             (CommandClass::GetCommandResponse, ParameterId::SelfTestDescription) => {
                 Ok(Self::GetSelfTestDescription {
                     self_test_id: bytes[0].into(),
-                    description: decode_string_bytes(&bytes[1..])?,
+                    description: String::<32>::from_str(
+                        core::str::from_utf8(truncate_at_null(&bytes[1..]))
+                            .map_err(RdmError::from)?,
+                    )
+                    .unwrap(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetPlayback) => {
@@ -1941,7 +1857,11 @@ impl<'a> ResponseParameterData<'a> {
             (CommandClass::GetCommandResponse, ParameterId::LockStateDescription) => {
                 Ok(Self::GetLockStateDescription {
                     lock_state_id: bytes[0],
-                    description: decode_string_bytes(&bytes[1..])?,
+                    description: String::<32>::from_str(
+                        core::str::from_utf8(truncate_at_null(&bytes[1..]))
+                            .map_err(RdmError::from)?,
+                    )
+                    .unwrap(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::LockPin) => Ok(Self::GetLockPin(
@@ -1978,7 +1898,11 @@ impl<'a> ResponseParameterData<'a> {
             (CommandClass::GetCommandResponse, ParameterId::CurveDescription) => {
                 Ok(Self::GetCurveDescription {
                     curve_id: bytes[0],
-                    description: decode_string_bytes(&bytes[1..])?,
+                    description: String::<32>::from_str(
+                        core::str::from_utf8(truncate_at_null(&bytes[1..]))
+                            .map_err(RdmError::from)?,
+                    )
+                    .unwrap(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::OutputResponseTime) => {
@@ -1990,7 +1914,11 @@ impl<'a> ResponseParameterData<'a> {
             (CommandClass::GetCommandResponse, ParameterId::OutputResponseTimeDescription) => {
                 Ok(Self::GetOutputResponseTimeDescription {
                     response_time_id: bytes[0],
-                    description: decode_string_bytes(&bytes[1..])?,
+                    description: String::<32>::from_str(
+                        core::str::from_utf8(truncate_at_null(&bytes[1..]))
+                            .map_err(RdmError::from)?,
+                    )
+                    .unwrap(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ModulationFrequency) => {
@@ -2003,7 +1931,11 @@ impl<'a> ResponseParameterData<'a> {
                 Ok(Self::GetModulationFrequencyDescription {
                     modulation_frequency_id: bytes[0],
                     frequency: u32::from_be_bytes(bytes[1..=4].try_into()?),
-                    description: decode_string_bytes(&bytes[5..])?,
+                    description: String::<32>::from_str(
+                        core::str::from_utf8(truncate_at_null(&bytes[5..]))
+                            .map_err(RdmError::from)?,
+                    )
+                    .unwrap(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetInfo) => {
@@ -2068,17 +2000,6 @@ impl<'a> ResponseParameterData<'a> {
             // E1.37-2
             (CommandClass::GetCommandResponse, ParameterId::ListInterfaces) => {
                 Ok(Self::GetListInterfaces(
-                    #[cfg(feature = "alloc")]
-                    bytes
-                        .chunks(6)
-                        .map(|chunk| {
-                            Ok(NetworkInterface {
-                                interface_id: u32::from_be_bytes(chunk[0..=3].try_into()?),
-                                hardware_type: u16::from_be_bytes(chunk[4..=5].try_into()?).into(),
-                            })
-                        })
-                        .collect::<Result<Vec<NetworkInterface>, RdmError>>()?,
-                    #[cfg(not(feature = "alloc"))]
                     bytes
                         .chunks(6)
                         .map(|chunk| {
@@ -2093,7 +2014,11 @@ impl<'a> ResponseParameterData<'a> {
             (CommandClass::GetCommandResponse, ParameterId::InterfaceLabel) => {
                 Ok(Self::GetInterfaceLabel {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    interface_label: decode_string_bytes(&bytes[4..])?,
+                    interface_label: String::<32>::from_str(
+                        core::str::from_utf8(truncate_at_null(&bytes[4..]))
+                            .map_err(RdmError::from)?,
+                    )
+                    .unwrap(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::InterfaceHardwareAddressType1) => {
@@ -2150,17 +2075,6 @@ impl<'a> ResponseParameterData<'a> {
             // E1.37-7
             (CommandClass::GetCommand, ParameterId::EndpointList) => Ok(Self::GetEndpointList {
                 list_change_number: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                #[cfg(feature = "alloc")]
-                endpoint_list: bytes[4..]
-                    .chunks(3)
-                    .map(|chunk| {
-                        Ok((
-                            u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
-                            chunk[1].try_into()?,
-                        ))
-                    })
-                    .collect::<Result<Vec<(EndpointId, EndpointType)>, RdmError>>()?,
-                #[cfg(not(feature = "alloc"))]
                 endpoint_list: bytes[4..]
                     .chunks(6)
                     .map(|chunk| {
@@ -2261,24 +2175,16 @@ impl<'a> ResponseParameterData<'a> {
             (CommandClass::GetCommand, ParameterId::EndpointTimingDescription) => {
                 Ok(Self::GetEndpointTimingDescription {
                     setting_id: bytes[0],
-                    description: decode_string_bytes(&bytes[1..])?,
+                    description: String::<32>::from_str(core::str::from_utf8(truncate_at_null(
+                        &bytes[1..],
+                    ))?)
+                    .unwrap(),
                 })
             }
             (CommandClass::GetCommand, ParameterId::EndpointResponders) => {
                 Ok(Self::GetEndpointResponders {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     list_change_number: u32::from_be_bytes(bytes[2..=5].try_into()?),
-                    #[cfg(feature = "alloc")]
-                    responders: bytes[6..]
-                        .chunks(6)
-                        .map(|chunk| {
-                            Ok(DeviceUID::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?),
-                                u32::from_be_bytes(chunk[2..=5].try_into()?),
-                            ))
-                        })
-                        .collect::<Result<Vec<DeviceUID>, RdmError>>()?,
-                    #[cfg(not(feature = "alloc"))]
                     responders: bytes[6..]
                         .chunks(6)
                         .map(|chunk| {
@@ -2319,7 +2225,10 @@ impl<'a> ResponseParameterData<'a> {
             (CommandClass::GetCommand, ParameterId::BackgroundQueuedStatusPolicyDescription) => {
                 Ok(Self::GetBackgroundQueuedStatusPolicyDescription {
                     policy_id: bytes[0],
-                    description: decode_string_bytes(&bytes[1..])?,
+                    description: String::<32>::from_str(core::str::from_utf8(truncate_at_null(
+                        &bytes[1..],
+                    ))?)
+                    .unwrap(),
                 })
             }
             // E1.33
@@ -2372,13 +2281,13 @@ impl<'a> ResponseParameterData<'a> {
                     broker_state: bytes[1].try_into()?,
                 })
             }
-            (_, _) => Ok(Self::RawParameter(bytes)),
+            (_, _) => Ok(Self::RawParameter(Vec::from_slice(bytes).unwrap())),
         }
     }
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct RdmFrameResponse<'a> {
+pub struct RdmFrameResponse {
     pub destination_uid: DeviceUID,
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
@@ -2387,10 +2296,10 @@ pub struct RdmFrameResponse<'a> {
     pub sub_device_id: SubDeviceId,
     pub command_class: CommandClass,
     pub parameter_id: ParameterId,
-    pub parameter_data: ResponseData<'a>,
+    pub parameter_data: ResponseData,
 }
 
-impl<'a> RdmFrameResponse<'a> {
+impl RdmFrameResponse {
     pub fn size(&self) -> usize {
         24 + self.parameter_data.size() + 2
     }
@@ -2428,7 +2337,7 @@ impl<'a> RdmFrameResponse<'a> {
         Ok(message_length + 2)
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         let message_length = bytes[2];
 
         if message_length < 24 {
@@ -2493,10 +2402,10 @@ impl<'a> RdmFrameResponse<'a> {
     }
 }
 
-impl<'a> TryFrom<&'a [u8]> for RdmFrameResponse<'a> {
+impl TryFrom<&[u8]> for RdmFrameResponse {
     type Error = RdmError;
 
-    fn try_from(bytes: &'a [u8]) -> Result<Self, Self::Error> {
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         RdmFrameResponse::decode(bytes)
     }
 }
@@ -2596,12 +2505,12 @@ impl TryFrom<&[u8]> for DiscoveryUniqueBranchFrameResponse {
 
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
-pub enum RdmResponse<'a> {
-    RdmFrame(RdmFrameResponse<'a>),
+pub enum RdmResponse {
+    RdmFrame(RdmFrameResponse),
     DiscoveryUniqueBranchFrame(DiscoveryUniqueBranchFrameResponse),
 }
 
-impl<'a> RdmResponse<'a> {
+impl RdmResponse {
     pub fn size(&self) -> usize {
         match self {
             RdmResponse::RdmFrame(frame) => frame.size(),
@@ -2616,7 +2525,7 @@ impl<'a> RdmResponse<'a> {
         }
     }
 
-    pub fn decode(bytes: &'a [u8]) -> Result<Self, RdmError> {
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
         if bytes[0] == RDM_START_CODE_BYTE && bytes[1] == RDM_SUB_START_CODE_BYTE {
             if bytes.len() < 25 {
                 return Err(RdmError::InvalidFrameLength(bytes.len() as u8));
@@ -2640,10 +2549,10 @@ impl<'a> RdmResponse<'a> {
     }
 }
 
-impl<'a> TryFrom<&'a [u8]> for RdmResponse<'a> {
+impl TryFrom<&[u8]> for RdmResponse {
     type Error = RdmError;
 
-    fn try_from(bytes: &'a [u8]) -> Result<Self, Self::Error> {
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         RdmResponse::decode(bytes)
     }
 }
@@ -2757,7 +2666,7 @@ mod tests {
             command_class: CommandClass::SetCommandResponse,
             parameter_id: ParameterId::RawParameterId(0x8080),
             parameter_data: ResponseData::ParameterData(Some(ResponseParameterData::RawParameter(
-                &[0x04, 0x03, 0x02, 0x01],
+                Vec::from_slice(&[0x04, 0x03, 0x02, 0x01]).unwrap(),
             ))),
         }));
 
@@ -2778,7 +2687,7 @@ mod tests {
             command_class: CommandClass::SetCommandResponse,
             parameter_id: ParameterId::RawParameterId(0x8080),
             parameter_data: ResponseData::ParameterData(Some(ResponseParameterData::RawParameter(
-                &[0x04, 0x03, 0x02, 0x01],
+                Vec::from_slice(&[0x04, 0x03, 0x02, 0x01]).unwrap(),
             ))),
         })
         .encode(&mut encoded)
