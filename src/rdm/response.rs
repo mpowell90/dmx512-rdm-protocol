@@ -66,7 +66,7 @@ use super::{
         },
         e137_7::{
             BackgroundQueuedStatusPolicyDescription, DiscoveryCountStatus, DiscoveryState,
-            EndpointId, EndpointLabel, EndpointMode, EndpointTimingDescription, EndpointType,
+            EndpointIdValue, EndpointLabel, EndpointMode, EndpointTimingDescription, EndpointType,
         },
         ParameterId,
     },
@@ -477,84 +477,84 @@ pub enum ResponseParameterData {
     // E1.37-7
     GetEndpointList {
         list_change_number: u32,
-        endpoint_list: Vec<(EndpointId, EndpointType), 75>,
+        endpoint_list: Vec<(EndpointIdValue, EndpointType), 75>,
     },
     GetEndpointListChange {
         list_change_number: u32,
     },
     GetIdentifyEndpoint {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         identify: bool,
     },
     SetIdentifyEndpoint {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
     },
     GetEndpointToUniverse {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         universe: u16,
     },
     SetEndpointToUniverse {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
     },
     GetEndpointMode {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         mode: EndpointMode,
     },
     SetEndpointMode {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
     },
     GetEndpointLabel {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         label: EndpointLabel,
     },
     SetEndpointLabel {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
     },
     GetRdmTrafficEnable {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         enable: bool,
     },
     SetRdmTrafficEnable {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
     },
     GetDiscoveryState {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         device_count: DiscoveryCountStatus,
         discovery_state: DiscoveryState,
     },
     SetDiscoveryState {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
     },
     GetBackgroundDiscovery {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         enabled: bool,
     },
     SetBackgroundDiscovery {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
     },
     GetEndpointTiming {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         current_setting_id: u8,
         setting_count: u8,
     },
     SetEndpointTiming {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
     },
     GetEndpointTimingDescription {
         setting_id: u8,
         description: EndpointTimingDescription,
     },
     GetEndpointResponders {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         list_change_number: u32,
         responders: Vec<DeviceUID, 37>,
     },
     GetEndpointResponderListChange {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         list_change_number: u32,
     },
     GetBindingControlFields {
-        endpoint_id: EndpointId,
+        endpoint_id: EndpointIdValue,
         uid: DeviceUID,
         control_field: u16,
         binding_uid: DeviceUID,
@@ -1291,8 +1291,7 @@ impl ResponseParameterData {
                 buf[0..4].copy_from_slice(&list_change_number.to_be_bytes());
 
                 for (idx, (endpoint_id, endpoint_type)) in endpoint_list.iter().enumerate() {
-                    buf[(idx + 1) * 3..(idx + 3) * 3]
-                        .copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                    buf[(idx + 1) * 3..(idx + 3) * 3].copy_from_slice(&endpoint_id.0.to_be_bytes());
                     buf[(idx + 3) * 3] = *endpoint_type as u8;
                 }
             }
@@ -1303,79 +1302,79 @@ impl ResponseParameterData {
                 endpoint_id,
                 identify,
             } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2] = *identify as u8;
             }
             Self::SetIdentifyEndpoint { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
             Self::GetEndpointToUniverse {
                 endpoint_id,
                 universe,
             } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2..4].copy_from_slice(&universe.to_be_bytes());
             }
             Self::SetEndpointToUniverse { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
             Self::GetEndpointMode { endpoint_id, mode } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2] = *mode as u8;
             }
             Self::SetEndpointMode { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
             Self::GetEndpointLabel { endpoint_id, label } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 label.encode(&mut buf[2..2 + label.len()])?;
             }
             Self::SetEndpointLabel { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
             Self::GetRdmTrafficEnable {
                 endpoint_id,
                 enable,
             } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2] = *enable as u8;
             }
             Self::SetRdmTrafficEnable { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
             Self::GetDiscoveryState {
                 endpoint_id,
                 device_count,
                 discovery_state,
             } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2..4].copy_from_slice(&u16::from(*device_count).to_be_bytes());
                 buf[4] = (*discovery_state).into();
             }
             Self::SetDiscoveryState { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
             Self::GetBackgroundDiscovery {
                 endpoint_id,
                 enabled,
             } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2] = *enabled as u8;
             }
             Self::SetBackgroundDiscovery { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
             Self::GetEndpointTiming {
                 endpoint_id,
                 current_setting_id,
                 setting_count,
             } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2] = *current_setting_id;
                 buf[3] = *setting_count;
             }
             Self::SetEndpointTiming { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
             Self::GetEndpointTimingDescription {
                 setting_id,
@@ -1389,7 +1388,7 @@ impl ResponseParameterData {
                 list_change_number,
                 responders,
             } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2..6].copy_from_slice(&list_change_number.to_be_bytes());
 
                 for (idx, responder) in responders.iter().enumerate() {
@@ -1401,7 +1400,7 @@ impl ResponseParameterData {
                 endpoint_id,
                 list_change_number,
             } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2..6].copy_from_slice(&list_change_number.to_be_bytes());
             }
             Self::GetBindingControlFields {
@@ -1410,7 +1409,7 @@ impl ResponseParameterData {
                 control_field,
                 binding_uid,
             } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2..8].copy_from_slice(&<[u8; 6]>::from(*uid));
                 buf[8..10].copy_from_slice(&control_field.to_be_bytes());
                 buf[10..16].copy_from_slice(&<[u8; 6]>::from(*binding_uid));
@@ -2015,11 +2014,11 @@ impl ResponseParameterData {
                     .chunks(6)
                     .map(|chunk| {
                         Ok((
-                            u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
+                            EndpointIdValue(u16::from_be_bytes(chunk[0..=1].try_into()?)),
                             chunk[1].try_into()?,
                         ))
                     })
-                    .collect::<Result<Vec<(EndpointId, EndpointType), 75>, RdmError>>()?,
+                    .collect::<Result<Vec<(EndpointIdValue, EndpointType), 75>, RdmError>>()?,
             }),
             (CommandClass::GetCommand, ParameterId::EndpointListChange) => {
                 Ok(Self::GetEndpointListChange {
@@ -2028,84 +2027,84 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommand, ParameterId::IdentifyEndpoint) => {
                 Ok(Self::GetIdentifyEndpoint {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                     identify: bytes[2] == 1,
                 })
             }
             (CommandClass::SetCommand, ParameterId::IdentifyEndpoint) => {
                 Ok(Self::SetIdentifyEndpoint {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                 })
             }
             (CommandClass::GetCommand, ParameterId::EndpointToUniverse) => {
                 Ok(Self::GetEndpointToUniverse {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                     universe: u16::from_be_bytes(bytes[2..=3].try_into()?),
                 })
             }
             (CommandClass::SetCommand, ParameterId::EndpointToUniverse) => {
                 Ok(Self::SetEndpointToUniverse {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                 })
             }
             (CommandClass::GetCommand, ParameterId::EndpointMode) => Ok(Self::GetEndpointMode {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                 mode: bytes[2].try_into()?,
             }),
             (CommandClass::SetCommand, ParameterId::EndpointMode) => Ok(Self::SetEndpointMode {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
             }),
             (CommandClass::GetCommand, ParameterId::EndpointLabel) => Ok(Self::GetEndpointLabel {
-                endpoint_id: u16::from_be_bytes(bytes[0..2].try_into()?).into(),
+                endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                 label: EndpointLabel::decode(&bytes[2..])?,
             }),
             (CommandClass::SetCommand, ParameterId::EndpointLabel) => Ok(Self::SetEndpointLabel {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
             }),
             (CommandClass::GetCommand, ParameterId::RdmTrafficEnable) => {
                 Ok(Self::GetRdmTrafficEnable {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                     enable: bytes[2] == 1,
                 })
             }
             (CommandClass::SetCommand, ParameterId::RdmTrafficEnable) => {
                 Ok(Self::SetRdmTrafficEnable {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                 })
             }
             (CommandClass::GetCommand, ParameterId::DiscoveryState) => {
                 Ok(Self::GetDiscoveryState {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                     device_count: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
                     discovery_state: bytes[4].try_into()?,
                 })
             }
             (CommandClass::SetCommand, ParameterId::DiscoveryState) => {
                 Ok(Self::SetDiscoveryState {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                 })
             }
             (CommandClass::GetCommand, ParameterId::BackgroundDiscovery) => {
                 Ok(Self::GetBackgroundDiscovery {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                     enabled: bytes[2] == 1,
                 })
             }
             (CommandClass::SetCommand, ParameterId::BackgroundDiscovery) => {
                 Ok(Self::SetBackgroundDiscovery {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                 })
             }
             (CommandClass::GetCommand, ParameterId::EndpointTiming) => {
                 Ok(Self::GetEndpointTiming {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                     current_setting_id: bytes[2],
                     setting_count: bytes[3],
                 })
             }
             (CommandClass::SetCommand, ParameterId::EndpointTiming) => {
                 Ok(Self::SetEndpointTiming {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                 })
             }
             (CommandClass::GetCommand, ParameterId::EndpointTimingDescription) => {
@@ -2116,7 +2115,7 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommand, ParameterId::EndpointResponders) => {
                 Ok(Self::GetEndpointResponders {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                     list_change_number: u32::from_be_bytes(bytes[2..=5].try_into()?),
                     responders: bytes[6..]
                         .chunks(6)
@@ -2131,13 +2130,13 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommand, ParameterId::EndpointResponderListChange) => {
                 Ok(Self::GetEndpointResponderListChange {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                     list_change_number: u32::from_be_bytes(bytes[2..=5].try_into()?),
                 })
             }
             (CommandClass::GetCommand, ParameterId::BindingControlFields) => {
                 Ok(Self::GetBindingControlFields {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                     uid: DeviceUID::new(
                         u16::from_be_bytes(bytes[2..=3].try_into()?),
                         u32::from_be_bytes(bytes[4..=7].try_into()?),

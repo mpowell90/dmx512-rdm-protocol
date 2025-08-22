@@ -87,6 +87,9 @@ impl TryFrom<u8> for EndpointMode {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct EndpointIdValue(pub u16);
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum EndpointId {
     Null,
     Device(u16),
@@ -113,6 +116,18 @@ impl From<EndpointId> for u16 {
             EndpointId::Device(value) => value,
             EndpointId::Reserved(value) => value,
         }
+    }
+}
+
+impl From<EndpointIdValue> for EndpointId {
+    fn from(value: EndpointIdValue) -> Self {
+        value.0.into()
+    }
+}
+
+impl From<EndpointId> for EndpointIdValue {
+    fn from(value: EndpointId) -> Self {
+        Self(value.into())
     }
 }
 
