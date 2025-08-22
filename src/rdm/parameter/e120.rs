@@ -28,6 +28,9 @@ impl fmt::Display for ProtocolVersion {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ProductDetailValue(pub u16);
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ProductDetail {
     NotDeclared,
     Arc,
@@ -288,6 +291,18 @@ impl From<ProductDetail> for u16 {
             ProductDetail::ManufacturerSpecific(value) => value,
             ProductDetail::Unknown(value) => value,
         }
+    }
+}
+
+impl From<ProductDetailValue> for ProductDetail {
+    fn from(value: ProductDetailValue) -> Self {
+        value.0.into()
+    }
+}
+
+impl From<ProductDetail> for ProductDetailValue {
+    fn from(value: ProductDetail) -> Self {
+        Self(value.into())
     }
 }
 

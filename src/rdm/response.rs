@@ -54,7 +54,7 @@ use super::{
             LampOnMode, LampState, LockStateDescription, ManufacturerLabel,
             ModulationFrequencyDescription, OutputResponseTimeDescription, ParameterDescription,
             ParameterDescriptionLabel, PowerState, PresetPlaybackMode, ProductCategory,
-            ProductDetail, ProtocolVersion, SelfTest, SelfTestDescription, SensorDefinition,
+            ProductDetailValue, ProtocolVersion, SelfTest, SelfTestDescription, SensorDefinition,
             SensorDefinitionDescription, SensorValue, SlotDescription, SlotInfo,
             SoftwareVersionLabel, StatusIdDescription, StatusMessage, StatusType,
         },
@@ -279,7 +279,7 @@ pub enum ResponseParameterData {
         sub_device_count: u16,
         sensor_count: u8,
     },
-    GetProductDetailIdList(Vec<ProductDetail, 115>),
+    GetProductDetailIdList(Vec<ProductDetailValue, 115>),
     GetDeviceModelDescription(DeviceModelDescription),
     GetManufacturerLabel(ManufacturerLabel),
     GetDeviceLabel(DeviceLabel),
@@ -842,7 +842,7 @@ impl ResponseParameterData {
             }
             Self::GetProductDetailIdList(details) => {
                 for (idx, detail) in details.iter().enumerate() {
-                    buf[idx * 2..(idx + 2) * 2].copy_from_slice(&u16::from(*detail).to_be_bytes());
+                    buf[idx * 2..(idx + 2) * 2].copy_from_slice(&detail.0.to_be_bytes());
                 }
             }
             Self::GetDeviceModelDescription(description) => {
@@ -1600,8 +1600,8 @@ impl ResponseParameterData {
                 Ok(Self::GetProductDetailIdList(
                     bytes
                         .chunks(2)
-                        .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?).into()))
-                        .collect::<Result<Vec<ProductDetail, 115>, RdmError>>()?,
+                        .map(|chunk| Ok(ProductDetailValue(u16::from_be_bytes(chunk.try_into()?))))
+                        .collect::<Result<Vec<ProductDetailValue, 115>, RdmError>>()?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => Ok(
