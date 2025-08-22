@@ -306,7 +306,7 @@ impl From<ProductDetail> for ProductDetailValue {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ImplementedCommandClass {
     Get = 0x01,
     Set = 0x02,
@@ -326,7 +326,7 @@ impl TryFrom<u8> for ImplementedCommandClass {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ParameterDataType {
     NotDefined,
     BitField,
@@ -391,7 +391,7 @@ pub enum ConvertedParameterValue {
 
 pub const PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ParameterDescriptionLabel(String<PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for ParameterDescriptionLabel {}
@@ -420,7 +420,7 @@ impl FromStr for ParameterDescriptionLabel {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ParameterDescription {
     pub parameter_id: u16,
     pub parameter_data_length: u8,
@@ -485,7 +485,7 @@ impl ParameterDescription {
 
 pub const DMX_PERSONALITY_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DmxPersonalityDescription(String<DMX_PERSONALITY_DESCRIPTION_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for DmxPersonalityDescription {}
@@ -516,7 +516,7 @@ impl FromStr for DmxPersonalityDescription {
 
 pub const SLOT_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SlotDescription(String<SLOT_DESCRIPTION_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for SlotDescription {}
@@ -547,8 +547,14 @@ impl FromStr for SlotDescription {
 
 pub const DEVICE_LABEL_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DeviceLabel(String<DEVICE_LABEL_MAX_LENGTH>);
+
+impl DeviceLabel {
+    pub const fn new() -> Self {
+        Self(String::new())
+    }
+}
 
 impl RdmTruncateNullStr for DeviceLabel {}
 
@@ -578,7 +584,7 @@ impl FromStr for DeviceLabel {
 
 pub const DEVICE_MODEL_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DeviceModelDescription(String<DEVICE_MODEL_DESCRIPTION_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for DeviceModelDescription {}
@@ -609,7 +615,7 @@ impl FromStr for DeviceModelDescription {
 
 pub const MANUFACTURER_LABEL_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ManufacturerLabel(String<MANUFACTURER_LABEL_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for ManufacturerLabel {}
@@ -640,7 +646,7 @@ impl FromStr for ManufacturerLabel {
 
 pub const SOFTWARE_VERSION_LABEL_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SoftwareVersionLabel(String<SOFTWARE_VERSION_LABEL_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for SoftwareVersionLabel {}
@@ -671,7 +677,7 @@ impl FromStr for SoftwareVersionLabel {
 
 pub const BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BootSoftwareVersionLabel(String<BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for BootSoftwareVersionLabel {}
@@ -700,7 +706,7 @@ impl FromStr for BootSoftwareVersionLabel {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum StatusType {
     None = 0x00,
     GetLastMessage = 0x01,
@@ -1246,7 +1252,7 @@ impl FromStr for StatusMessageDescription {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StatusMessage {
     pub sub_device_id: SubDeviceId,
     pub status_type: StatusType,
@@ -1583,7 +1589,7 @@ impl DefaultSlotValue {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SensorType {
     Temperature,
@@ -1709,7 +1715,7 @@ impl From<SensorType> for u8 {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum SensorUnit {
     None,
@@ -1821,7 +1827,7 @@ impl From<SensorUnit> for u8 {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum SensorUnitPrefix {
     None = 0x00,
     Deci = 0x01,
@@ -1879,7 +1885,7 @@ impl TryFrom<u8> for SensorUnitPrefix {
 
 pub const SENSOR_DEFINITION_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SensorDefinitionDescription(String<SENSOR_DEFINITION_DESCRIPTION_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for SensorDefinitionDescription {}
@@ -1908,7 +1914,7 @@ impl FromStr for SensorDefinitionDescription {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SensorDefinition {
     pub id: u8,
     pub kind: SensorType,
@@ -2550,7 +2556,7 @@ impl Iso639_1 {
 
 pub const SELF_TEST_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SelfTestDescription(String<SELF_TEST_DESCRIPTION_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for SelfTestDescription {}
@@ -2581,7 +2587,7 @@ impl FromStr for SelfTestDescription {
 
 pub const LOCK_STATE_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LockStateDescription(String<LOCK_STATE_DESCRIPTION_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for LockStateDescription {}
@@ -2612,7 +2618,7 @@ impl FromStr for LockStateDescription {
 
 pub const CURVE_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CurveDescription(String<CURVE_DESCRIPTION_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for CurveDescription {}
@@ -2643,7 +2649,7 @@ impl FromStr for CurveDescription {
 
 pub const OUTPUT_RESPONSE_TIME_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct OutputResponseTimeDescription(String<OUTPUT_RESPONSE_TIME_DESCRIPTION_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for OutputResponseTimeDescription {}
@@ -2674,7 +2680,7 @@ impl FromStr for OutputResponseTimeDescription {
 
 pub const MODULATION_FREQUENCY_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ModulationFrequencyDescription(String<MODULATION_FREQUENCY_DESCRIPTION_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for ModulationFrequencyDescription {}

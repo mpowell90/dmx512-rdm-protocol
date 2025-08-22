@@ -331,7 +331,7 @@ pub struct NetworkInterface {
 
 pub const INTERFACE_LABEL_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InterfaceLabel(String<INTERFACE_LABEL_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for InterfaceLabel {}
@@ -362,7 +362,7 @@ impl FromStr for InterfaceLabel {
 
 pub const DNS_HOSTNAME_MAX_LENGTH: usize = 63;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DnsHostName(String<DNS_HOSTNAME_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for DnsHostName {}
@@ -393,7 +393,7 @@ impl FromStr for DnsHostName {
 
 pub const DNS_DOMAINNAME_MAX_LENGTH: usize = 231;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DnsDomainName(String<DNS_DOMAINNAME_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for DnsDomainName {}

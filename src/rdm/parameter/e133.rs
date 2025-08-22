@@ -44,7 +44,7 @@ impl TryFrom<u8> for BrokerState {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SearchDomain(String<231>);
 
 impl SearchDomain {
@@ -97,7 +97,7 @@ impl SearchDomain {
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ScopeString(String<63>);
 
 impl ScopeString {

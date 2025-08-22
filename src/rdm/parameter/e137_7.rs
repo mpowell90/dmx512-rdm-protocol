@@ -151,7 +151,7 @@ impl TryFrom<u8> for EndpointType {
 
 pub const ENDPOINT_LABEL_MAX_LENGTH: usize = 231;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EndpointLabel(String<ENDPOINT_LABEL_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for EndpointLabel {}
@@ -182,7 +182,7 @@ impl FromStr for EndpointLabel {
 
 pub const ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EndpointTimingDescription(String<ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH>);
 
 impl RdmTruncateNullStr for EndpointTimingDescription {}
@@ -213,7 +213,7 @@ impl FromStr for EndpointTimingDescription {
 
 pub const BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BackgroundQueuedStatusPolicyDescription(
     String<BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH>,
 );
