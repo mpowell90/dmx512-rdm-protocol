@@ -154,8 +154,78 @@ impl FromStr for EndpointLabel {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() > ENDPOINT_LABEL_MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(s.len(), ENDPOINT_LABEL_MAX_LENGTH));
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                ENDPOINT_LABEL_MAX_LENGTH,
+            ));
         }
-        Ok(Self(String::<{ ENDPOINT_LABEL_MAX_LENGTH }>::from_str(s).unwrap()))
+        Ok(Self(
+            String::<{ ENDPOINT_LABEL_MAX_LENGTH }>::from_str(s).unwrap(),
+        ))
+    }
+}
+
+pub const ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH: usize = 32;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct EndpointTimingDescription(String<ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH>);
+
+impl RdmTruncateNullStr for EndpointTimingDescription {}
+
+impl Deref for EndpointTimingDescription {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_str()
+    }
+}
+
+impl FromStr for EndpointTimingDescription {
+    type Err = RdmError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH,
+            ));
+        }
+        Ok(Self(
+            String::<{ ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH }>::from_str(s).unwrap(),
+        ))
+    }
+}
+
+pub const BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH: usize = 32;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BackgroundQueuedStatusPolicyDescription(
+    String<BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH>,
+);
+
+impl RdmTruncateNullStr for BackgroundQueuedStatusPolicyDescription {}
+
+impl Deref for BackgroundQueuedStatusPolicyDescription {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_str()
+    }
+}
+
+impl FromStr for BackgroundQueuedStatusPolicyDescription {
+    type Err = RdmError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH,
+            ));
+        }
+        Ok(Self(
+            String::<{ BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH }>::from_str(s)
+                .unwrap(),
+        ))
     }
 }

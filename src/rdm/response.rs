@@ -45,40 +45,36 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
-use crate::rdm::{
-    parameter::e120::{
-        BootSoftwareVersionLabel, DeviceModelDescription, ManufacturerLabel, SoftwareVersionLabel,
-        StatusIdDescription,
-    },
-    utils::{truncate_at_null, RdmTruncateNullStr},
-};
-
 use super::{
     parameter::{
         e120::{
-            DefaultSlotValue, DeviceLabel, DisplayInvertMode, Iso639_1, LampOnMode, LampState,
-            ParameterDescription, ParameterDescriptionLabel, PowerState, PresetPlaybackMode,
-            ProductCategory, ProductDetail, ProtocolVersion, SelfTest, SensorDefinition,
-            SensorValue, SlotInfo, StatusMessage, StatusType,
+            BootSoftwareVersionLabel, CurveDescription, DefaultSlotValue, DeviceLabel,
+            DeviceModelDescription, DisplayInvertMode, DmxPersonalityDescription, Iso639_1,
+            LampOnMode, LampState, LockStateDescription, ManufacturerLabel,
+            ModulationFrequencyDescription, OutputResponseTimeDescription, ParameterDescription,
+            ParameterDescriptionLabel, PowerState, PresetPlaybackMode, ProductCategory,
+            ProductDetail, ProtocolVersion, SelfTest, SelfTestDescription, SensorDefinition,
+            SensorValue, SlotDescription, SlotInfo, SoftwareVersionLabel, StatusIdDescription,
+            StatusMessage, StatusType, SensorDefinitionDescription
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
         e137_2::{
-            DhcpMode, DnsDomainName, DnsHostName, Ipv4Address, Ipv4Route, Ipv6Address,
-            NetworkInterface,
+            DhcpMode, DnsDomainName, DnsHostName, InterfaceLabel, Ipv4Address, Ipv4Route,
+            Ipv6Address, NetworkInterface,
         },
         e137_7::{
-            DiscoveryCountStatus, DiscoveryState, EndpointId, EndpointLabel, EndpointMode,
-            EndpointType,
+            BackgroundQueuedStatusPolicyDescription, DiscoveryCountStatus, DiscoveryState,
+            EndpointId, EndpointLabel, EndpointMode, EndpointTimingDescription, EndpointType,
         },
         ParameterId,
     },
-    utils::bsd_16_crc,
+    utils::{bsd_16_crc, RdmTruncateNullStr},
     CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
-use core::{fmt::Display, result::Result, str::FromStr};
-use heapless::{String, Vec};
+use core::{fmt::Display, result::Result};
+use heapless::Vec;
 use macaddr::MacAddr6;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -299,13 +295,13 @@ pub enum ResponseParameterData {
     GetDmxPersonalityDescription {
         id: u8,
         dmx_slots_required: u16,
-        description: String<32>,
+        description: DmxPersonalityDescription,
     },
     GetDmxStartAddress(u16),
     GetSlotInfo(Vec<SlotInfo, 46>),
     GetSlotDescription {
         slot_id: u16,
-        description: String<32>,
+        description: SlotDescription,
     },
     GetDefaultSlotValue(Vec<DefaultSlotValue, 77>),
     GetSensorDefinition(SensorDefinition),
@@ -335,8 +331,7 @@ pub enum ResponseParameterData {
     GetPerformSelfTest(bool),
     GetSelfTestDescription {
         self_test_id: SelfTest,
-
-        description: String<32>,
+        description: SelfTestDescription,
     },
     GetPresetPlayback {
         mode: PresetPlaybackMode,
@@ -366,7 +361,7 @@ pub enum ResponseParameterData {
     },
     GetLockStateDescription {
         lock_state_id: u8,
-        description: String<32>,
+        description: LockStateDescription,
     },
     GetLockPin(PinCode),
     GetBurnIn(u8),
@@ -391,7 +386,7 @@ pub enum ResponseParameterData {
     },
     GetCurveDescription {
         curve_id: u8,
-        description: String<32>,
+        description: CurveDescription,
     },
     GetOutputResponseTime {
         response_time_id: u8,
@@ -399,7 +394,7 @@ pub enum ResponseParameterData {
     },
     GetOutputResponseTimeDescription {
         response_time_id: u8,
-        description: String<32>,
+        description: OutputResponseTimeDescription,
     },
     GetModulationFrequency {
         modulation_frequency_id: u8,
@@ -408,7 +403,7 @@ pub enum ResponseParameterData {
     GetModulationFrequencyDescription {
         modulation_frequency_id: u8,
         frequency: u32,
-        description: String<32>,
+        description: ModulationFrequencyDescription,
     },
     GetPresetInfo {
         level_field_supported: bool,
@@ -443,7 +438,7 @@ pub enum ResponseParameterData {
     GetListInterfaces(Vec<NetworkInterface, 38>),
     GetInterfaceLabel {
         interface_id: u32,
-        interface_label: String<32>,
+        interface_label: InterfaceLabel,
     },
     GetInterfaceHardwareAddressType1 {
         interface_id: u32,
@@ -546,7 +541,7 @@ pub enum ResponseParameterData {
     },
     GetEndpointTimingDescription {
         setting_id: u8,
-        description: String<32>,
+        description: EndpointTimingDescription,
     },
     GetEndpointResponders {
         endpoint_id: EndpointId,
@@ -569,7 +564,7 @@ pub enum ResponseParameterData {
     },
     GetBackgroundQueuedStatusPolicyDescription {
         policy_id: u8,
-        description: String<32>,
+        description: BackgroundQueuedStatusPolicyDescription,
     },
     // E1.33
     GetComponentScope {
@@ -1674,11 +1669,7 @@ impl ResponseParameterData {
                 Ok(Self::GetDmxPersonalityDescription {
                     id: bytes[0],
                     dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into()?),
-                    description: String::<32>::from_str(
-                        core::str::from_utf8(truncate_at_null(&bytes[3..]))
-                            .map_err(RdmError::from)?,
-                    )
-                    .unwrap(),
+                    description: DmxPersonalityDescription::decode(&bytes[3..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => Ok(
@@ -1699,11 +1690,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
                 Ok(Self::GetSlotDescription {
                     slot_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    description: String::<32>::from_str(
-                        core::str::from_utf8(truncate_at_null(&bytes[2..]))
-                            .map_err(RdmError::from)?,
-                    )
-                    .unwrap(),
+                    description: SlotDescription::decode(&bytes[2..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DefaultSlotValue) => {
@@ -1731,11 +1718,7 @@ impl ResponseParameterData {
                     normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
                     is_lowest_highest_detected_value_supported: bytes[12] >> 1 & 1 == 1,
                     is_recorded_value_supported: bytes[12] & 1 == 1,
-                    description: String::<32>::from_str(
-                        core::str::from_utf8(truncate_at_null(&bytes[13..]))
-                            .map_err(RdmError::from)?,
-                    )
-                    .unwrap(),
+                    description: SensorDefinitionDescription::decode(&bytes[13..])?
                 }))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorValue) => {
@@ -1811,11 +1794,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::SelfTestDescription) => {
                 Ok(Self::GetSelfTestDescription {
                     self_test_id: bytes[0].into(),
-                    description: String::<32>::from_str(
-                        core::str::from_utf8(truncate_at_null(&bytes[1..]))
-                            .map_err(RdmError::from)?,
-                    )
-                    .unwrap(),
+                    description: SelfTestDescription::decode(&bytes[1..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetPlayback) => {
@@ -1857,11 +1836,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::LockStateDescription) => {
                 Ok(Self::GetLockStateDescription {
                     lock_state_id: bytes[0],
-                    description: String::<32>::from_str(
-                        core::str::from_utf8(truncate_at_null(&bytes[1..]))
-                            .map_err(RdmError::from)?,
-                    )
-                    .unwrap(),
+                    description: LockStateDescription::decode(&bytes[1..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::LockPin) => Ok(Self::GetLockPin(
@@ -1898,11 +1873,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::CurveDescription) => {
                 Ok(Self::GetCurveDescription {
                     curve_id: bytes[0],
-                    description: String::<32>::from_str(
-                        core::str::from_utf8(truncate_at_null(&bytes[1..]))
-                            .map_err(RdmError::from)?,
-                    )
-                    .unwrap(),
+                    description: CurveDescription::decode(&bytes[1..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::OutputResponseTime) => {
@@ -1914,11 +1885,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::OutputResponseTimeDescription) => {
                 Ok(Self::GetOutputResponseTimeDescription {
                     response_time_id: bytes[0],
-                    description: String::<32>::from_str(
-                        core::str::from_utf8(truncate_at_null(&bytes[1..]))
-                            .map_err(RdmError::from)?,
-                    )
-                    .unwrap(),
+                    description: OutputResponseTimeDescription::decode(&bytes[1..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ModulationFrequency) => {
@@ -1931,11 +1898,7 @@ impl ResponseParameterData {
                 Ok(Self::GetModulationFrequencyDescription {
                     modulation_frequency_id: bytes[0],
                     frequency: u32::from_be_bytes(bytes[1..=4].try_into()?),
-                    description: String::<32>::from_str(
-                        core::str::from_utf8(truncate_at_null(&bytes[5..]))
-                            .map_err(RdmError::from)?,
-                    )
-                    .unwrap(),
+                    description: ModulationFrequencyDescription::decode(&bytes[5..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetInfo) => {
@@ -2014,11 +1977,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::InterfaceLabel) => {
                 Ok(Self::GetInterfaceLabel {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    interface_label: String::<32>::from_str(
-                        core::str::from_utf8(truncate_at_null(&bytes[4..]))
-                            .map_err(RdmError::from)?,
-                    )
-                    .unwrap(),
+                    interface_label: InterfaceLabel::decode(&bytes[4..])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::InterfaceHardwareAddressType1) => {
@@ -2175,10 +2134,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommand, ParameterId::EndpointTimingDescription) => {
                 Ok(Self::GetEndpointTimingDescription {
                     setting_id: bytes[0],
-                    description: String::<32>::from_str(core::str::from_utf8(truncate_at_null(
-                        &bytes[1..],
-                    ))?)
-                    .unwrap(),
+                    description: EndpointTimingDescription::decode(&bytes[1..])?,
                 })
             }
             (CommandClass::GetCommand, ParameterId::EndpointResponders) => {
@@ -2225,10 +2181,7 @@ impl ResponseParameterData {
             (CommandClass::GetCommand, ParameterId::BackgroundQueuedStatusPolicyDescription) => {
                 Ok(Self::GetBackgroundQueuedStatusPolicyDescription {
                     policy_id: bytes[0],
-                    description: String::<32>::from_str(core::str::from_utf8(truncate_at_null(
-                        &bytes[1..],
-                    ))?)
-                    .unwrap(),
+                    description: BackgroundQueuedStatusPolicyDescription::decode(&bytes[1..])?,
                 })
             }
             // E1.33

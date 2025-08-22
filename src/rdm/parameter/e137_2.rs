@@ -329,6 +329,37 @@ pub struct NetworkInterface {
     pub hardware_type: HardwareType,
 }
 
+pub const INTERFACE_LABEL_MAX_LENGTH: usize = 32;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InterfaceLabel(String<INTERFACE_LABEL_MAX_LENGTH>);
+
+impl RdmTruncateNullStr for InterfaceLabel {}
+
+impl Deref for InterfaceLabel {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_str()
+    }
+}
+
+impl FromStr for InterfaceLabel {
+    type Err = RdmError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > INTERFACE_LABEL_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                INTERFACE_LABEL_MAX_LENGTH,
+            ));
+        }
+        Ok(Self(
+            String::<{ INTERFACE_LABEL_MAX_LENGTH }>::from_str(s).unwrap(),
+        ))
+    }
+}
+
 pub const DNS_HOSTNAME_MAX_LENGTH: usize = 63;
 
 #[derive(Clone, Debug, PartialEq)]
