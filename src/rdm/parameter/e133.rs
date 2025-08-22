@@ -93,9 +93,7 @@ impl SearchDomain {
 
         let scope_string = core::str::from_utf8(bytes).map_err(RdmError::from)?;
 
-        Ok(Self(
-            String::<231>::from_str(scope_string).unwrap(),
-        ))
+        Ok(Self(String::<231>::from_str(scope_string).unwrap()))
     }
 }
 
@@ -149,9 +147,7 @@ impl ScopeString {
         let scope_string =
             core::str::from_utf8(trim_trailing_nulls(bytes)).map_err(RdmError::from)?;
 
-        Ok(Self(
-            String::<63>::from_str(scope_string).unwrap(),
-        ))
+        Ok(Self(String::<63>::from_str(scope_string).unwrap()))
     }
 }
 

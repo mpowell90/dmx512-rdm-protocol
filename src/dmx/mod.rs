@@ -18,7 +18,7 @@
 //! assert_eq!(dmx_universe.get_channel_value(0).unwrap(), 64);
 //! assert_eq!(dmx_universe.get_channel_values(1..=2).unwrap(), &[128, 192]);
 //! assert_eq!(&dmx_universe.as_slice()[..4], &[64, 128, 192, 255]);
-//! 
+//!
 //! let mut encoded = [0_u8; 513];
 //! let bytes_encoded = dmx_universe.encode(&mut encoded).unwrap();
 //! assert_eq!(bytes_encoded, 513);

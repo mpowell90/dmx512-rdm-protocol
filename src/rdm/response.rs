@@ -605,20 +605,7 @@ impl ResponseParameterData {
             ResponseParameterData::GetProxiedDeviceCount { .. } => 3,
             ResponseParameterData::GetProxiedDevices(device_uids) => device_uids.len() * 6,
             ResponseParameterData::GetCommsStatus { .. } => 6,
-            ResponseParameterData::GetStatusMessages(status_messages) => {
-                let mut bytes_encoded = 0;
-
-                // TODO use iterators instead of for loop
-                for message in status_messages {
-                    if let Some(description) = &message.description {
-                        bytes_encoded += 9 + description.len();
-                    } else {
-                        bytes_encoded += 9_usize;
-                    };
-                }
-
-                bytes_encoded
-            }
+            ResponseParameterData::GetStatusMessages(status_messages) => status_messages.len() * 9,
             ResponseParameterData::GetStatusIdDescription(description) => description.len(),
             ResponseParameterData::GetSubDeviceIdStatusReportThreshold(_) => 1,
             ResponseParameterData::GetSupportedParameters(parameters) => parameters.len() * 2,
@@ -792,28 +779,17 @@ impl ResponseParameterData {
                 buf[4..6].copy_from_slice(&checksum_fail.to_be_bytes());
             }
             Self::GetStatusMessages(messages) => {
-                let mut bytes_encoded = 0;
-
-                for message in messages {
-                    buf[bytes_encoded..bytes_encoded + 2]
+                for (idx, message) in messages.iter().enumerate() {
+                    let offset = idx * 9;
+                    buf[offset..offset + 2]
                         .copy_from_slice(&u16::from(message.sub_device_id).to_be_bytes());
 
-                    buf[bytes_encoded + 2] = message.status_message_id as u8;
+                    buf[offset + 2] = message.status_message_id as u8;
 
-                    buf[bytes_encoded + 3..bytes_encoded + 5]
+                    buf[offset + 3..offset + 5]
                         .copy_from_slice(&message.status_message_id.to_be_bytes());
-                    buf[bytes_encoded + 5..bytes_encoded + 7]
-                        .copy_from_slice(&message.data_value1.to_be_bytes());
-                    buf[bytes_encoded + 7..bytes_encoded + 9]
-                        .copy_from_slice(&message.data_value2.to_be_bytes());
-
-                    if let Some(description) = &message.description {
-                        buf[bytes_encoded + 9..bytes_encoded + 9 + description.len()]
-                            .copy_from_slice(description.as_bytes());
-                        bytes_encoded += 9 + description.len();
-                    } else {
-                        bytes_encoded += 9_usize;
-                    };
+                    buf[offset + 5..offset + 7].copy_from_slice(&message.data_value1.to_be_bytes());
+                    buf[offset + 7..offset + 9].copy_from_slice(&message.data_value2.to_be_bytes());
                 }
             }
             Self::GetStatusIdDescription(description) => {
@@ -1563,13 +1539,13 @@ impl ResponseParameterData {
                     bytes
                         .chunks(9)
                         .map(|chunk| {
-                            Ok(StatusMessage::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
-                                chunk[2].try_into()?,
-                                u16::from_be_bytes(chunk[3..=4].try_into()?),
-                                u16::from_be_bytes(chunk[5..=6].try_into()?),
-                                u16::from_be_bytes(chunk[7..=8].try_into()?),
-                            ))
+                            Ok(StatusMessage {
+                                sub_device_id: u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
+                                status_type: chunk[2].try_into()?,
+                                status_message_id: u16::from_be_bytes(chunk[3..=4].try_into()?),
+                                data_value1: u16::from_be_bytes(chunk[5..=6].try_into()?),
+                                data_value2: u16::from_be_bytes(chunk[7..=8].try_into()?),
+                            })
                         })
                         .collect::<Result<Vec<StatusMessage, 25>, RdmError>>()?,
                 ))

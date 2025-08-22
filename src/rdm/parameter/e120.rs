@@ -1200,6 +1200,37 @@ impl FromStr for StatusIdDescription {
     }
 }
 
+pub const STATUS_MESSAGE_DESCRIPTION_MAX_LENGTH: usize = 32;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct StatusMessageDescription(String<STATUS_MESSAGE_DESCRIPTION_MAX_LENGTH>);
+
+impl RdmTruncateNullStr for StatusMessageDescription {}
+
+impl Deref for StatusMessageDescription {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_str()
+    }
+}
+
+impl FromStr for StatusMessageDescription {
+    type Err = RdmError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > STATUS_MESSAGE_DESCRIPTION_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                STATUS_MESSAGE_DESCRIPTION_MAX_LENGTH,
+            ));
+        }
+        Ok(Self(
+            String::<{ STATUS_MESSAGE_DESCRIPTION_MAX_LENGTH }>::from_str(s).unwrap(),
+        ))
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct StatusMessage {
     pub sub_device_id: SubDeviceId,
@@ -1207,94 +1238,88 @@ pub struct StatusMessage {
     pub status_message_id: u16,
     pub data_value1: u16,
     pub data_value2: u16,
-    pub description: Option<String<32>>,
 }
 
 impl StatusMessage {
-    pub fn new(
-        sub_device_id: SubDeviceId,
-        status_type: StatusType,
-        status_message_id: u16,
-        data_value1: u16,
-        data_value2: u16,
-    ) -> Self {
-        let description = if status_message_id < 0x8000 {
-            let message = match status_message_id {
-                0x0001 => {
-                    format_args!("{} failed calibration", SlotIdDefinition::from(data_value1))
-                        .as_str()
-                }
-                0x0002 => format_args!("{} sensor not found", SlotIdDefinition::from(data_value1))
-                    .as_str(),
-
-                0x0003 => format_args!("{} sensor always on", SlotIdDefinition::from(data_value1))
-                    .as_str(),
-
+    pub fn description(&self) -> Option<StatusMessageDescription> {
+        if self.status_message_id < 0x8000 {
+            let message = match self.status_message_id {
+                0x0001 => format_args!(
+                    "{} failed calibration",
+                    SlotIdDefinition::from(self.data_value1)
+                )
+                .as_str(),
+                0x0002 => format_args!(
+                    "{} sensor not found",
+                    SlotIdDefinition::from(self.data_value1)
+                )
+                .as_str(),
+                0x0003 => format_args!(
+                    "{} sensor always on",
+                    SlotIdDefinition::from(self.data_value1)
+                )
+                .as_str(),
                 0x0011 => Some("Lamp Doused"),
                 0x0012 => Some("Lamp Strike"),
                 0x0021 => format_args!(
                     "Sensor {} over temp at {} degrees C",
-                    data_value1, data_value2
+                    self.data_value1, self.data_value2
                 )
                 .as_str(),
-
                 0x0022 => format_args!(
                     "Sensor {} under temp at {} degrees C",
-                    data_value1, data_value2
+                    self.data_value1, self.data_value2
                 )
                 .as_str(),
-
-                0x0023 => format_args!("Sensor {} out of range", data_value1).as_str(),
-
-                0x0031 => {
-                    format_args!("Phase {} over voltage at {} V", data_value1, data_value2).as_str()
-                }
-
-                0x0032 => format_args!("Phase {} under voltage at {} V", data_value1, data_value2)
-                    .as_str(),
-
-                0x0033 => {
-                    format_args!("Phase {} over current at {} A", data_value1, data_value2).as_str()
-                }
-
-                0x0034 => format_args!("Phase {} under current at {} A", data_value1, data_value2)
-                    .as_str(),
-
-                0x0035 => {
-                    format_args!("Phase {} is at {} degrees", data_value1, data_value2).as_str()
-                }
-                0x0036 => format_args!("Phase {} Error", data_value1).as_str(),
-                0x0037 => format_args!("{} Amps", data_value1).as_str(),
-                0x0038 => format_args!("{} Volts", data_value1).as_str(),
+                0x0023 => format_args!("Sensor {} out of range", self.data_value1).as_str(),
+                0x0031 => format_args!(
+                    "Phase {} over voltage at {} V",
+                    self.data_value1, self.data_value2
+                )
+                .as_str(),
+                0x0032 => format_args!(
+                    "Phase {} under voltage at {} V",
+                    self.data_value1, self.data_value2
+                )
+                .as_str(),
+                0x0033 => format_args!(
+                    "Phase {} over current at {} A",
+                    self.data_value1, self.data_value2
+                )
+                .as_str(),
+                0x0034 => format_args!(
+                    "Phase {} under current at {} A",
+                    self.data_value1, self.data_value2
+                )
+                .as_str(),
+                0x0035 => format_args!(
+                    "Phase {} is at {} degrees",
+                    self.data_value1, self.data_value2
+                )
+                .as_str(),
+                0x0036 => format_args!("Phase {} Error", self.data_value1).as_str(),
+                0x0037 => format_args!("{} Amps", self.data_value1).as_str(),
+                0x0038 => format_args!("{} Volts", self.data_value1).as_str(),
                 0x0041 => Some("No Dimmer"),
                 0x0042 => Some("Tripped Breaker"),
-                0x0043 => format_args!("{} Watts", data_value1).as_str(),
+                0x0043 => format_args!("{} Watts", self.data_value1).as_str(),
                 0x0044 => Some("Dimmer Failure"),
                 0x0045 => Some("Panic Mode"),
-                0x0050 => format_args!("{} ready", SlotIdDefinition::from(data_value1)).as_str(),
+                0x0050 => {
+                    format_args!("{} ready", SlotIdDefinition::from(self.data_value1)).as_str()
+                }
                 0x0051 => {
-                    format_args!("{} not ready", SlotIdDefinition::from(data_value1)).as_str()
+                    format_args!("{} not ready", SlotIdDefinition::from(self.data_value1)).as_str()
                 }
-
                 0x0052 => {
-                    format_args!("{} low fluid", SlotIdDefinition::from(data_value1)).as_str()
+                    format_args!("{} low fluid", SlotIdDefinition::from(self.data_value1)).as_str()
                 }
-
                 _ => None,
             };
 
-            message.and_then(|s| String::<32>::from_str(s).ok())
+            message.and_then(|s| StatusMessageDescription::from_str(s).ok())
         } else {
             None
-        };
-
-        StatusMessage {
-            sub_device_id,
-            status_type,
-            status_message_id,
-            data_value1,
-            data_value2,
-            description,
         }
     }
 }

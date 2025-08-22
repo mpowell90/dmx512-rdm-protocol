@@ -4,7 +4,7 @@ pub mod e137_1;
 pub mod e137_2;
 pub mod e137_7;
 
-use super::{RdmError, header::SubDeviceId};
+use super::{header::SubDeviceId, RdmError};
 
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
