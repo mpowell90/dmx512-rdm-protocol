@@ -46,6 +46,7 @@
 //! ```
 
 use super::{
+    header::{CommandClass, DeviceUID, SubDeviceId},
     parameter::{
         e120::{
             BootSoftwareVersionLabel, CurveDescription, DefaultSlotValue, DeviceLabel,
@@ -54,8 +55,8 @@ use super::{
             ModulationFrequencyDescription, OutputResponseTimeDescription, ParameterDescription,
             ParameterDescriptionLabel, PowerState, PresetPlaybackMode, ProductCategory,
             ProductDetail, ProtocolVersion, SelfTest, SelfTestDescription, SensorDefinition,
-            SensorValue, SlotDescription, SlotInfo, SoftwareVersionLabel, StatusIdDescription,
-            StatusMessage, StatusType, SensorDefinitionDescription
+            SensorDefinitionDescription, SensorValue, SlotDescription, SlotInfo,
+            SoftwareVersionLabel, StatusIdDescription, StatusMessage, StatusType,
         },
         e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
@@ -70,7 +71,7 @@ use super::{
         ParameterId,
     },
     utils::{bsd_16_crc, RdmTruncateNullStr},
-    CommandClass, DeviceUID, RdmError, SubDeviceId, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+    RdmError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
 use core::{fmt::Display, result::Result};
@@ -1718,7 +1719,7 @@ impl ResponseParameterData {
                     normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
                     is_lowest_highest_detected_value_supported: bytes[12] >> 1 & 1 == 1,
                     is_recorded_value_supported: bytes[12] & 1 == 1,
-                    description: SensorDefinitionDescription::decode(&bytes[13..])?
+                    description: SensorDefinitionDescription::decode(&bytes[13..])?,
                 }))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorValue) => {

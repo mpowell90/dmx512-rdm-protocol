@@ -46,6 +46,7 @@
 
 use super::{
     error::RdmError,
+    header::{CommandClass, DeviceUID, SubDeviceId},
     parameter::{
         e120::{
             DeviceLabel, DisplayInvertMode, FadeTimes, Iso639_1, LampOnMode, LampState, PowerState,
@@ -58,7 +59,7 @@ use super::{
         ParameterId,
     },
     utils::{bsd_16_crc, RdmTruncateNullStr},
-    CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
+    RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
 use heapless::Vec;
 
