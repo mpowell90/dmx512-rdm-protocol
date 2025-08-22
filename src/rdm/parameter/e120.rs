@@ -1,5 +1,6 @@
-use super::{super::utils::truncate_at_null, RdmError, SubDeviceId};
-use core::{fmt, str::FromStr};
+use super::{RdmError, SubDeviceId};
+use crate::rdm::utils::RdmTruncateNullStr;
+use core::{fmt, ops::Deref, str::FromStr};
 use heapless::String;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -373,53 +374,34 @@ pub enum ConvertedParameterValue {
     Raw([u8; 4]),
 }
 
+pub const PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH: usize = 32;
+
 #[derive(Clone, Debug, PartialEq)]
-pub struct ParameterDescriptionLabel(String<32>);
+pub struct ParameterDescriptionLabel(String<PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH>);
 
-impl ParameterDescriptionLabel {
-    pub const MAX_LENGTH: usize = 32;
+impl RdmTruncateNullStr for ParameterDescriptionLabel {}
 
-    pub fn new(description: &str) -> Result<Self, RdmError> {
-        if description.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                description.len(),
-                Self::MAX_LENGTH,
-            ));
-        }
-        Ok(Self(String::<32>::from_str(description).unwrap()))
-    }
+impl Deref for ParameterDescriptionLabel {
+    type Target = str;
 
-    pub fn as_str(&self) -> &str {
+    fn deref(&self) -> &Self::Target {
         self.0.as_str()
     }
+}
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+impl FromStr for ParameterDescriptionLabel {
+    type Err = RdmError;
 
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        if buf.len() < Self::MAX_LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH,
+            ));
         }
-        let len = self.0.len();
-
-        buf[0..len].copy_from_slice(self.0.as_bytes());
-
-        Ok(len)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
-        }
-
-        let description = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
-
-        Ok(Self(String::<32>::from_str(description).unwrap()))
+        Ok(Self(
+            String::<{ PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH }>::from_str(s).unwrap(),
+        ))
     }
 }
 
@@ -486,283 +468,157 @@ impl ParameterDescription {
     }
 }
 
+pub const DEVICE_LABEL_MAX_LENGTH: usize = 32;
+
 #[derive(Clone, Debug, PartialEq)]
-pub struct DeviceLabel(String<32>);
+pub struct DeviceLabel(String<DEVICE_LABEL_MAX_LENGTH>);
 
-impl DeviceLabel {
-    pub const MAX_LENGTH: usize = 32;
+impl RdmTruncateNullStr for DeviceLabel {}
 
-    pub fn new<T: AsRef<str>>(device_label: T) -> Result<Self, RdmError> {
-        let device_label = device_label.as_ref();
+impl Deref for DeviceLabel {
+    type Target = str;
 
-        if device_label.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                device_label.len(),
-                Self::MAX_LENGTH,
-            ));
-        }
-
-        Ok(Self(String::<32>::from_str(device_label).unwrap()))
-    }
-
-    pub fn as_str(&self) -> &str {
+    fn deref(&self) -> &Self::Target {
         self.0.as_str()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        if buf.len() < Self::MAX_LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
-        }
-        let len = self.0.len();
-
-        buf[0..len].copy_from_slice(self.0.as_bytes());
-
-        Ok(len)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
-        }
-
-        let device_label = core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
-
-        Self::new(device_label)
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct DeviceModelDescription(String<32>);
+impl FromStr for DeviceLabel {
+    type Err = RdmError;
 
-impl DeviceModelDescription {
-    pub const MAX_LENGTH: usize = 32;
-
-    pub fn new<T: AsRef<str>>(device_model_description: T) -> Result<Self, RdmError> {
-        let device_model_description = device_model_description.as_ref();
-
-        if device_model_description.len() > Self::MAX_LENGTH {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > DEVICE_LABEL_MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(
-                device_model_description.len(),
-                Self::MAX_LENGTH,
+                s.len(),
+                DEVICE_LABEL_MAX_LENGTH,
             ));
         }
-
         Ok(Self(
-            String::<32>::from_str(device_model_description).unwrap(),
-        ))
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        if buf.len() < Self::MAX_LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
-        }
-        let len = self.0.len();
-
-        buf[0..len].copy_from_slice(self.0.as_bytes());
-
-        Ok(len)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
-        }
-
-        let device_model_description =
-            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
-
-        Ok(Self(
-            String::<32>::from_str(device_model_description).unwrap(),
+            String::<{ DEVICE_LABEL_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
     }
 }
 
+pub const DEVICE_MODEL_DESCRIPTION_MAX_LENGTH: usize = 32;
+
 #[derive(Clone, Debug, PartialEq)]
-pub struct ManufacturerLabel(String<32>);
+pub struct DeviceModelDescription(String<DEVICE_MODEL_DESCRIPTION_MAX_LENGTH>);
 
-impl ManufacturerLabel {
-    pub const MAX_LENGTH: usize = 32;
+impl RdmTruncateNullStr for DeviceModelDescription {}
 
-    pub fn new<T: AsRef<str>>(manufacturer_label: T) -> Result<Self, RdmError> {
-        let manufacturer_label = manufacturer_label.as_ref();
+impl Deref for DeviceModelDescription {
+    type Target = str;
 
-        if manufacturer_label.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                manufacturer_label.len(),
-                Self::MAX_LENGTH,
-            ));
-        }
-
-        Ok(Self(String::<32>::from_str(manufacturer_label).unwrap()))
-    }
-
-    pub fn as_str(&self) -> &str {
+    fn deref(&self) -> &Self::Target {
         self.0.as_str()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        if buf.len() < Self::MAX_LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
-        }
-        let len = self.0.len();
-
-        buf[0..len].copy_from_slice(self.0.as_bytes());
-
-        Ok(len)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
-        }
-
-        let manufacturer_label =
-            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
-
-        Ok(Self(String::<32>::from_str(manufacturer_label).unwrap()))
     }
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub struct SoftwareVersionLabel(String<32>);
+impl FromStr for DeviceModelDescription {
+    type Err = RdmError;
 
-impl SoftwareVersionLabel {
-    pub const MAX_LENGTH: usize = 32;
-
-    pub fn new<T: AsRef<str>>(software_version_label: T) -> Result<Self, RdmError> {
-        let software_version_label = software_version_label.as_ref();
-
-        if software_version_label.len() > Self::MAX_LENGTH {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > DEVICE_MODEL_DESCRIPTION_MAX_LENGTH {
             return Err(RdmError::InvalidStringLength(
-                software_version_label.len(),
-                Self::MAX_LENGTH,
+                s.len(),
+                DEVICE_MODEL_DESCRIPTION_MAX_LENGTH,
             ));
         }
-
         Ok(Self(
-            String::<32>::from_str(software_version_label).unwrap(),
-        ))
-    }
-
-    pub fn as_str(&self) -> &str {
-        self.0.as_str()
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        if buf.len() < Self::MAX_LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
-        }
-        let len = self.0.len();
-
-        buf[0..len].copy_from_slice(self.0.as_bytes());
-
-        Ok(len)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
-        }
-
-        let software_version_label =
-            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
-
-        Ok(Self(
-            String::<32>::from_str(software_version_label).unwrap(),
+            String::<{ DEVICE_MODEL_DESCRIPTION_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
     }
 }
 
+pub const MANUFACTURER_LABEL_MAX_LENGTH: usize = 32;
+
 #[derive(Clone, Debug, PartialEq)]
-pub struct BootSoftwareVersionLabel(String<32>);
+pub struct ManufacturerLabel(String<MANUFACTURER_LABEL_MAX_LENGTH>);
 
-impl BootSoftwareVersionLabel {
-    pub const MAX_LENGTH: usize = 32;
+impl RdmTruncateNullStr for ManufacturerLabel {}
 
-    pub fn new<T: AsRef<str>>(boot_software_version_label: T) -> Result<Self, RdmError> {
-        let boot_software_version_label = boot_software_version_label.as_ref();
+impl Deref for ManufacturerLabel {
+    type Target = str;
 
-        if boot_software_version_label.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                boot_software_version_label.len(),
-                Self::MAX_LENGTH,
-            ));
-        }
-
-        Ok(Self(
-            String::<32>::from_str(boot_software_version_label).unwrap(),
-        ))
-    }
-
-    pub fn as_str(&self) -> &str {
+    fn deref(&self) -> &Self::Target {
         self.0.as_str()
     }
+}
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+impl FromStr for ManufacturerLabel {
+    type Err = RdmError;
 
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        if buf.len() < Self::MAX_LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > MANUFACTURER_LABEL_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                MANUFACTURER_LABEL_MAX_LENGTH,
+            ));
         }
-        let len = self.0.len();
-
-        buf[0..len].copy_from_slice(self.0.as_bytes());
-
-        Ok(len)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
-        }
-
-        let boot_software_version_label =
-            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
-
         Ok(Self(
-            String::<32>::from_str(boot_software_version_label).unwrap(),
+            String::<{ MANUFACTURER_LABEL_MAX_LENGTH }>::from_str(s).unwrap(),
+        ))
+    }
+}
+
+pub const SOFTWARE_VERSION_LABEL_MAX_LENGTH: usize = 32;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SoftwareVersionLabel(String<SOFTWARE_VERSION_LABEL_MAX_LENGTH>);
+
+impl RdmTruncateNullStr for SoftwareVersionLabel {}
+
+impl Deref for SoftwareVersionLabel {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_str()
+    }
+}
+
+impl FromStr for SoftwareVersionLabel {
+    type Err = RdmError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > SOFTWARE_VERSION_LABEL_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                SOFTWARE_VERSION_LABEL_MAX_LENGTH,
+            ));
+        }
+        Ok(Self(
+            String::<{ SOFTWARE_VERSION_LABEL_MAX_LENGTH }>::from_str(s).unwrap(),
+        ))
+    }
+}
+
+pub const BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH: usize = 32;
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct BootSoftwareVersionLabel(String<BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH>);
+
+impl RdmTruncateNullStr for BootSoftwareVersionLabel {}
+
+impl Deref for BootSoftwareVersionLabel {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.as_str()
+    }
+}
+
+impl FromStr for BootSoftwareVersionLabel {
+    type Err = RdmError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH,
+            ));
+        }
+        Ok(Self(
+            String::<{ BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
     }
 }
@@ -1251,59 +1107,34 @@ pub enum StatusMessageIdDefinition {
     LowFluid = 0x0052,
 }
 
+pub const STATUS_ID_DESCRIPTION_MAX_LENGTH: usize = 32;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct StatusIdDescription(String<32>);
+pub struct StatusIdDescription(String<STATUS_ID_DESCRIPTION_MAX_LENGTH>);
 
-impl StatusIdDescription {
-    pub const MAX_LENGTH: usize = 32;
+impl RdmTruncateNullStr for StatusIdDescription {}
 
-    pub fn new<T: AsRef<str>>(status_id_description: T) -> Result<Self, RdmError> {
-        let status_id_description = status_id_description.as_ref();
+impl Deref for StatusIdDescription {
+    type Target = str;
 
-        if status_id_description.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                status_id_description.len(),
-                Self::MAX_LENGTH,
-            ));
-        }
-
-        Ok(String::<32>::from_str(status_id_description)
-            .map(Self)
-            .unwrap())
-    }
-
-    pub fn as_str(&self) -> &str {
+    fn deref(&self) -> &Self::Target {
         self.0.as_str()
     }
+}
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+impl FromStr for StatusIdDescription {
+    type Err = RdmError;
 
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        if buf.len() < Self::MAX_LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > STATUS_ID_DESCRIPTION_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                STATUS_ID_DESCRIPTION_MAX_LENGTH,
+            ));
         }
-        let len = self.0.len();
-
-        buf[0..len].copy_from_slice(self.0.as_bytes());
-
-        Ok(len)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
-        }
-
-        let status_id_description =
-            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
-
-        Ok(Self(String::<32>::from_str(status_id_description).unwrap()))
+        Ok(Self(
+            String::<{ STATUS_ID_DESCRIPTION_MAX_LENGTH }>::from_str(s).unwrap(),
+        ))
     }
 }
 

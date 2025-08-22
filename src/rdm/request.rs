@@ -44,8 +44,6 @@
 //!
 //! See tests for more examples.
 
-use heapless::Vec;
-
 use super::{
     error::RdmError,
     parameter::{
@@ -59,9 +57,10 @@ use super::{
         e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode},
         ParameterId,
     },
-    utils::bsd_16_crc,
+    utils::{bsd_16_crc, RdmTruncateNullStr},
     CommandClass, DeviceUID, SubDeviceId, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
+use heapless::Vec;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter {

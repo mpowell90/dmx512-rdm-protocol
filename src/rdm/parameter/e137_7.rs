@@ -1,8 +1,7 @@
-use core::str::FromStr;
-
-use heapless::String;
-
 use super::RdmError;
+use crate::rdm::utils::RdmTruncateNullStr;
+use core::{ops::Deref, str::FromStr};
+use heapless::String;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DiscoveryState {
@@ -135,54 +134,28 @@ impl TryFrom<u8> for EndpointType {
     }
 }
 
+pub const ENDPOINT_LABEL_MAX_LENGTH: usize = 231;
+
 #[derive(Clone, Debug, PartialEq)]
-pub struct EndpointLabel(String<32>);
+pub struct EndpointLabel(String<ENDPOINT_LABEL_MAX_LENGTH>);
 
-impl EndpointLabel {
-    pub const MAX_LENGTH: usize = 32;
+impl RdmTruncateNullStr for EndpointLabel {}
 
-    pub fn new<T: AsRef<str>>(endpoint_label: T) -> Result<Self, RdmError> {
-        let endpoint_label = endpoint_label.as_ref();
+impl Deref for EndpointLabel {
+    type Target = str;
 
-        if endpoint_label.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                endpoint_label.len(),
-                Self::MAX_LENGTH,
-            ));
-        }
-        Ok(Self(String::<32>::from_str(endpoint_label).unwrap()))
-    }
-
-    pub fn as_str(&self) -> &str {
+    fn deref(&self) -> &Self::Target {
         self.0.as_str()
     }
+}
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+impl FromStr for EndpointLabel {
+    type Err = RdmError;
 
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        if buf.len() < Self::MAX_LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > ENDPOINT_LABEL_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(s.len(), ENDPOINT_LABEL_MAX_LENGTH));
         }
-        let len = self.0.len();
-
-        buf[0..len].copy_from_slice(self.0.as_bytes());
-
-        Ok(len)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
-        }
-
-        let endpoint_label = core::str::from_utf8(bytes).map_err(RdmError::from)?;
-
-        Ok(Self(String::<32>::from_str(endpoint_label).unwrap()))
+        Ok(Self(String::<{ ENDPOINT_LABEL_MAX_LENGTH }>::from_str(s).unwrap()))
     }
 }

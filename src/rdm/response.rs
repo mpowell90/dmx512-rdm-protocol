@@ -50,7 +50,7 @@ use crate::rdm::{
         BootSoftwareVersionLabel, DeviceModelDescription, ManufacturerLabel, SoftwareVersionLabel,
         StatusIdDescription,
     },
-    utils::truncate_at_null,
+    utils::{truncate_at_null, RdmTruncateNullStr},
 };
 
 use super::{

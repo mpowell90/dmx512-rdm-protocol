@@ -1,10 +1,11 @@
-use heapless::String;
-
-use super::{super::utils::truncate_at_null, RdmError};
+use super::RdmError;
+use crate::rdm::utils::RdmTruncateNullStr;
 use core::{
     net::{Ipv4Addr, Ipv6Addr},
+    ops::Deref,
     str::FromStr,
 };
+use heapless::String;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DhcpMode {
@@ -328,117 +329,64 @@ pub struct NetworkInterface {
     pub hardware_type: HardwareType,
 }
 
+pub const DNS_HOSTNAME_MAX_LENGTH: usize = 63;
+
 #[derive(Clone, Debug, PartialEq)]
-pub struct DnsHostName(String<63>);
+pub struct DnsHostName(String<DNS_HOSTNAME_MAX_LENGTH>);
 
-impl DnsHostName {
-    pub const MAX_LENGTH: usize = 63;
+impl RdmTruncateNullStr for DnsHostName {}
 
-    pub fn new<T: AsRef<str>>(dns_hostname: T) -> Result<Self, RdmError> {
-        let dns_hostname = dns_hostname.as_ref();
+impl Deref for DnsHostName {
+    type Target = str;
 
-        if dns_hostname.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                dns_hostname.len(),
-                Self::MAX_LENGTH,
-            ));
-        }
-
-        Ok(Self(String::<63>::from_str(dns_hostname).unwrap()))
-    }
-
-    pub fn as_str(&self) -> &str {
+    fn deref(&self) -> &Self::Target {
         self.0.as_str()
     }
+}
 
-    pub fn is_valid(&self) -> bool {
-        !self.0.is_empty() && self.0.len() <= Self::MAX_LENGTH
-    }
+impl FromStr for DnsHostName {
+    type Err = RdmError;
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
-
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        if buf.len() < Self::MAX_LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > DNS_HOSTNAME_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                DNS_HOSTNAME_MAX_LENGTH,
+            ));
         }
-        let len = self.0.len();
-
-        buf[0..len].copy_from_slice(self.0.as_bytes());
-
-        Ok(len)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
-        }
-
-        let dns_hostname =
-            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
-
         Ok(Self(
-            String::<63>::from_str(dns_hostname).unwrap(),
+            String::<{ DNS_HOSTNAME_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
     }
 }
 
+pub const DNS_DOMAINNAME_MAX_LENGTH: usize = 231;
+
 #[derive(Clone, Debug, PartialEq)]
-pub struct DnsDomainName(String<231>);
+pub struct DnsDomainName(String<DNS_DOMAINNAME_MAX_LENGTH>);
 
-impl DnsDomainName {
-    pub const MAX_LENGTH: usize = 231;
+impl RdmTruncateNullStr for DnsDomainName {}
 
-    pub fn new<T: AsRef<str>>(dns_hostname: T) -> Result<Self, RdmError> {
-        let dns_hostname = dns_hostname.as_ref();
+impl Deref for DnsDomainName {
+    type Target = str;
 
-        if dns_hostname.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                dns_hostname.len(),
-                Self::MAX_LENGTH,
-            ));
-        }
-
-        Ok(Self(String::<231>::from_str(dns_hostname).unwrap()))
-    }
-    pub fn as_str(&self) -> &str {
+    fn deref(&self) -> &Self::Target {
         self.0.as_str()
     }
+}
 
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
-    }
+impl FromStr for DnsDomainName {
+    type Err = RdmError;
 
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        if buf.len() < Self::MAX_LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::MAX_LENGTH));
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.len() > DNS_DOMAINNAME_MAX_LENGTH {
+            return Err(RdmError::InvalidStringLength(
+                s.len(),
+                DNS_DOMAINNAME_MAX_LENGTH,
+            ));
         }
-        let len = self.0.len();
-
-        buf[0..len].copy_from_slice(self.0.as_bytes());
-
-        Ok(len)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::MAX_LENGTH));
-        }
-
-        let dns_domain_name =
-            core::str::from_utf8(truncate_at_null(bytes)).map_err(RdmError::from)?;
-
         Ok(Self(
-            String::<231>::from_str(dns_domain_name).unwrap(),
+            String::<{ DNS_DOMAINNAME_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
     }
 }
