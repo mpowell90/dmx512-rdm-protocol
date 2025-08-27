@@ -154,7 +154,9 @@ pub const ENDPOINT_LABEL_MAX_LENGTH: usize = 231;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EndpointLabel(String<ENDPOINT_LABEL_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for EndpointLabel {}
+impl RdmTruncateNullStr for EndpointLabel  {
+    type Error = RdmError;
+}
 
 impl Deref for EndpointLabel {
     type Target = str;
@@ -185,7 +187,9 @@ pub const ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EndpointTimingDescription(String<ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for EndpointTimingDescription {}
+impl RdmTruncateNullStr for EndpointTimingDescription  {
+    type Error = RdmError;
+}
 
 impl Deref for EndpointTimingDescription {
     type Target = str;
@@ -218,7 +222,9 @@ pub struct BackgroundQueuedStatusPolicyDescription(
     String<BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH>,
 );
 
-impl RdmTruncateNullStr for BackgroundQueuedStatusPolicyDescription {}
+impl RdmTruncateNullStr for BackgroundQueuedStatusPolicyDescription {
+    type Error = RdmError;
+}
 
 impl Deref for BackgroundQueuedStatusPolicyDescription {
     type Target = str;

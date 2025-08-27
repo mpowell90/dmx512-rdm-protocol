@@ -394,7 +394,9 @@ pub const PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ParameterDescriptionLabel(String<PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for ParameterDescriptionLabel {}
+impl RdmTruncateNullStr for ParameterDescriptionLabel {
+    type Error = RdmError;
+}
 
 impl Deref for ParameterDescriptionLabel {
     type Target = str;
@@ -488,7 +490,9 @@ pub const DMX_PERSONALITY_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DmxPersonalityDescription(String<DMX_PERSONALITY_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for DmxPersonalityDescription {}
+impl RdmTruncateNullStr for DmxPersonalityDescription {
+    type Error = RdmError;
+}
 
 impl Deref for DmxPersonalityDescription {
     type Target = str;
@@ -519,7 +523,9 @@ pub const SLOT_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SlotDescription(String<SLOT_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for SlotDescription {}
+impl RdmTruncateNullStr for SlotDescription {
+    type Error = RdmError;
+}
 
 impl Deref for SlotDescription {
     type Target = str;
@@ -556,7 +562,9 @@ impl DeviceLabel {
     }
 }
 
-impl RdmTruncateNullStr for DeviceLabel {}
+impl RdmTruncateNullStr for DeviceLabel {
+    type Error = RdmError;
+}
 
 impl Deref for DeviceLabel {
     type Target = str;
@@ -587,7 +595,9 @@ pub const DEVICE_MODEL_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DeviceModelDescription(String<DEVICE_MODEL_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for DeviceModelDescription {}
+impl RdmTruncateNullStr for DeviceModelDescription {
+    type Error = RdmError;
+}
 
 impl Deref for DeviceModelDescription {
     type Target = str;
@@ -618,7 +628,9 @@ pub const MANUFACTURER_LABEL_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ManufacturerLabel(String<MANUFACTURER_LABEL_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for ManufacturerLabel {}
+impl RdmTruncateNullStr for ManufacturerLabel {
+    type Error = RdmError;
+}
 
 impl Deref for ManufacturerLabel {
     type Target = str;
@@ -649,7 +661,9 @@ pub const SOFTWARE_VERSION_LABEL_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SoftwareVersionLabel(String<SOFTWARE_VERSION_LABEL_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for SoftwareVersionLabel {}
+impl RdmTruncateNullStr for SoftwareVersionLabel {
+    type Error = RdmError;
+}
 
 impl Deref for SoftwareVersionLabel {
     type Target = str;
@@ -680,7 +694,9 @@ pub const BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BootSoftwareVersionLabel(String<BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for BootSoftwareVersionLabel {}
+impl RdmTruncateNullStr for BootSoftwareVersionLabel {
+    type Error = RdmError;
+}
 
 impl Deref for BootSoftwareVersionLabel {
     type Target = str;
@@ -1195,7 +1211,9 @@ pub const STATUS_ID_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StatusIdDescription(String<STATUS_ID_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for StatusIdDescription {}
+impl RdmTruncateNullStr for StatusIdDescription {
+    type Error = RdmError;
+}
 
 impl Deref for StatusIdDescription {
     type Target = str;
@@ -1226,7 +1244,9 @@ pub const STATUS_MESSAGE_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StatusMessageDescription(String<STATUS_MESSAGE_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for StatusMessageDescription {}
+impl RdmTruncateNullStr for StatusMessageDescription {
+    type Error = RdmError;
+}
 
 impl Deref for StatusMessageDescription {
     type Target = str;
@@ -1888,7 +1908,9 @@ pub const SENSOR_DEFINITION_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SensorDefinitionDescription(String<SENSOR_DEFINITION_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for SensorDefinitionDescription {}
+impl RdmTruncateNullStr for SensorDefinitionDescription {
+    type Error = RdmError;
+}
 
 impl Deref for SensorDefinitionDescription {
     type Target = str;
@@ -2559,7 +2581,9 @@ pub const SELF_TEST_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SelfTestDescription(String<SELF_TEST_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for SelfTestDescription {}
+impl RdmTruncateNullStr for SelfTestDescription {
+    type Error = RdmError;
+}
 
 impl Deref for SelfTestDescription {
     type Target = str;
@@ -2590,7 +2614,9 @@ pub const LOCK_STATE_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LockStateDescription(String<LOCK_STATE_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for LockStateDescription {}
+impl RdmTruncateNullStr for LockStateDescription {
+    type Error = RdmError;
+}
 
 impl Deref for LockStateDescription {
     type Target = str;
@@ -2621,7 +2647,9 @@ pub const CURVE_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CurveDescription(String<CURVE_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for CurveDescription {}
+impl RdmTruncateNullStr for CurveDescription {
+    type Error = RdmError;
+}
 
 impl Deref for CurveDescription {
     type Target = str;
@@ -2652,7 +2680,9 @@ pub const OUTPUT_RESPONSE_TIME_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct OutputResponseTimeDescription(String<OUTPUT_RESPONSE_TIME_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for OutputResponseTimeDescription {}
+impl RdmTruncateNullStr for OutputResponseTimeDescription {
+    type Error = RdmError;
+}
 
 impl Deref for OutputResponseTimeDescription {
     type Target = str;
@@ -2683,7 +2713,9 @@ pub const MODULATION_FREQUENCY_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ModulationFrequencyDescription(String<MODULATION_FREQUENCY_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for ModulationFrequencyDescription {}
+impl RdmTruncateNullStr for ModulationFrequencyDescription {
+    type Error = RdmError;
+}
 
 impl Deref for ModulationFrequencyDescription {
     type Target = str;

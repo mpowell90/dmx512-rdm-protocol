@@ -11,10 +11,9 @@ homepage = "https://github.com/mpowell90/dmx512-rdm-protocol"
 keywords = ["dmx", "rdm", "lighting", "protocol", "control"]
 
 [features]
-default = ["rdm", "alloc"]
+default = ["rdm"]
 rdm = []
-alloc = ["macaddr/std"]
 
 [dependencies]
-heapless = "0.8.0"
+heapless = "0.9.1"
 macaddr = { version = "1.0.1", default-features = false }

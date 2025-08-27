@@ -44,6 +44,8 @@
 //!
 //! See tests for more examples.
 
+use crate::rdm::parameter::e133::SCOPE_MAX_LENGTH;
+
 use super::{
     error::RdmError,
     header::{CommandClass, DeviceUID, SubDeviceId},
@@ -52,13 +54,13 @@ use super::{
             DeviceLabel, DisplayInvertMode, FadeTimes, Iso639_1, LampOnMode, LampState, PowerState,
             PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType,
         },
-        e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
+        e133::{BrokerState, Scope, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, TimeMode},
         e137_2::{DnsDomainName, DnsHostName, Ipv4Address, Ipv4Route, Ipv6Address},
         e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode},
         ParameterId,
     },
-    utils::{bsd_16_crc, RdmTruncateNullStr},
+    utils::{bsd_16_crc, RdmTruncateNullStr, RdmPadNullStr},
     RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
 use heapless::Vec;
@@ -448,14 +450,14 @@ pub enum RequestParameter {
     },
     SetComponentScope {
         scope_slot: u16,
-        scope_string: ScopeString,
+        scope_string: Scope,
         static_config_type: StaticConfigType,
         static_broker_ipv4_address: Ipv4Address,
         static_broker_ipv6_address: Ipv6Address,
         static_broker_port: u16,
     },
     GetTcpCommsStatus,
-    SetTcpCommsStatus(ScopeString),
+    SetTcpCommsStatus(Scope),
     GetBrokerStatus,
     SetBrokerStatus {
         broker_state: BrokerState,
@@ -997,8 +999,8 @@ impl RequestParameter {
             Self::SetDnsDomainName(domain_name) => domain_name.len(),
             Self::SetEndpointLabel { label, .. } => 2 + label.len(),
             Self::SetSearchDomain(search_domain) => search_domain.len(),
-            Self::SetTcpCommsStatus(_) => ScopeString::MAX_LENGTH,
-            Self::SetComponentScope { .. } => 25 + ScopeString::MAX_LENGTH,
+            Self::SetTcpCommsStatus(_) => SCOPE_MAX_LENGTH,
+            Self::SetComponentScope { .. } => 25 + SCOPE_MAX_LENGTH,
             Self::RawParameter { parameter_data, .. } => parameter_data.len(),
         }
     }
@@ -1486,13 +1488,13 @@ impl RequestParameter {
                 static_broker_port,
             } => {
                 buf[0..2].copy_from_slice(&scope_slot.to_be_bytes());
-                scope_string.encode(&mut buf[2..2 + ScopeString::MAX_LENGTH])?;
-                buf[2 + ScopeString::MAX_LENGTH] = *static_config_type as u8;
-                buf[3 + ScopeString::MAX_LENGTH..7 + ScopeString::MAX_LENGTH]
+                scope_string.encode(&mut buf[2..2 + SCOPE_MAX_LENGTH])?;
+                buf[2 + SCOPE_MAX_LENGTH] = *static_config_type as u8;
+                buf[3 + SCOPE_MAX_LENGTH..7 + SCOPE_MAX_LENGTH]
                     .copy_from_slice(&<[u8; 4]>::from(*static_broker_ipv4_address));
-                buf[7 + ScopeString::MAX_LENGTH..23 + ScopeString::MAX_LENGTH]
+                buf[7 + SCOPE_MAX_LENGTH..23 + SCOPE_MAX_LENGTH]
                     .copy_from_slice(&<[u8; 16]>::from(*static_broker_ipv6_address));
-                buf[23 + ScopeString::MAX_LENGTH..25 + ScopeString::MAX_LENGTH]
+                buf[23 + SCOPE_MAX_LENGTH..25 + SCOPE_MAX_LENGTH]
                     .copy_from_slice(&(*static_broker_port).to_be_bytes());
             }
             Self::GetSearchDomain => {}
@@ -2344,7 +2346,7 @@ impl RequestParameter {
             (CommandClass::SetCommand, ParameterId::ComponentScope) => {
                 Ok(Self::SetComponentScope {
                     scope_slot: u16::from_be_bytes([bytes[0], bytes[1]]),
-                    scope_string: ScopeString::decode(&bytes[2..66])?,
+                    scope_string: Scope::decode(&bytes[2..66])?,
                     static_config_type: bytes[66].try_into()?,
                     static_broker_ipv4_address: Ipv4Address::from([
                         bytes[67], bytes[68], bytes[69], bytes[70],
@@ -2363,7 +2365,7 @@ impl RequestParameter {
             }
             (CommandClass::GetCommand, ParameterId::TcpCommsStatus) => Ok(Self::GetTcpCommsStatus),
             (CommandClass::SetCommand, ParameterId::TcpCommsStatus) => {
-                Ok(Self::SetTcpCommsStatus(ScopeString::decode(bytes)?))
+                Ok(Self::SetTcpCommsStatus(Scope::decode(bytes)?))
             }
             (CommandClass::GetCommand, ParameterId::BrokerStatus) => Ok(Self::GetBrokerStatus),
             (CommandClass::SetCommand, ParameterId::BrokerStatus) => {

@@ -334,7 +334,9 @@ pub const INTERFACE_LABEL_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InterfaceLabel(String<INTERFACE_LABEL_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for InterfaceLabel {}
+impl RdmTruncateNullStr for InterfaceLabel {
+    type Error = RdmError;
+}
 
 impl Deref for InterfaceLabel {
     type Target = str;
@@ -365,7 +367,9 @@ pub const DNS_HOSTNAME_MAX_LENGTH: usize = 63;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DnsHostName(String<DNS_HOSTNAME_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for DnsHostName {}
+impl RdmTruncateNullStr for DnsHostName {
+    type Error = RdmError;
+}
 
 impl Deref for DnsHostName {
     type Target = str;
@@ -396,7 +400,9 @@ pub const DNS_DOMAINNAME_MAX_LENGTH: usize = 231;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DnsDomainName(String<DNS_DOMAINNAME_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for DnsDomainName {}
+impl RdmTruncateNullStr for DnsDomainName {
+    type Error = RdmError;
+}
 
 impl Deref for DnsDomainName {
     type Target = str;

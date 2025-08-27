@@ -1,6 +1,12 @@
 use crate::rdm::error::RdmError;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
+pub enum RdmFrameKind {
+    Request,
+    Response,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum CommandClass {
     DiscoveryCommand = 0x10,
     DiscoveryCommandResponse = 0x11,
@@ -8,6 +14,19 @@ pub enum CommandClass {
     GetCommandResponse = 0x21,
     SetCommand = 0x30,
     SetCommandResponse = 0x31,
+}
+
+impl CommandClass {
+    pub fn rdm_frame_kind(&self) -> RdmFrameKind {
+        match self {
+            CommandClass::DiscoveryCommand
+            | CommandClass::GetCommand
+            | CommandClass::SetCommand => RdmFrameKind::Request,
+            CommandClass::DiscoveryCommandResponse
+            | CommandClass::GetCommandResponse
+            | CommandClass::SetCommandResponse => RdmFrameKind::Response,
+        }
+    }
 }
 
 impl TryFrom<u8> for CommandClass {

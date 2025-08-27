@@ -45,6 +45,8 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
+use crate::rdm::parameter::e133::SCOPE_MAX_LENGTH;
+
 use super::{
     header::{CommandClass, DeviceUID, SubDeviceId},
     parameter::{
@@ -58,7 +60,7 @@ use super::{
             SensorDefinitionDescription, SensorValue, SlotDescription, SlotInfo,
             SoftwareVersionLabel, StatusIdDescription, StatusMessage, StatusType,
         },
-        e133::{BrokerState, ScopeString, SearchDomain, StaticConfigType},
+        e133::{BrokerState, Scope, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
         e137_2::{
             DhcpMode, DnsDomainName, DnsHostName, InterfaceLabel, Ipv4Address, Ipv4Route,
@@ -70,7 +72,7 @@ use super::{
         },
         ParameterId,
     },
-    utils::{bsd_16_crc, RdmTruncateNullStr},
+    utils::{bsd_16_crc, RdmPadNullStr, RdmTruncateNullStr},
     RdmError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
@@ -570,7 +572,7 @@ pub enum ResponseParameterData {
     // E1.33
     GetComponentScope {
         scope_slot: u16,
-        scope_string: ScopeString,
+        scope_string: Scope,
         static_config_type: StaticConfigType,
         static_ipv4_address: Ipv4Address,
         static_ipv6_address: Ipv6Address,
@@ -578,7 +580,7 @@ pub enum ResponseParameterData {
     },
     GetSearchDomain(SearchDomain),
     GetTcpCommsStatus {
-        scope_string: ScopeString,
+        scope_string: Scope,
         broker_ipv4_address: Ipv4Address,
         broker_ipv6_address: Ipv6Address,
         broker_port: u16,
@@ -727,9 +729,9 @@ impl ResponseParameterData {
                 description,
                 ..
             } => 2 + description.len(),
-            ResponseParameterData::GetComponentScope { .. } => 25 + ScopeString::MAX_LENGTH,
+            ResponseParameterData::GetComponentScope { .. } => 25 + SCOPE_MAX_LENGTH,
             ResponseParameterData::GetSearchDomain(search_domain) => search_domain.len(),
-            ResponseParameterData::GetTcpCommsStatus { .. } => 24 + ScopeString::MAX_LENGTH,
+            ResponseParameterData::GetTcpCommsStatus { .. } => 24 + SCOPE_MAX_LENGTH,
             ResponseParameterData::GetBrokerStatus { .. } => 2,
             ResponseParameterData::RawParameter(data) => data.len(),
         }
@@ -1438,13 +1440,13 @@ impl ResponseParameterData {
                 static_port,
             } => {
                 buf[0..2].copy_from_slice(&scope_slot.to_be_bytes());
-                scope_string.encode(&mut buf[2..2 + ScopeString::MAX_LENGTH])?;
-                buf[2 + ScopeString::MAX_LENGTH] = *static_config_type as u8;
-                buf[3 + ScopeString::MAX_LENGTH..7 + ScopeString::MAX_LENGTH]
+                scope_string.encode(&mut buf[2..2 + SCOPE_MAX_LENGTH])?;
+                buf[2 + SCOPE_MAX_LENGTH] = *static_config_type as u8;
+                buf[3 + SCOPE_MAX_LENGTH..7 + SCOPE_MAX_LENGTH]
                     .copy_from_slice(&u32::from(*static_ipv4_address).to_be_bytes());
-                buf[7 + ScopeString::MAX_LENGTH..23 + ScopeString::MAX_LENGTH]
+                buf[7 + SCOPE_MAX_LENGTH..23 + SCOPE_MAX_LENGTH]
                     .copy_from_slice(&<[u8; 16]>::from(*static_ipv6_address));
-                buf[23 + ScopeString::MAX_LENGTH..25 + ScopeString::MAX_LENGTH]
+                buf[23 + SCOPE_MAX_LENGTH..25 + SCOPE_MAX_LENGTH]
                     .copy_from_slice(&static_port.to_be_bytes());
             }
             Self::GetSearchDomain(search_domain) => {
@@ -1457,14 +1459,14 @@ impl ResponseParameterData {
                 broker_port,
                 unhealthy_tcp_events,
             } => {
-                scope_string.encode(&mut buf[0..ScopeString::MAX_LENGTH])?;
-                buf[ScopeString::MAX_LENGTH..ScopeString::MAX_LENGTH + 4]
+                scope_string.encode(&mut buf[0..SCOPE_MAX_LENGTH])?;
+                buf[SCOPE_MAX_LENGTH..SCOPE_MAX_LENGTH + 4]
                     .copy_from_slice(&u32::from(*broker_ipv4_address).to_be_bytes());
-                buf[ScopeString::MAX_LENGTH + 4..ScopeString::MAX_LENGTH + 20]
+                buf[SCOPE_MAX_LENGTH + 4..SCOPE_MAX_LENGTH + 20]
                     .copy_from_slice(&<[u8; 16]>::from(*broker_ipv6_address));
-                buf[ScopeString::MAX_LENGTH + 20..ScopeString::MAX_LENGTH + 22]
+                buf[SCOPE_MAX_LENGTH + 20..SCOPE_MAX_LENGTH + 22]
                     .copy_from_slice(&broker_port.to_be_bytes());
-                buf[ScopeString::MAX_LENGTH + 22..ScopeString::MAX_LENGTH + 24]
+                buf[SCOPE_MAX_LENGTH + 22..SCOPE_MAX_LENGTH + 24]
                     .copy_from_slice(&unhealthy_tcp_events.to_be_bytes());
             }
             Self::GetBrokerStatus {
@@ -2164,19 +2166,18 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::ComponentScope) => {
                 Ok(Self::GetComponentScope {
                     scope_slot: u16::from_be_bytes(bytes[0..2].try_into()?),
-                    scope_string: ScopeString::decode(&bytes[2..2 + ScopeString::MAX_LENGTH])?,
-                    static_config_type: bytes[3 + ScopeString::MAX_LENGTH].try_into()?,
+                    scope_string: Scope::decode(&bytes[2..2 + SCOPE_MAX_LENGTH])?,
+                    static_config_type: bytes[3 + SCOPE_MAX_LENGTH].try_into()?,
                     static_ipv4_address: <[u8; 4]>::try_from(
-                        &bytes[4 + ScopeString::MAX_LENGTH..8 + ScopeString::MAX_LENGTH],
+                        &bytes[4 + SCOPE_MAX_LENGTH..8 + SCOPE_MAX_LENGTH],
                     )?
                     .into(),
                     static_ipv6_address: <[u8; 16]>::try_from(
-                        &bytes[8 + ScopeString::MAX_LENGTH..24 + ScopeString::MAX_LENGTH],
+                        &bytes[8 + SCOPE_MAX_LENGTH..24 + SCOPE_MAX_LENGTH],
                     )?
                     .into(),
                     static_port: u16::from_be_bytes(
-                        bytes[24 + ScopeString::MAX_LENGTH..26 + ScopeString::MAX_LENGTH]
-                            .try_into()?,
+                        bytes[24 + SCOPE_MAX_LENGTH..26 + SCOPE_MAX_LENGTH].try_into()?,
                     ),
                 })
             }
@@ -2185,22 +2186,20 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::TcpCommsStatus) => {
                 Ok(Self::GetTcpCommsStatus {
-                    scope_string: ScopeString::decode(&bytes[0..ScopeString::MAX_LENGTH])?,
+                    scope_string: Scope::decode(&bytes[0..SCOPE_MAX_LENGTH])?,
                     broker_ipv4_address: <[u8; 4]>::try_from(
-                        &bytes[ScopeString::MAX_LENGTH..ScopeString::MAX_LENGTH + 4],
+                        &bytes[SCOPE_MAX_LENGTH..SCOPE_MAX_LENGTH + 4],
                     )?
                     .into(),
                     broker_ipv6_address: <[u8; 16]>::try_from(
-                        &bytes[ScopeString::MAX_LENGTH + 4..ScopeString::MAX_LENGTH + 20],
+                        &bytes[SCOPE_MAX_LENGTH + 4..SCOPE_MAX_LENGTH + 20],
                     )?
                     .into(),
                     broker_port: u16::from_be_bytes(
-                        bytes[ScopeString::MAX_LENGTH + 20..ScopeString::MAX_LENGTH + 22]
-                            .try_into()?,
+                        bytes[SCOPE_MAX_LENGTH + 20..SCOPE_MAX_LENGTH + 22].try_into()?,
                     ),
                     unhealthy_tcp_events: u16::from_be_bytes(
-                        bytes[ScopeString::MAX_LENGTH + 22..ScopeString::MAX_LENGTH + 24]
-                            .try_into()?,
+                        bytes[SCOPE_MAX_LENGTH + 22..SCOPE_MAX_LENGTH + 24].try_into()?,
                     ),
                 })
             }
