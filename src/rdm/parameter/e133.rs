@@ -1,7 +1,10 @@
 use super::RdmError;
 use crate::rdm::utils::{RdmPadNullStr};
-use core::{ops::Deref, str::FromStr};
+use core::{ops::Deref, str::FromStr, time::Duration};
 use heapless::String;
+
+pub const E133_TCP_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
+pub const E133_HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(45);
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StaticConfigType {
@@ -45,7 +48,7 @@ impl TryFrom<u8> for BrokerState {
 
 pub const SEARCH_DOMAIN_MAX_LENGTH: usize = 231;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct SearchDomain(String<SEARCH_DOMAIN_MAX_LENGTH>);
 
 impl SearchDomain {
@@ -83,7 +86,7 @@ impl FromStr for SearchDomain {
 
 pub const SCOPE_MAX_LENGTH: usize = 63;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Scope(String<SCOPE_MAX_LENGTH>);
 
 impl Scope {
