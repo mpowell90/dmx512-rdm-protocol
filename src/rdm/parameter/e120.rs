@@ -563,6 +563,19 @@ impl DeviceLabel {
     pub const fn new() -> Self {
         Self(String::new())
     }
+
+    pub fn from_be_bytes(bytes: &[u8]) -> Self {
+        let s = core::str::from_utf8(bytes).unwrap(); // TODO error handling
+        Self::from_str(s).unwrap() // TODO error handling
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; DEVICE_LABEL_MAX_LENGTH] {
+        let mut bytes = [0u8; DEVICE_LABEL_MAX_LENGTH];
+        let s_bytes = self.as_bytes();
+        let len = s_bytes.len().min(DEVICE_LABEL_MAX_LENGTH);
+        bytes[..len].copy_from_slice(&s_bytes[..len]);
+        bytes
+    }
 }
 
 impl RdmTruncateNullStr for DeviceLabel {
@@ -1015,6 +1028,16 @@ impl From<LampState> for u8 {
     }
 }
 
+impl LampState {
+    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
+        Self::try_from(bytes[0]).unwrap() // TODO error handling
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 1] {
+        [(*self).into()]
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LampOnMode {
     OffMode,
@@ -1051,6 +1074,16 @@ impl From<LampOnMode> for u8 {
     }
 }
 
+impl LampOnMode {
+    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
+        Self::try_from(bytes[0]).unwrap() // TODO error handling
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 1] {
+        [(*self).into()]
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PowerState {
     FullOff = 0x00,
@@ -1070,6 +1103,16 @@ impl TryFrom<u8> for PowerState {
             0x03 => Ok(Self::Normal),
             _ => Err(RdmError::InvalidPowerState(value)),
         }
+    }
+}
+
+impl PowerState {
+    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
+        Self::try_from(bytes[0]).unwrap() // TODO error handling
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 1] {
+        [*self as u8]
     }
 }
 
@@ -1108,6 +1151,16 @@ impl TryFrom<u8> for DisplayInvertMode {
             0x02 => Ok(Self::Auto),
             _ => Err(RdmError::InvalidDisplayInvertMode(value)),
         }
+    }
+}
+
+impl DisplayInvertMode {
+    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
+        Self::try_from(bytes[0]).unwrap() // TODO error handling
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 1] {
+        [*self as u8]
     }
 }
 
@@ -1166,6 +1219,16 @@ impl From<SelfTest> for u8 {
     }
 }
 
+impl SelfTest {
+    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
+        Self::from(bytes[0])
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 1] {
+        [(*self).into()]
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PresetPlaybackMode {
     Off,
@@ -1193,11 +1256,46 @@ impl From<PresetPlaybackMode> for u16 {
     }
 }
 
+impl PresetPlaybackMode {
+    pub fn from_be_bytes(bytes: [u8; 2]) -> Self {
+        Self::from(u16::from_be_bytes(bytes))
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 2] {
+        let value: u16 = (*self).into();
+        value.to_be_bytes()
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct FadeTimes {
     pub up_fade_time: u16,
     pub down_fade_time: u16,
     pub wait_time: u16,
+}
+
+impl FadeTimes {
+    pub fn from_be_bytes(bytes: [u8; 6]) -> Self {
+        Self {
+            up_fade_time: u16::from_be_bytes([bytes[0], bytes[1]]),
+            down_fade_time: u16::from_be_bytes([bytes[2], bytes[3]]),
+            wait_time: u16::from_be_bytes([bytes[4], bytes[5]]),
+        }
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 6] {
+        let up_fade_bytes = self.up_fade_time.to_be_bytes();
+        let down_fade_bytes = self.down_fade_time.to_be_bytes();
+        let wait_bytes = self.wait_time.to_be_bytes();
+        [
+            up_fade_bytes[0],
+            up_fade_bytes[1],
+            down_fade_bytes[0],
+            down_fade_bytes[1],
+            wait_bytes[0],
+            wait_bytes[1],
+        ]
+    }
 }
 
 #[non_exhaustive]
@@ -2578,6 +2676,16 @@ impl Iso639_1 {
         }
     }
 
+    pub fn from_be_bytes(bytes: [u8; 2]) -> Self {
+        let iso639_1 = core::str::from_utf8(&bytes).unwrap(); // TODO error handling
+        Self::from_str(iso639_1) // TODO error handling
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 2] {
+        let s = self.as_str();
+        [s.as_bytes()[0], s.as_bytes()[1]]
+    }
+
     pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
         if buf.len() < Self::LENGTH {
             return Err(RdmError::InvalidBufferLength(buf.len(), Self::LENGTH));
@@ -2764,6 +2872,31 @@ impl FromStr for ModulationFrequencyDescription {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetQueuedMessageRequest {
+    pub status_type: StatusType,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetStatusMessagesRequest {
+    pub status_type: StatusType,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetStatusIdDescriptionRequest {
+    pub status_id: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetSubDeviceIdStatusReportThresholdRequest {
+    pub status_type: StatusType,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetParameterDescriptionRequest {
+    pub parameter_id: u16,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetDeviceInfoResponse {
     pub protocol_version: u16,
@@ -2778,19 +2911,14 @@ pub struct GetDeviceInfoResponse {
     pub sensor_count: u8,
 }
 
-// #[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
-// pub struct GetSubDeviceIdStatusReportThresholdResponse {
-//     pub status_type: StatusType,
-// }
-
-#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetSubDeviceIdStatusReportThresholdRequest {
-    pub status_type: StatusType,
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDeviceLabelRequest {
+    pub device_label: DeviceLabel,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
-pub struct GetParameterDescriptionRequest {
-    pub parameter_id: u16,
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetLanguageRequest {
+    pub language: Iso639_1,
 }
 
 // #[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
@@ -2854,8 +2982,50 @@ pub struct SetLampStrikesRequest {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetLampStateRequest {
+    pub lamp_state: LampState,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetLampOnModeRequest {
+    pub lamp_on_mode: LampOnMode,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetPowerStateRequest {
+    pub power_state: PowerState,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetPerformSelfTestRequest {
+    pub self_test_id: SelfTest,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetCapturePresetRequest {
+    pub scene_id: u16,
+    pub fade_times: Option<FadeTimes>,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetSelfTestDescriptionRequest {
+    pub self_test_id: SelfTest,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetPresetPlaybackRequest {
+    pub mode: PresetPlaybackMode,
+    pub level: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
 pub struct SetDevicePowerCyclesRequest {
     pub device_power_cycles: u32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDisplayInvertModeRequest {
+    pub display_invert_mode: DisplayInvertMode,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]

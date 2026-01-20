@@ -106,6 +106,29 @@ impl DeviceUID {
     pub fn is_dynamic(&self) -> bool {
         self.manufacturer_id & 0x8000 != 0
     }
+
+    pub fn from_be_bytes(bytes: &[u8; 6]) -> Self {
+        let manufacturer_id = u16::from_be_bytes([bytes[0], bytes[1]]);
+        let device_id = u32::from_be_bytes([bytes[2], bytes[3], bytes[4], bytes[5]]);
+
+        DeviceUID {
+            manufacturer_id,
+            device_id,
+        }
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 6] {
+        let manufacturer_id_bytes = self.manufacturer_id.to_be_bytes();
+        let device_id_bytes = self.device_id.to_be_bytes();
+        [
+            manufacturer_id_bytes[0],
+            manufacturer_id_bytes[1],
+            device_id_bytes[0],
+            device_id_bytes[1],
+            device_id_bytes[2],
+            device_id_bytes[3],
+        ]
+    }
 }
 
 impl From<[u8; 6]> for DeviceUID {
