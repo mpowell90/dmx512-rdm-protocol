@@ -45,8 +45,6 @@
 //! assert_eq!(decoded, expected);
 //! ```
 
-use crate::rdm::parameter::e133::SCOPE_MAX_LENGTH;
-
 use super::{
     header::{CommandClass, DeviceUID, SubDeviceId},
     parameter::{
@@ -76,7 +74,8 @@ use super::{
     RdmError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
 };
-use core::{fmt::Display, result::Result};
+use crate::rdm::parameter::e133::SCOPE_MAX_LENGTH;
+use core::{convert::TryFrom, fmt::Display, result::Result};
 use heapless::Vec;
 use macaddr::MacAddr6;
 
@@ -2015,18 +2014,20 @@ impl ResponseParameterData {
                 Ok(Self::GetDnsDomainName(DnsDomainName::decode(&bytes[0..])?))
             }
             // E1.37-7
-            (CommandClass::GetCommandResponse, ParameterId::EndpointList) => Ok(Self::GetEndpointList {
-                list_change_number: u32::from_be_bytes(bytes[0..4].try_into()?),
-                endpoint_list: bytes[4..]
-                    .chunks(3)
-                    .map(|chunk| {
-                        Ok((
-                            EndpointIdValue(u16::from_be_bytes(chunk[0..2].try_into()?)),
-                            chunk[2].try_into()?,
-                        ))
-                    })
-                    .collect::<Result<Vec<(EndpointIdValue, EndpointType), 75>, RdmError>>()?,
-            }),
+            (CommandClass::GetCommandResponse, ParameterId::EndpointList) => {
+                Ok(Self::GetEndpointList {
+                    list_change_number: u32::from_be_bytes(bytes[0..4].try_into()?),
+                    endpoint_list: bytes[4..]
+                        .chunks(3)
+                        .map(|chunk| {
+                            Ok((
+                                EndpointIdValue(u16::from_be_bytes(chunk[0..2].try_into()?)),
+                                chunk[2].try_into()?,
+                            ))
+                        })
+                        .collect::<Result<Vec<(EndpointIdValue, EndpointType), 75>, RdmError>>()?,
+                })
+            }
             (CommandClass::GetCommandResponse, ParameterId::EndpointListChange) => {
                 Ok(Self::GetEndpointListChange {
                     list_change_number: u32::from_be_bytes(bytes[0..=3].try_into()?),
@@ -2054,20 +2055,28 @@ impl ResponseParameterData {
                     endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
                 })
             }
-            (CommandClass::GetCommandResponse, ParameterId::EndpointMode) => Ok(Self::GetEndpointMode {
-                endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                mode: bytes[2].try_into()?,
-            }),
-            (CommandClass::SetCommandResponse, ParameterId::EndpointMode) => Ok(Self::SetEndpointMode {
-                endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-            }),
-            (CommandClass::GetCommandResponse, ParameterId::EndpointLabel) => Ok(Self::GetEndpointLabel {
-                endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                label: EndpointLabel::decode(&bytes[2..])?,
-            }),
-            (CommandClass::SetCommandResponse, ParameterId::EndpointLabel) => Ok(Self::SetEndpointLabel {
-                endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-            }),
+            (CommandClass::GetCommandResponse, ParameterId::EndpointMode) => {
+                Ok(Self::GetEndpointMode {
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
+                    mode: bytes[2].try_into()?,
+                })
+            }
+            (CommandClass::SetCommandResponse, ParameterId::EndpointMode) => {
+                Ok(Self::SetEndpointMode {
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::EndpointLabel) => {
+                Ok(Self::GetEndpointLabel {
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
+                    label: EndpointLabel::decode(&bytes[2..])?,
+                })
+            }
+            (CommandClass::SetCommandResponse, ParameterId::EndpointLabel) => {
+                Ok(Self::SetEndpointLabel {
+                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
+                })
+            }
             (CommandClass::GetCommandResponse, ParameterId::RdmTrafficEnable) => {
                 Ok(Self::GetRdmTrafficEnable {
                     endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
@@ -2161,12 +2170,13 @@ impl ResponseParameterData {
                     policy_count: bytes[1],
                 })
             }
-            (CommandClass::GetCommandResponse, ParameterId::BackgroundQueuedStatusPolicyDescription) => {
-                Ok(Self::GetBackgroundQueuedStatusPolicyDescription {
-                    policy_id: bytes[0],
-                    description: BackgroundQueuedStatusPolicyDescription::decode(&bytes[1..])?,
-                })
-            }
+            (
+                CommandClass::GetCommandResponse,
+                ParameterId::BackgroundQueuedStatusPolicyDescription,
+            ) => Ok(Self::GetBackgroundQueuedStatusPolicyDescription {
+                policy_id: bytes[0],
+                description: BackgroundQueuedStatusPolicyDescription::decode(&bytes[1..])?,
+            }),
             // E1.33
             (CommandClass::GetCommandResponse, ParameterId::ComponentScope) => {
                 Ok(Self::GetComponentScope {

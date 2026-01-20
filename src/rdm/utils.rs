@@ -1,10 +1,14 @@
 use crate::rdm::error::RdmError;
-use core::{error::Error, ops::Deref, str::{FromStr, Utf8Error}};
+use core::{
+    error::Error,
+    ops::Deref,
+    str::{FromStr, Utf8Error},
+};
 
 pub fn bsd_16_crc(packet: &[u8]) -> u16 {
     packet
         .iter()
-        .fold(0_u16, |sum, byte| (sum.wrapping_add(*byte as u16)))
+        .fold(0_u16, |sum, byte| sum.wrapping_add(*byte as u16))
 }
 
 pub fn trim_trailing_nulls(slice: &[u8]) -> &[u8] {

@@ -1,5 +1,7 @@
 use core::{array::TryFromSliceError, error::Error, fmt, str::Utf8Error};
 
+use rdm_parameter_traits::ParameterCodecError;
+
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum RdmError {
@@ -40,6 +42,7 @@ pub enum RdmError {
     InvalidBufferLength(usize, usize),
     InvalidStringLength(usize, usize),
     MalformedPacket,
+    ParameterCodecError(ParameterCodecError),
 }
 
 impl From<TryFromSliceError> for RdmError {
@@ -51,6 +54,12 @@ impl From<TryFromSliceError> for RdmError {
 impl From<Utf8Error> for RdmError {
     fn from(source: Utf8Error) -> Self {
         RdmError::Utf8Error { source }
+    }
+}
+
+impl From<ParameterCodecError> for RdmError {
+    fn from(source: ParameterCodecError) -> Self {
+        RdmError::ParameterCodecError(source)
     }
 }
 
@@ -151,6 +160,7 @@ impl fmt::Display for RdmError {
                 write!(f, "Invalid string length: {actual}, must be <= {max}")
             }
             Self::MalformedPacket => write!(f, "Malformed packet"),
+            Self::ParameterCodecError(source) => write!(f, "Parameter codec error: {source}"),
         }
     }
 }

@@ -1,5 +1,5 @@
 use super::RdmError;
-use crate::rdm::utils::{RdmPadNullStr};
+use crate::rdm::utils::RdmPadNullStr;
 use core::{ops::Deref, str::FromStr, time::Duration};
 use heapless::String;
 

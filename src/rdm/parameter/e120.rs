@@ -2,6 +2,9 @@ use super::{RdmError, SubDeviceId};
 use crate::rdm::utils::RdmTruncateNullStr;
 use core::{fmt, ops::Deref, str::FromStr};
 use heapless::String;
+use rdm_parameter_derive::{
+    RdmGetRequestParameter, RdmGetResponseParameter, RdmSetRequestParameter,
+};
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ProtocolVersion {
@@ -752,6 +755,16 @@ impl TryFrom<u8> for StatusType {
     }
 }
 
+impl StatusType {
+    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
+        Self::try_from(bytes[0]).unwrap() // TODO consider error handling
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 1] {
+        [*self as u8]
+    }
+}
+
 // Product Categories - Page 105 RDM Spec
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ProductCategory {
@@ -1113,6 +1126,16 @@ impl TryFrom<u8> for ResetDeviceMode {
             0xff => Ok(Self::Cold),
             _ => Err(RdmError::InvalidResetDeviceMode(value)),
         }
+    }
+}
+
+impl ResetDeviceMode {
+    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
+        Self::try_from(bytes[0]).unwrap() // TODO error handling
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 1] {
+        [*self as u8]
     }
 }
 
@@ -1588,7 +1611,7 @@ impl core::fmt::Display for SlotIdDefinition {
             Self::Macro => "Macro",
             Self::Undefined => "Undefined",
             Self::ManufacturerSpecific(value) => {
-                return write!(f, "Manufacturer Specific: {value}")
+                return write!(f, "Manufacturer Specific: {value}");
             }
             Self::Unknown(value) => return write!(f, "Unknown Slot Id Definition: {value}"),
         };
@@ -2738,5 +2761,240 @@ impl FromStr for ModulationFrequencyDescription {
         Ok(Self(
             String::<{ MODULATION_FREQUENCY_DESCRIPTION_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetDeviceInfoResponse {
+    pub protocol_version: u16,
+    pub device_model_id: u16,
+    pub product_category: u16,
+    pub software_version_id: u32,
+    pub dmx512_footprint: u16,
+    pub current_personality: u8,
+    pub personality_count: u8,
+    pub dmx512_start_address: u16,
+    pub sub_device_count: u16,
+    pub sensor_count: u8,
+}
+
+// #[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
+// pub struct GetSubDeviceIdStatusReportThresholdResponse {
+//     pub status_type: StatusType,
+// }
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetSubDeviceIdStatusReportThresholdRequest {
+    pub status_type: StatusType,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetParameterDescriptionRequest {
+    pub parameter_id: u16,
+}
+
+// #[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
+// pub struct GetParameterDescriptionResponse {
+//     pub parameter_id: u16,
+// }
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDmxPersonalityRequest {
+    pub personality_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetDmxPersonalityDescriptionRequest {
+    pub personality_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDmxStartAddressRequest {
+    pub dmx_start_address: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetSlotDescriptionRequest {
+    pub slot_id: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetSensorDefinitionRequest {
+    pub sensor_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetSensorValueRequest {
+    pub sensor_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetSensorValueRequest {
+    pub sensor_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetRecordSensorsRequest {
+    pub sensor_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDeviceHoursRequest {
+    pub device_hours: u32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetLampHoursRequest {
+    pub lamp_hours: u32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetLampStrikesRequest {
+    pub lamp_strikes: u32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDevicePowerCyclesRequest {
+    pub device_power_cycles: u32,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDisplayLevelRequest {
+    pub display_level: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetPanInvertRequest {
+    pub pan_invert: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetTiltInvertRequest {
+    pub tilt_invert: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetPanTiltSwapRequest {
+    pub pan_tilt_swap: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetRealTimeClockRequest {
+    pub year: u16,
+    pub month: u8,
+    pub day: u8,
+    pub hour: u8,
+    pub minute: u8,
+    pub second: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetIdentifyDeviceRequest {
+    pub identify: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetResetDeviceRequest {
+    pub reset_device: ResetDeviceMode,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDmxBlockAddressRequest {
+    pub dmx_block_address: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetMinimumLevelRequest {
+    pub minimum_level_increasing: u16,
+    pub minimum_level_decreasing: u16,
+    pub on_below_minimum: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetMaximumLevelRequest {
+    pub maximum_level: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetCurveRequest {
+    pub curve_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetCurveDescriptionRequest {
+    pub curve_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetOutputResponseTimeRequest {
+    pub output_response_time_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetOutputResponseTimeDescriptionRequest {
+    pub output_response_time_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetModulationFrequencyRequest {
+    pub modulation_frequency_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetModulationFrequencyDescriptionRequest {
+    pub modulation_frequency_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetBurnInRequest {
+    pub hours: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetIdentifyModeRequest {
+    pub identify_mode: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetPresetStatusRequest {
+    pub scene_id: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetPresetStatusRequest {
+    pub scene_id: u16,
+    pub up_fade_time: u16,
+    pub down_fade_time: u16,
+    pub wait_time: u16,
+    pub clear_preset: bool,
+}
+
+mod tests {
+    #[test]
+    fn get_device_info() {
+        use rdm_parameter_traits::RdmGetResponseParameterCodec;
+
+        let device_info = super::GetDeviceInfoResponse {
+            protocol_version: 0x0001,
+            device_model_id: 0x0002,
+            product_category: 0x0003,
+            software_version_id: 0x00000004,
+            dmx512_footprint: 0x0005,
+            current_personality: 0x06,
+            personality_count: 0x07,
+            dmx512_start_address: 0x0008,
+            sub_device_count: 0x0009,
+            sensor_count: 0x0A,
+        };
+
+        let mut buf = [0u8; 19];
+
+        let res = device_info.get_response_encode_data(&mut buf);
+
+        assert!(res.is_ok());
+        assert_eq!(
+            buf,
+            [0, 1, 0, 2, 0, 3, 0, 0, 0, 4, 0, 5, 6, 7, 0, 8, 0, 9, 10]
+        );
     }
 }

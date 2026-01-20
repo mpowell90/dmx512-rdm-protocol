@@ -7,9 +7,9 @@ pub mod request;
 pub mod response;
 pub mod utils;
 
+pub use self::error::RdmError;
+pub use self::header::{CommandClass, DeviceUID, SubDeviceId};
 use crate::rdm::{header::RdmFrameKind, request::RdmRequest, response::RdmResponse};
-pub use error::RdmError;
-pub use header::{CommandClass, DeviceUID, SubDeviceId};
 pub use macaddr;
 
 pub const RDM_START_CODE_BYTE: u8 = 0xcc;

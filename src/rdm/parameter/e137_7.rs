@@ -154,7 +154,7 @@ pub const ENDPOINT_LABEL_MAX_LENGTH: usize = 231;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EndpointLabel(String<ENDPOINT_LABEL_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for EndpointLabel  {
+impl RdmTruncateNullStr for EndpointLabel {
     type Error = RdmError;
 }
 
@@ -187,7 +187,7 @@ pub const ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH: usize = 32;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EndpointTimingDescription(String<ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH>);
 
-impl RdmTruncateNullStr for EndpointTimingDescription  {
+impl RdmTruncateNullStr for EndpointTimingDescription {
     type Error = RdmError;
 }
 

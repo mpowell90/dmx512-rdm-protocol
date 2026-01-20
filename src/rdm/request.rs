@@ -44,26 +44,42 @@
 //!
 //! See tests for more examples.
 
-use crate::rdm::parameter::e133::SCOPE_MAX_LENGTH;
-
 use super::{
+    RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
     error::RdmError,
     header::{CommandClass, DeviceUID, SubDeviceId},
     parameter::{
+        ParameterId,
         e120::{
             DeviceLabel, DisplayInvertMode, FadeTimes, Iso639_1, LampOnMode, LampState, PowerState,
-            PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType,
+            PresetPlaybackMode, SelfTest, StatusType,
         },
         e133::{BrokerState, Scope, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, TimeMode},
         e137_2::{DnsDomainName, DnsHostName, Ipv4Address, Ipv4Route, Ipv6Address},
         e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode},
-        ParameterId,
     },
-    utils::{bsd_16_crc, RdmTruncateNullStr, RdmPadNullStr},
-    RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
+    utils::{RdmPadNullStr, RdmTruncateNullStr, bsd_16_crc},
+};
+use crate::rdm::parameter::{
+    e120::{
+        GetCurveDescriptionRequest, GetDmxPersonalityDescriptionRequest,
+        GetModulationFrequencyDescriptionRequest, GetOutputResponseTimeDescriptionRequest,
+        GetParameterDescriptionRequest, GetPresetStatusRequest, GetSensorDefinitionRequest,
+        GetSensorValueRequest, GetSlotDescriptionRequest, SetBurnInRequest, SetCurveRequest,
+        SetDeviceHoursRequest, SetDevicePowerCyclesRequest, SetDisplayLevelRequest,
+        SetDmxBlockAddressRequest, SetDmxPersonalityRequest, SetDmxStartAddressRequest,
+        SetIdentifyDeviceRequest, SetIdentifyModeRequest, SetLampHoursRequest,
+        SetLampStrikesRequest, SetMaximumLevelRequest, SetMinimumLevelRequest,
+        SetModulationFrequencyRequest, SetOutputResponseTimeRequest, SetPanInvertRequest,
+        SetPanTiltSwapRequest, SetPresetStatusRequest, SetRealTimeClockRequest,
+        SetRecordSensorsRequest, SetResetDeviceRequest, SetSensorValueRequest,
+        SetSubDeviceIdStatusReportThresholdRequest, SetTiltInvertRequest,
+    },
+    e133::SCOPE_MAX_LENGTH,
 };
 use heapless::Vec;
+use rdm_parameter_traits::{RdmGetRequestParameterCodec, RdmSetRequestParameterCodec};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter {
@@ -87,115 +103,68 @@ pub enum RequestParameter {
     },
     SetClearStatusId,
     GetSubDeviceIdStatusReportThreshold,
-    SetSubDeviceIdStatusReportThreshold {
-        status_type: StatusType,
-    },
+    SetSubDeviceIdStatusReportThreshold(SetSubDeviceIdStatusReportThresholdRequest),
     GetSupportedParameters,
-    GetParameterDescription {
-        parameter_id: u16,
-    },
+    GetParameterDescription(GetParameterDescriptionRequest),
     GetDeviceInfo,
     GetProductDetailIdList,
     GetDeviceModelDescription,
     GetManufacturerLabel,
     GetDeviceLabel,
-    SetDeviceLabel(DeviceLabel),
+    SetDeviceLabel(DeviceLabel), // TODO
     GetFactoryDefaults,
     SetFactoryDefaults,
     GetLanguageCapabilities,
     GetLanguage,
-    SetLanguage(Iso639_1),
+    SetLanguage(Iso639_1), // TODO
     GetSoftwareVersionLabel,
     GetBootSoftwareVersionId,
     GetBootSoftwareVersionLabel,
     GetDmxPersonality,
-    SetDmxPersonality {
-        personality_id: u8,
-    },
-    GetDmxPersonalityDescription {
-        personality: u8,
-    },
+    SetDmxPersonality(SetDmxPersonalityRequest),
+    GetDmxPersonalityDescription(GetDmxPersonalityDescriptionRequest),
     GetDmxStartAddress,
-    SetDmxStartAddress {
-        dmx_start_address: u16,
-    },
+    SetDmxStartAddress(SetDmxStartAddressRequest),
     GetSlotInfo,
-    GetSlotDescription {
-        slot_id: u16,
-    },
+    GetSlotDescription(GetSlotDescriptionRequest),
     GetDefaultSlotValue,
-    GetSensorDefinition {
-        sensor_id: u8,
-    },
-    GetSensorValue {
-        sensor_id: u8,
-    },
-    SetSensorValue {
-        sensor_id: u8,
-    },
-    SetRecordSensors {
-        sensor_id: u8,
-    },
+    GetSensorDefinition(GetSensorDefinitionRequest),
+    GetSensorValue(GetSensorValueRequest),
+    SetSensorValue(SetSensorValueRequest),
+    SetRecordSensors(SetRecordSensorsRequest),
     GetDeviceHours,
-    SetDeviceHours {
-        device_hours: u32,
-    },
+    SetDeviceHours(SetDeviceHoursRequest),
     GetLampHours,
-    SetLampHours {
-        lamp_hours: u32,
-    },
+    SetLampHours(SetLampHoursRequest),
     GetLampStrikes,
-    SetLampStrikes {
-        lamp_strikes: u32,
-    },
+    SetLampStrikes(SetLampStrikesRequest),
     GetLampState,
     SetLampState {
-        lamp_state: LampState,
+        lamp_state: LampState, // TODO
     },
     GetLampOnMode,
     SetLampOnMode {
-        lamp_on_mode: LampOnMode,
+        lamp_on_mode: LampOnMode, // TODO
     },
     GetDevicePowerCycles,
-    SetDevicePowerCycles {
-        device_power_cycles: u32,
-    },
+    SetDevicePowerCycles(SetDevicePowerCyclesRequest),
     GetDisplayInvert,
     SetDisplayInvert {
-        display_invert: DisplayInvertMode,
+        display_invert: DisplayInvertMode, // TODO
     },
     GetDisplayLevel,
-    SetDisplayLevel {
-        display_level: u8,
-    },
+    SetDisplayLevel(SetDisplayLevelRequest),
     GetPanInvert,
-    SetPanInvert {
-        pan_invert: bool,
-    },
+    SetPanInvert(SetPanInvertRequest),
     GetTiltInvert,
-    SetTiltInvert {
-        tilt_invert: bool,
-    },
+    SetTiltInvert(SetTiltInvertRequest),
     GetPanTiltSwap,
-    SetPanTiltSwap {
-        pan_tilt_swap: bool,
-    },
+    SetPanTiltSwap(SetPanTiltSwapRequest),
     GetRealTimeClock,
-    SetRealTimeClock {
-        year: u16,
-        month: u8,
-        day: u8,
-        hour: u8,
-        minute: u8,
-        second: u8,
-    },
+    SetRealTimeClock(SetRealTimeClockRequest),
     GetIdentifyDevice,
-    SetIdentifyDevice {
-        identify: bool,
-    },
-    SetResetDevice {
-        reset_device: ResetDeviceMode,
-    },
+    SetIdentifyDevice(SetIdentifyDeviceRequest),
+    SetResetDevice(SetResetDeviceRequest),
     GetPowerState,
     SetPowerState {
         power_state: PowerState,
@@ -218,9 +187,7 @@ pub enum RequestParameter {
     },
     // E1.37-1
     GetDmxBlockAddress,
-    SetDmxBlockAddress {
-        dmx_block_address: u16,
-    },
+    SetDmxBlockAddress(SetDmxBlockAddressRequest),
     GetDmxFailMode,
     SetDmxFailMode {
         scene_id: PresetPlaybackMode,
@@ -237,36 +204,18 @@ pub enum RequestParameter {
     },
     GetDimmerInfo,
     GetMinimumLevel,
-    SetMinimumLevel {
-        minimum_level_increasing: u16,
-        minimum_level_decreasing: u16,
-        on_below_minimum: bool,
-    },
+    SetMinimumLevel(SetMinimumLevelRequest),
     GetMaximumLevel,
-    SetMaximumLevel {
-        maximum_level: u16,
-    },
+    SetMaximumLevel(SetMaximumLevelRequest),
     GetCurve,
-    SetCurve {
-        curve_id: u8,
-    },
-    GetCurveDescription {
-        curve_id: u8,
-    },
+    SetCurve(SetCurveRequest),
+    GetCurveDescription(GetCurveDescriptionRequest),
     GetOutputResponseTime,
-    SetOutputResponseTime {
-        output_response_time_id: u8,
-    },
-    GetOutputResponseTimeDescription {
-        output_response_time_id: u8,
-    },
+    SetOutputResponseTime(SetOutputResponseTimeRequest),
+    GetOutputResponseTimeDescription(GetOutputResponseTimeDescriptionRequest),
     GetModulationFrequency,
-    SetModulationFrequency {
-        modulation_frequency_id: u8,
-    },
-    GetModulationFrequencyDescription {
-        modulation_frequency_id: u8,
-    },
+    SetModulationFrequency(SetModulationFrequencyRequest),
+    GetModulationFrequencyDescription(GetModulationFrequencyDescriptionRequest),
     GetPowerOnSelfTest,
     SetPowerOnSelfTest {
         self_test_id: SelfTest,
@@ -283,28 +232,16 @@ pub enum RequestParameter {
         current_pin_code: PinCode,
     },
     GetBurnIn,
-    SetBurnIn {
-        hours: u8,
-    },
+    SetBurnIn(SetBurnInRequest),
     GetIdentifyMode,
-    SetIdentifyMode {
-        identify_mode: u8,
-    },
+    SetIdentifyMode(SetIdentifyModeRequest),
     GetPresetInfo,
-    GetPresetStatus {
-        scene_id: u16,
-    },
+    GetPresetStatus(GetPresetStatusRequest),
     GetPresetMergeMode,
     SetPresetMergeMode {
         merge_mode: MergeMode,
     },
-    SetPresetStatus {
-        scene_id: u16,
-        up_fade_time: u16,
-        down_fade_time: u16,
-        wait_time: u16,
-        clear_preset: bool,
-    },
+    SetPresetStatus(SetPresetStatusRequest),
     // E1.37-2
     GetListInterfaces,
     GetInterfaceLabel {
@@ -1030,12 +967,16 @@ impl RequestParameter {
             }
             Self::SetClearStatusId => {}
             Self::GetSubDeviceIdStatusReportThreshold => {}
-            Self::SetSubDeviceIdStatusReportThreshold { status_type } => {
-                buf[0] = *status_type as u8;
+            Self::SetSubDeviceIdStatusReportThreshold(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetSupportedParameters => {}
-            Self::GetParameterDescription { parameter_id } => {
-                buf[0..2].copy_from_slice(&parameter_id.to_be_bytes());
+            Self::GetParameterDescription(param) => {
+                param
+                    .get_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetDeviceInfo => {}
             Self::GetProductDetailIdList => {}
@@ -1056,44 +997,66 @@ impl RequestParameter {
             Self::GetBootSoftwareVersionId => {}
             Self::GetBootSoftwareVersionLabel => {}
             Self::GetDmxPersonality => {}
-            Self::SetDmxPersonality { personality_id } => {
-                buf[0] = *personality_id;
+            Self::SetDmxPersonality(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
-            Self::GetDmxPersonalityDescription { personality } => {
-                buf[0] = *personality;
+            Self::GetDmxPersonalityDescription(param) => {
+                param
+                    .get_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetDmxStartAddress => {}
-            Self::SetDmxStartAddress { dmx_start_address } => {
-                buf[0..2].copy_from_slice(&dmx_start_address.to_be_bytes());
+            Self::SetDmxStartAddress(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetSlotInfo => {}
-            Self::GetSlotDescription { slot_id } => {
-                buf[0..2].copy_from_slice(&slot_id.to_be_bytes());
+            Self::GetSlotDescription(param) => {
+                param
+                    .get_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetDefaultSlotValue => {}
-            Self::GetSensorDefinition { sensor_id } => {
-                buf[0] = *sensor_id;
+            Self::GetSensorDefinition(param) => {
+                param
+                    .get_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
-            Self::GetSensorValue { sensor_id } => {
-                buf[0] = *sensor_id;
+            Self::GetSensorValue(param) => {
+                param
+                    .get_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
-            Self::SetSensorValue { sensor_id } => {
-                buf[0] = *sensor_id;
+            Self::SetSensorValue(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
-            Self::SetRecordSensors { sensor_id } => {
-                buf[0] = *sensor_id;
+            Self::SetRecordSensors(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetDeviceHours => {}
-            Self::SetDeviceHours { device_hours } => {
-                buf[0..4].copy_from_slice(&device_hours.to_be_bytes());
+            Self::SetDeviceHours(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetLampHours => {}
-            Self::SetLampHours { lamp_hours } => {
-                buf[0..4].copy_from_slice(&lamp_hours.to_be_bytes());
+            Self::SetLampHours(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetLampStrikes => {}
-            Self::SetLampStrikes { lamp_strikes } => {
-                buf[0..4].copy_from_slice(&lamp_strikes.to_be_bytes());
+            Self::SetLampStrikes(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetLampState => {}
             Self::SetLampState { lamp_state } => {
@@ -1104,53 +1067,55 @@ impl RequestParameter {
                 buf[0] = u8::from(*lamp_on_mode);
             }
             Self::GetDevicePowerCycles => {}
-            Self::SetDevicePowerCycles {
-                device_power_cycles,
-            } => {
-                buf[0..4].copy_from_slice(&device_power_cycles.to_be_bytes());
+            Self::SetDevicePowerCycles(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetDisplayInvert => {}
             Self::SetDisplayInvert { display_invert } => {
                 buf[0] = *display_invert as u8;
             }
             Self::GetDisplayLevel => {}
-            Self::SetDisplayLevel { display_level } => {
-                buf[0] = *display_level;
+            Self::SetDisplayLevel(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetPanInvert => {}
-            Self::SetPanInvert { pan_invert } => {
-                buf[0] = *pan_invert as u8;
+            Self::SetPanInvert(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetTiltInvert => {}
-            Self::SetTiltInvert { tilt_invert } => {
-                buf[0] = *tilt_invert as u8;
+            Self::SetTiltInvert(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetPanTiltSwap => {}
-            Self::SetPanTiltSwap { pan_tilt_swap } => {
-                buf[0] = *pan_tilt_swap as u8;
+            Self::SetPanTiltSwap(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetRealTimeClock => {}
-            Self::SetRealTimeClock {
-                year,
-                month,
-                day,
-                hour,
-                minute,
-                second,
-            } => {
-                buf[0..2].copy_from_slice(&year.to_be_bytes());
-                buf[2] = *month;
-                buf[3] = *day;
-                buf[4] = *hour;
-                buf[5] = *minute;
-                buf[6] = *second;
+            Self::SetRealTimeClock(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetIdentifyDevice => {}
-            Self::SetIdentifyDevice { identify } => {
-                buf[0] = *identify as u8;
+            Self::SetIdentifyDevice(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
-            Self::SetResetDevice { reset_device } => {
-                buf[0] = *reset_device as u8;
+            Self::SetResetDevice(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetPowerState => {}
             Self::SetPowerState { power_state } => {
@@ -1182,8 +1147,10 @@ impl RequestParameter {
             }
             // E1.37-1
             Self::GetDmxBlockAddress => {}
-            Self::SetDmxBlockAddress { dmx_block_address } => {
-                buf[0..2].copy_from_slice(&dmx_block_address.to_be_bytes());
+            Self::SetDmxBlockAddress(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetDmxFailMode => {}
             Self::SetDmxFailMode {
@@ -1211,47 +1178,49 @@ impl RequestParameter {
             }
             Self::GetDimmerInfo => {}
             Self::GetMinimumLevel => {}
-            Self::SetMinimumLevel {
-                minimum_level_increasing,
-                minimum_level_decreasing,
-                on_below_minimum,
-            } => {
-                buf[0..2].copy_from_slice(&minimum_level_increasing.to_be_bytes());
-                buf[2..4].copy_from_slice(&minimum_level_decreasing.to_be_bytes());
-                buf[4] = *on_below_minimum as u8;
+            Self::SetMinimumLevel(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetMaximumLevel => {}
-            Self::SetMaximumLevel { maximum_level } => {
-                buf[0..2].copy_from_slice(&maximum_level.to_be_bytes());
+            Self::SetMaximumLevel(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetCurve => {}
-            Self::SetCurve { curve_id } => {
-                buf[0] = *curve_id;
+            Self::SetCurve(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
-            Self::GetCurveDescription { curve_id } => {
-                buf[0] = *curve_id;
+            Self::GetCurveDescription(param) => {
+                param
+                    .get_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetOutputResponseTime => {}
-            Self::SetOutputResponseTime {
-                output_response_time_id,
-            } => {
-                buf[0] = *output_response_time_id;
+            Self::SetOutputResponseTime(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
-            Self::GetOutputResponseTimeDescription {
-                output_response_time_id,
-            } => {
-                buf[0] = *output_response_time_id;
+            Self::GetOutputResponseTimeDescription(param) => {
+                param
+                    .get_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetModulationFrequency => {}
-            Self::SetModulationFrequency {
-                modulation_frequency_id,
-            } => {
-                buf[0] = *modulation_frequency_id;
+            Self::SetModulationFrequency(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
-            Self::GetModulationFrequencyDescription {
-                modulation_frequency_id,
-            } => {
-                buf[0] = *modulation_frequency_id;
+            Self::GetModulationFrequencyDescription(param) => {
+                param
+                    .get_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetPowerOnSelfTest => {}
             Self::SetPowerOnSelfTest { self_test_id } => {
@@ -1275,29 +1244,27 @@ impl RequestParameter {
                 buf[2..4].copy_from_slice(&current_pin_code.0.to_be_bytes());
             }
             Self::GetBurnIn => {}
-            Self::SetBurnIn { hours } => {
-                buf[0] = *hours;
+            Self::SetBurnIn(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetIdentifyMode => {}
-            Self::SetIdentifyMode { identify_mode } => {
-                buf[0] = *identify_mode;
+            Self::SetIdentifyMode(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetPresetInfo => {}
-            Self::GetPresetStatus { scene_id } => {
-                buf[0..2].copy_from_slice(&scene_id.to_be_bytes());
+            Self::GetPresetStatus(param) => {
+                param
+                    .get_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
-            Self::SetPresetStatus {
-                scene_id,
-                up_fade_time,
-                down_fade_time,
-                wait_time,
-                clear_preset,
-            } => {
-                buf[0..2].copy_from_slice(&scene_id.to_be_bytes());
-                buf[2..4].copy_from_slice(&up_fade_time.to_be_bytes());
-                buf[4..6].copy_from_slice(&down_fade_time.to_be_bytes());
-                buf[6..8].copy_from_slice(&wait_time.to_be_bytes());
-                buf[8] = *clear_preset as u8;
+            Self::SetPresetStatus(param) => {
+                param
+                    .set_request_encode_data(buf)
+                    .map_err(RdmError::ParameterCodecError)?;
             }
             Self::GetPresetMergeMode => {}
             Self::SetPresetMergeMode { merge_mode } => {
@@ -1570,23 +1537,17 @@ impl RequestParameter {
                 Ok(Self::GetSubDeviceIdStatusReportThreshold)
             }
             (CommandClass::SetCommand, ParameterId::SubDeviceIdStatusReportThreshold) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetSubDeviceIdStatusReportThreshold {
-                    status_type: bytes[0].try_into()?,
-                })
+                Ok(Self::SetSubDeviceIdStatusReportThreshold(
+                    SetSubDeviceIdStatusReportThresholdRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::SupportedParameters) => {
                 Ok(Self::GetSupportedParameters)
             }
             (CommandClass::GetCommand, ParameterId::ParameterDescription) => {
-                if bytes.len() < 2 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetParameterDescription {
-                    parameter_id: u16::from_be_bytes([bytes[0], bytes[1]]),
-                })
+                Ok(Self::GetParameterDescription(
+                    GetParameterDescriptionRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::DeviceInfo) => Ok(Self::GetDeviceInfo),
             (CommandClass::GetCommand, ParameterId::ProductDetailIdList) => {
@@ -1625,104 +1586,57 @@ impl RequestParameter {
                 Ok(Self::GetBootSoftwareVersionLabel)
             }
             (CommandClass::GetCommand, ParameterId::DmxPersonality) => Ok(Self::GetDmxPersonality),
-            (CommandClass::SetCommand, ParameterId::DmxPersonality) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetDmxPersonality {
-                    personality_id: bytes[0],
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::DmxPersonality) => Ok(Self::SetDmxPersonality(
+                SetDmxPersonalityRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::DmxPersonalityDescription) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetDmxPersonalityDescription {
-                    personality: bytes[0],
-                })
+                Ok(Self::GetDmxPersonalityDescription(
+                    GetDmxPersonalityDescriptionRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::DmxStartAddress) => {
                 Ok(Self::GetDmxStartAddress)
             }
             (CommandClass::SetCommand, ParameterId::DmxStartAddress) => {
-                if bytes.len() < 2 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetDmxStartAddress {
-                    dmx_start_address: u16::from_be_bytes([bytes[0], bytes[1]]),
-                })
+                Ok(Self::SetDmxStartAddress(
+                    SetDmxStartAddressRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::SlotInfo) => Ok(Self::GetSlotInfo),
             (CommandClass::GetCommand, ParameterId::SlotDescription) => {
-                if bytes.len() < 2 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetSlotDescription {
-                    slot_id: u16::from_be_bytes([bytes[0], bytes[1]]),
-                })
+                Ok(Self::GetSlotDescription(
+                    GetSlotDescriptionRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::DefaultSlotValue) => {
                 Ok(Self::GetDefaultSlotValue)
             }
             (CommandClass::GetCommand, ParameterId::SensorDefinition) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetSensorDefinition {
-                    sensor_id: bytes[0],
-                })
+                Ok(Self::GetSensorDefinition(
+                    GetSensorDefinitionRequest::get_request_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommand, ParameterId::SensorValue) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetSensorValue {
-                    sensor_id: bytes[0],
-                })
-            }
-            (CommandClass::SetCommand, ParameterId::SensorValue) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetSensorValue {
-                    sensor_id: bytes[0],
-                })
-            }
-            (CommandClass::SetCommand, ParameterId::RecordSensors) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetRecordSensors {
-                    sensor_id: bytes[0],
-                })
-            }
+            (CommandClass::GetCommand, ParameterId::SensorValue) => Ok(Self::GetSensorValue(
+                GetSensorValueRequest::get_request_decode_data(bytes)?,
+            )),
+            (CommandClass::SetCommand, ParameterId::SensorValue) => Ok(Self::SetSensorValue(
+                SetSensorValueRequest::set_request_decode_data(bytes)?,
+            )),
+            (CommandClass::SetCommand, ParameterId::RecordSensors) => Ok(Self::SetRecordSensors(
+                SetRecordSensorsRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::DeviceHours) => Ok(Self::GetDeviceHours),
-            (CommandClass::SetCommand, ParameterId::DeviceHours) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetDeviceHours {
-                    device_hours: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::DeviceHours) => Ok(Self::SetDeviceHours(
+                SetDeviceHoursRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::LampHours) => Ok(Self::GetLampHours),
-            (CommandClass::SetCommand, ParameterId::LampHours) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetLampHours {
-                    lamp_hours: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::LampHours) => Ok(Self::SetLampHours(
+                SetLampHoursRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::LampStrikes) => Ok(Self::GetLampStrikes),
-            (CommandClass::SetCommand, ParameterId::LampStrikes) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetLampStrikes {
-                    lamp_strikes: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::LampStrikes) => Ok(Self::SetLampStrikes(
+                SetLampStrikesRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::LampState) => Ok(Self::GetLampState),
             (CommandClass::SetCommand, ParameterId::LampState) => {
                 if bytes.is_empty() {
@@ -1745,14 +1659,9 @@ impl RequestParameter {
                 Ok(Self::GetDevicePowerCycles)
             }
             (CommandClass::SetCommand, ParameterId::DevicePowerCycles) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetDevicePowerCycles {
-                    device_power_cycles: u32::from_be_bytes([
-                        bytes[0], bytes[1], bytes[2], bytes[3],
-                    ]),
-                })
+                Ok(Self::SetDevicePowerCycles(
+                    SetDevicePowerCyclesRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::DisplayInvert) => Ok(Self::GetDisplayInvert),
             (CommandClass::SetCommand, ParameterId::DisplayInvert) => {
@@ -1764,72 +1673,32 @@ impl RequestParameter {
                 })
             }
             (CommandClass::GetCommand, ParameterId::DisplayLevel) => Ok(Self::GetDisplayLevel),
-            (CommandClass::SetCommand, ParameterId::DisplayLevel) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetDisplayLevel {
-                    display_level: bytes[0],
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::DisplayLevel) => Ok(Self::SetDisplayLevel(
+                SetDisplayLevelRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::PanInvert) => Ok(Self::GetPanInvert),
-            (CommandClass::SetCommand, ParameterId::PanInvert) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetPanInvert {
-                    pan_invert: bytes[0] != 0,
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::PanInvert) => Ok(Self::SetPanInvert(
+                SetPanInvertRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::TiltInvert) => Ok(Self::GetTiltInvert),
-            (CommandClass::SetCommand, ParameterId::TiltInvert) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetTiltInvert {
-                    tilt_invert: bytes[0] != 0,
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::TiltInvert) => Ok(Self::SetTiltInvert(
+                SetTiltInvertRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::PanTiltSwap) => Ok(Self::GetPanTiltSwap),
-            (CommandClass::SetCommand, ParameterId::PanTiltSwap) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetPanTiltSwap {
-                    pan_tilt_swap: bytes[0] != 0,
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::PanTiltSwap) => Ok(Self::SetPanTiltSwap(
+                SetPanTiltSwapRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::RealTimeClock) => Ok(Self::GetRealTimeClock),
-            (CommandClass::SetCommand, ParameterId::RealTimeClock) => {
-                if bytes.len() < 7 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetRealTimeClock {
-                    year: u16::from_be_bytes([bytes[0], bytes[1]]),
-                    month: bytes[2],
-                    day: bytes[3],
-                    hour: bytes[4],
-                    minute: bytes[5],
-                    second: bytes[6],
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::RealTimeClock) => Ok(Self::SetRealTimeClock(
+                SetRealTimeClockRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::IdentifyDevice) => Ok(Self::GetIdentifyDevice),
-            (CommandClass::SetCommand, ParameterId::IdentifyDevice) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetIdentifyDevice {
-                    identify: bytes[0] != 0,
-                })
-            }
-            (CommandClass::SetCommand, ParameterId::ResetDevice) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetResetDevice {
-                    reset_device: bytes[0].try_into()?,
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::IdentifyDevice) => Ok(Self::SetIdentifyDevice(
+                SetIdentifyDeviceRequest::set_request_decode_data(bytes)?,
+            )),
+            (CommandClass::SetCommand, ParameterId::ResetDevice) => Ok(Self::SetResetDevice(
+                SetResetDeviceRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::PowerState) => Ok(Self::GetPowerState),
             (CommandClass::SetCommand, ParameterId::PowerState) => Ok(Self::SetPowerState {
                 power_state: bytes[0].try_into()?,
@@ -1889,12 +1758,9 @@ impl RequestParameter {
                 Ok(Self::GetDmxBlockAddress)
             }
             (CommandClass::SetCommand, ParameterId::DmxBlockAddress) => {
-                if bytes.len() < 2 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetDmxBlockAddress {
-                    dmx_block_address: u16::from_be_bytes([bytes[0], bytes[1]]),
-                })
+                Ok(Self::SetDmxBlockAddress(
+                    SetDmxBlockAddressRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::DmxFailMode) => Ok(Self::GetDmxFailMode),
             (CommandClass::SetCommand, ParameterId::DmxFailMode) => {
@@ -1922,75 +1788,47 @@ impl RequestParameter {
             }
             (CommandClass::GetCommand, ParameterId::DimmerInfo) => Ok(Self::GetDimmerInfo),
             (CommandClass::GetCommand, ParameterId::MinimumLevel) => Ok(Self::GetMinimumLevel),
-            (CommandClass::SetCommand, ParameterId::MinimumLevel) => {
-                if bytes.len() < 5 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetMinimumLevel {
-                    minimum_level_increasing: u16::from_be_bytes([bytes[0], bytes[1]]),
-                    minimum_level_decreasing: u16::from_be_bytes([bytes[2], bytes[3]]),
-                    on_below_minimum: bytes[4] != 0,
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::MinimumLevel) => Ok(Self::SetMinimumLevel(
+                SetMinimumLevelRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::MaximumLevel) => Ok(Self::GetMaximumLevel),
-            (CommandClass::SetCommand, ParameterId::MaximumLevel) => {
-                if bytes.len() < 2 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetMaximumLevel {
-                    maximum_level: u16::from_be_bytes([bytes[0], bytes[1]]),
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::MaximumLevel) => Ok(Self::SetMaximumLevel(
+                SetMaximumLevelRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::Curve) => Ok(Self::GetCurve),
-            (CommandClass::SetCommand, ParameterId::Curve) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetCurve { curve_id: bytes[0] })
-            }
+            (CommandClass::SetCommand, ParameterId::Curve) => Ok(Self::SetCurve(
+                SetCurveRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::CurveDescription) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetCurveDescription { curve_id: bytes[0] })
+                Ok(Self::GetCurveDescription(
+                    GetCurveDescriptionRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::OutputResponseTime) => {
                 Ok(Self::GetOutputResponseTime)
             }
             (CommandClass::SetCommand, ParameterId::OutputResponseTime) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetOutputResponseTime {
-                    output_response_time_id: bytes[0],
-                })
+                Ok(Self::SetOutputResponseTime(
+                    SetOutputResponseTimeRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::OutputResponseTimeDescription) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetOutputResponseTimeDescription {
-                    output_response_time_id: bytes[0],
-                })
+                Ok(Self::GetOutputResponseTimeDescription(
+                    GetOutputResponseTimeDescriptionRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::ModulationFrequency) => {
                 Ok(Self::GetModulationFrequency)
             }
             (CommandClass::SetCommand, ParameterId::ModulationFrequency) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetModulationFrequency {
-                    modulation_frequency_id: bytes[0],
-                })
+                Ok(Self::SetModulationFrequency(
+                    SetModulationFrequencyRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::ModulationFrequencyDescription) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetModulationFrequencyDescription {
-                    modulation_frequency_id: bytes[0],
-                })
+                Ok(Self::GetModulationFrequencyDescription(
+                    GetModulationFrequencyDescriptionRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::PowerOnSelfTest) => {
                 Ok(Self::GetPowerOnSelfTest)
@@ -2027,42 +1865,20 @@ impl RequestParameter {
                 })
             }
             (CommandClass::GetCommand, ParameterId::BurnIn) => Ok(Self::GetBurnIn),
-            (CommandClass::SetCommand, ParameterId::BurnIn) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetBurnIn { hours: bytes[0] })
-            }
+            (CommandClass::SetCommand, ParameterId::BurnIn) => Ok(Self::SetBurnIn(
+                SetBurnInRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::IdentifyMode) => Ok(Self::GetIdentifyMode),
-            (CommandClass::SetCommand, ParameterId::IdentifyMode) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetIdentifyMode {
-                    identify_mode: bytes[0],
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::IdentifyMode) => Ok(Self::SetIdentifyMode(
+                SetIdentifyModeRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::PresetInfo) => Ok(Self::GetPresetInfo),
-            (CommandClass::GetCommand, ParameterId::PresetStatus) => {
-                if bytes.len() < 2 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetPresetStatus {
-                    scene_id: u16::from_be_bytes([bytes[0], bytes[1]]),
-                })
-            }
-            (CommandClass::SetCommand, ParameterId::PresetStatus) => {
-                if bytes.len() < 9 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetPresetStatus {
-                    scene_id: u16::from_be_bytes([bytes[0], bytes[1]]),
-                    up_fade_time: u16::from_be_bytes([bytes[2], bytes[3]]),
-                    down_fade_time: u16::from_be_bytes([bytes[4], bytes[5]]),
-                    wait_time: u16::from_be_bytes([bytes[6], bytes[7]]),
-                    clear_preset: bytes[8] != 0,
-                })
-            }
+            (CommandClass::GetCommand, ParameterId::PresetStatus) => Ok(Self::GetPresetStatus(
+                GetPresetStatusRequest::get_request_decode_data(bytes)?,
+            )),
+            (CommandClass::SetCommand, ParameterId::PresetStatus) => Ok(Self::SetPresetStatus(
+                SetPresetStatusRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::PresetMergeMode) => {
                 Ok(Self::GetPresetMergeMode)
             }

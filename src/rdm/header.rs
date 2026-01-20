@@ -45,6 +45,12 @@ impl TryFrom<u8> for CommandClass {
     }
 }
 
+impl From<CommandClass> for u8 {
+    fn from(command_class: CommandClass) -> Self {
+        command_class as u8
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DeviceUID {
     pub manufacturer_id: u16,
