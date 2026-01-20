@@ -1,3 +1,5 @@
+use rdm_parameter_derive::{RdmGetRequestParameter, RdmSetRequestParameter};
+
 use super::RdmError;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -123,4 +125,75 @@ impl From<TimeMode> for u16 {
             TimeMode::TenthOfSeconds(value) => value,
         }
     }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDmxBlockAddressRequest {
+    pub dmx_block_address: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetMinimumLevelRequest {
+    pub minimum_level_increasing: u16,
+    pub minimum_level_decreasing: u16,
+    pub on_below_minimum: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetMaximumLevelRequest {
+    pub maximum_level: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetCurveRequest {
+    pub curve_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetCurveDescriptionRequest {
+    pub curve_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetOutputResponseTimeRequest {
+    pub output_response_time_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetOutputResponseTimeDescriptionRequest {
+    pub output_response_time_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetModulationFrequencyRequest {
+    pub modulation_frequency_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetModulationFrequencyDescriptionRequest {
+    pub modulation_frequency_id: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetBurnInRequest {
+    pub hours: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetIdentifyModeRequest {
+    pub identify_mode: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetPresetStatusRequest {
+    pub scene_id: u16,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetPresetStatusRequest {
+    pub scene_id: u16,
+    pub up_fade_time: u16,
+    pub down_fade_time: u16,
+    pub wait_time: u16,
+    pub clear_preset: bool,
 }

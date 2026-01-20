@@ -50,7 +50,7 @@ use super::{
     header::{CommandClass, DeviceUID, SubDeviceId},
     parameter::{
         ParameterId,
-        e120::{FadeTimes, PresetPlaybackMode, SelfTest},
+        e120::{PresetPlaybackMode, SelfTest},
         e133::{BrokerState, Scope, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, TimeMode},
         e137_2::{DnsDomainName, DnsHostName, Ipv4Address, Ipv4Route, Ipv6Address},
@@ -60,24 +60,26 @@ use super::{
 };
 use crate::rdm::parameter::{
     e120::{
-        GetCurveDescriptionRequest, GetDmxPersonalityDescriptionRequest,
-        GetModulationFrequencyDescriptionRequest, GetOutputResponseTimeDescriptionRequest,
-        GetParameterDescriptionRequest, GetPresetStatusRequest, GetQueuedMessageRequest,
-        GetSelfTestDescriptionRequest, GetSensorDefinitionRequest, GetSensorValueRequest,
-        GetSlotDescriptionRequest, GetStatusIdDescriptionRequest, GetStatusMessagesRequest,
-        SetBurnInRequest, SetCapturePresetRequest, SetCurveRequest, SetDeviceHoursRequest,
+        GetDmxPersonalityDescriptionRequest, GetParameterDescriptionRequest,
+        GetQueuedMessageRequest, GetSelfTestDescriptionRequest, GetSensorDefinitionRequest,
+        GetSensorValueRequest, GetSlotDescriptionRequest, GetStatusIdDescriptionRequest,
+        GetStatusMessagesRequest, SetCapturePresetRequest, SetDeviceHoursRequest,
         SetDeviceLabelRequest, SetDevicePowerCyclesRequest, SetDisplayInvertModeRequest,
-        SetDisplayLevelRequest, SetDmxBlockAddressRequest, SetDmxPersonalityRequest,
-        SetDmxStartAddressRequest, SetIdentifyDeviceRequest, SetIdentifyModeRequest,
-        SetLampHoursRequest, SetLampOnModeRequest, SetLampStateRequest, SetLampStrikesRequest,
-        SetLanguageRequest, SetMaximumLevelRequest, SetMinimumLevelRequest,
-        SetModulationFrequencyRequest, SetOutputResponseTimeRequest, SetPanInvertRequest,
-        SetPanTiltSwapRequest, SetPerformSelfTestRequest, SetPowerStateRequest,
-        SetPresetPlaybackRequest, SetPresetStatusRequest, SetRealTimeClockRequest,
-        SetRecordSensorsRequest, SetResetDeviceRequest, SetSensorValueRequest,
-        SetSubDeviceIdStatusReportThresholdRequest, SetTiltInvertRequest,
+        SetDisplayLevelRequest, SetDmxPersonalityRequest, SetDmxStartAddressRequest,
+        SetIdentifyDeviceRequest, SetLampHoursRequest, SetLampOnModeRequest, SetLampStateRequest,
+        SetLampStrikesRequest, SetLanguageRequest, SetPanInvertRequest, SetPanTiltSwapRequest,
+        SetPerformSelfTestRequest, SetPowerStateRequest, SetPresetPlaybackRequest,
+        SetRealTimeClockRequest, SetRecordSensorsRequest, SetResetDeviceRequest,
+        SetSensorValueRequest, SetSubDeviceIdStatusReportThresholdRequest, SetTiltInvertRequest,
     },
     e133::SCOPE_MAX_LENGTH,
+    e137_1::{
+        GetCurveDescriptionRequest, GetModulationFrequencyDescriptionRequest,
+        GetOutputResponseTimeDescriptionRequest, GetPresetStatusRequest, SetBurnInRequest,
+        SetCurveRequest, SetDmxBlockAddressRequest, SetIdentifyModeRequest, SetMaximumLevelRequest,
+        SetMinimumLevelRequest, SetModulationFrequencyRequest, SetOutputResponseTimeRequest,
+        SetPresetStatusRequest,
+    },
 };
 use heapless::Vec;
 use rdm_parameter_traits::{RdmGetRequestParameterCodec, RdmSetRequestParameterCodec};
