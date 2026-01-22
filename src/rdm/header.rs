@@ -143,17 +143,30 @@ impl RdmParameterData for DeviceUID {
     }
 
     fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        let bytes: [u8; 6] = (*self).into();
-        buf[0..6].copy_from_slice(&bytes);
+        if buf.len() < 6 {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 6,
+            });
+        }
+
+        buf[0..6].copy_from_slice(&(<[u8; 6]>::from(*self)));
+
         Ok(6)
     }
 
     fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.len() < 6 {
-            return Err(ParameterCodecError::MalformedData);
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 6,
+            });
         }
+
         let mut bytes = [0u8; 6];
+
         bytes.copy_from_slice(&buf[0..6]);
+        
         Ok(DeviceUID::from(bytes))
     }
 }

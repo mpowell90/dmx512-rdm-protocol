@@ -7,7 +7,7 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-pub mod rdm_parameter_data_impl;
+pub mod trait_impls;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterCodecError {

@@ -3625,24 +3625,45 @@ mod tests {
     };
 
     #[test]
-    fn disc_mute_response_roundtrip() {
-        let resp = super::DiscMuteResponse {
+    fn disc_mute_response() {
+        use crate::rdm::DeviceUID;
+
+        let param = super::DiscMuteResponse {
             control_field: 0x1234,
             binding_uid: None,
         };
 
-        let mut buf = [0u8; 8];
-        let bytes_written = resp.discovery_response_encode_data(&mut buf).unwrap();
+        let mut buf = [0u8; 0x02];
+
+        let encoded = param.discovery_response_encode_data(&mut buf).unwrap();
+        assert_eq!(encoded, 2);
+        assert_eq!(buf, [0x12, 0x34]);
+
         let decoded =
-            super::DiscMuteResponse::discovery_response_decode_data(&buf[..bytes_written]).unwrap();
-        assert_eq!(resp, decoded);
+            super::DiscMuteResponse::discovery_response_decode_data(&buf[..encoded]).unwrap();
+        assert_eq!(param, decoded);
+
+        let param = super::DiscMuteResponse {
+            control_field: 0x1234,
+            binding_uid: Some(DeviceUID::from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06])),
+        };
+
+        let mut buf = [0u8; 0x08];
+
+        let encoded = param.discovery_response_encode_data(&mut buf).unwrap();
+        assert_eq!(encoded, 8);
+        assert_eq!(buf, [0x12, 0x34, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
+
+        let decoded =
+            super::DiscMuteResponse::discovery_response_decode_data(&buf[..encoded]).unwrap();
+        assert_eq!(param, decoded);
     }
 
     #[test]
     fn get_device_info_response() {
         use crate::rdm::parameter::e120::{ProductCategory, ProtocolVersion};
 
-        let device_info = super::GetDeviceInfoResponse {
+        let param = super::GetDeviceInfoResponse {
             protocol_version: ProtocolVersion::V1,
             device_model_id: 0x0002,
             product_category: ProductCategory::Dimmer,
@@ -3657,29 +3678,32 @@ mod tests {
 
         let mut buf = [0u8; 0x13];
 
-        let bytes_written = device_info.get_response_encode_data(&mut buf).unwrap();
-        assert_eq!(bytes_written, 19);
+        let encoded = param.get_response_encode_data(&mut buf).unwrap();
+        assert_eq!(encoded, 19);
         assert_eq!(
             buf,
             [1, 0, 0, 2, 5, 0, 0, 0, 0, 4, 0, 5, 6, 7, 0, 8, 0, 9, 0x0a]
         );
 
-        let ret = super::GetDeviceInfoResponse::get_response_decode_data(&buf).unwrap();
-        assert_eq!(device_info, ret);
+        let decoded = super::GetDeviceInfoResponse::get_response_decode_data(&buf).unwrap();
+        assert_eq!(param, decoded);
     }
 
     #[test]
     fn set_device_label_request() {
         use crate::rdm::parameter::e120::DeviceLabel;
 
-        let device_label = super::SetDeviceLabelRequest {
+        let param = super::SetDeviceLabelRequest {
             device_label: DeviceLabel::from_str("Test").unwrap(),
         };
 
         let mut buf = [0u8; 4];
 
-        let bytes_written = device_label.set_request_encode_data(&mut buf).unwrap();
-        assert_eq!(bytes_written, 4);
+        let encoded = param.set_request_encode_data(&mut buf).unwrap();
+        assert_eq!(encoded, 4);
         assert_eq!(buf, [b'T', b'e', b's', b't']);
+
+        let decoded = super::SetDeviceLabelRequest::set_request_decode_data(&buf).unwrap();
+        assert_eq!(param, decoded);
     }
 }
