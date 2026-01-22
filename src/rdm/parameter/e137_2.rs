@@ -1,13 +1,11 @@
 use super::RdmError;
-use crate::rdm::utils::RdmTruncateNullStr;
-use core::{
-    net::{Ipv4Addr, Ipv6Addr},
-    ops::Deref,
-    str::FromStr,
-};
+use crate::impl_rdm_string;
+use core::net::{Ipv4Addr, Ipv6Addr};
 use heapless::String;
 use macaddr::MacAddr6;
-use rdm_parameter_derive::RdmGetResponseParameter;
+use rdm_parameter_derive::{
+    RdmGetRequestParameter, RdmGetResponseParameter, RdmSetRequestParameter,
+};
 use rdm_parameter_traits::RdmParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -46,8 +44,8 @@ impl RdmParameterData for DhcpMode {
     fn decode_rdm_parameter_data(
         buf: &[u8],
     ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
-        let dhcp_mode =
-            DhcpMode::try_from(buf[0]).map_err(|_| rdm_parameter_traits::ParameterCodecError::MalformedData)?;
+        let dhcp_mode = DhcpMode::try_from(buf[0])
+            .map_err(|_| rdm_parameter_traits::ParameterCodecError::MalformedData)?;
         Ok(dhcp_mode)
     }
 }
@@ -192,8 +190,8 @@ impl RdmParameterData for Ipv6Address {
         buf: &[u8],
     ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
         let address = Ipv6Address::from([
-            buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7], buf[8], buf[9], buf[10],
-            buf[11], buf[12], buf[13], buf[14], buf[15],
+            buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7], buf[8], buf[9],
+            buf[10], buf[11], buf[12], buf[13], buf[14], buf[15],
         ]);
         Ok(address)
     }
@@ -423,130 +421,44 @@ pub struct NetworkInterface {
     pub hardware_type: HardwareType,
 }
 
-pub const INTERFACE_LABEL_MAX_LENGTH: usize = 32;
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct InterfaceLabel(String<INTERFACE_LABEL_MAX_LENGTH>);
-
-impl RdmTruncateNullStr for InterfaceLabel {
-    type Error = RdmError;
-}
-
-impl Deref for InterfaceLabel {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_str()
-    }
-}
-
-impl FromStr for InterfaceLabel {
-    type Err = RdmError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() > INTERFACE_LABEL_MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                s.len(),
-                INTERFACE_LABEL_MAX_LENGTH,
-            ));
-        }
-        Ok(Self(
-            String::<{ INTERFACE_LABEL_MAX_LENGTH }>::from_str(s).unwrap(),
-        ))
-    }
-}
-
-impl RdmParameterData for InterfaceLabel {
+impl RdmParameterData for NetworkInterface {
     fn size_of(&self) -> usize {
-        INTERFACE_LABEL_MAX_LENGTH
+        6
     }
 
     fn encode_rdm_parameter_data(
         &self,
         buf: &mut [u8],
     ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
-        let label_bytes = self.as_bytes();
-        buf[0..label_bytes.len()].copy_from_slice(label_bytes);
-        Ok(INTERFACE_LABEL_MAX_LENGTH)
+        buf[0..4].copy_from_slice(&self.interface_id.to_be_bytes());
+        buf[4..6].copy_from_slice(&u16::from(self.hardware_type).to_be_bytes());
+        Ok(6)
     }
 
     fn decode_rdm_parameter_data(
         buf: &[u8],
     ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
-        let s = core::str::from_utf8(&buf)
-            .unwrap() // TODO error handling
-            .trim_end_matches('\0');
-        let label = Self::from_str(s).unwrap(); // TODO error handling
-        Ok(label)
+        Ok(Self {
+            interface_id: u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]),
+            hardware_type: u16::from_be_bytes([buf[4], buf[5]]).into(),
+        })
     }
 }
-
-pub const DNS_HOSTNAME_MAX_LENGTH: usize = 63;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DnsHostName(String<DNS_HOSTNAME_MAX_LENGTH>);
+pub struct InterfaceLabel(String<{ InterfaceLabel::MAX_LENGTH }>);
 
-impl RdmTruncateNullStr for DnsHostName {
-    type Error = RdmError;
-}
-
-impl Deref for DnsHostName {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_str()
-    }
-}
-
-impl FromStr for DnsHostName {
-    type Err = RdmError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() > DNS_HOSTNAME_MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                s.len(),
-                DNS_HOSTNAME_MAX_LENGTH,
-            ));
-        }
-        Ok(Self(
-            String::<{ DNS_HOSTNAME_MAX_LENGTH }>::from_str(s).unwrap(),
-        ))
-    }
-}
-
-pub const DNS_DOMAINNAME_MAX_LENGTH: usize = 231;
+impl_rdm_string!(InterfaceLabel, 32);
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct DnsDomainName(String<DNS_DOMAINNAME_MAX_LENGTH>);
+pub struct DnsHostName(String<{ DnsHostName::MAX_LENGTH }>);
 
-impl RdmTruncateNullStr for DnsDomainName {
-    type Error = RdmError;
-}
+impl_rdm_string!(DnsHostName, 63);
 
-impl Deref for DnsDomainName {
-    type Target = str;
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct DnsDomainName(String<{ DnsDomainName::MAX_LENGTH }>);
 
-    fn deref(&self) -> &Self::Target {
-        self.0.as_str()
-    }
-}
-
-impl FromStr for DnsDomainName {
-    type Err = RdmError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() > DNS_DOMAINNAME_MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                s.len(),
-                DNS_DOMAINNAME_MAX_LENGTH,
-            ));
-        }
-        Ok(Self(
-            String::<{ DNS_DOMAINNAME_MAX_LENGTH }>::from_str(s).unwrap(),
-        ))
-    }
-}
-
+impl_rdm_string!(DnsDomainName, 231);
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct MacAddress(pub MacAddr6);
@@ -585,52 +497,158 @@ impl RdmParameterData for MacAddress {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetInterfaceLabel {
+pub struct GetListInterfacesResponse {
+    pub interface_list: heapless::Vec<NetworkInterface, 38>,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetInterfaceLabelRequest {
+    pub interface_id: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetInterfaceLabelResponse {
     pub interface_id: u32,
     pub interface_label: InterfaceLabel,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetInterfaceHardwareAddressType1Request {
+    pub interface_id: u32,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetInterfaceHardwareAddressType1 {
+pub struct GetInterfaceHardwareAddressType1Response {
     pub interface_id: u32,
     pub hardware_address: MacAddress,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetIpV4DhcpModeRequest {
+    pub interface_id: u32,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIpV4DhcpMode {
+pub struct GetIpV4DhcpModeResponse {
     pub interface_id: u32,
     pub dhcp_mode: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetIpV4DhcpModeRequest {
+    pub interface_id: u32,
+    pub dhcp_mode: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetIpV4ZeroConfModeRequest {
+    pub interface_id: u32,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIpV4ZeroConfMode {
+pub struct GetIpV4ZeroConfModeResponse {
     pub interface_id: u32,
     pub zero_conf_mode: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetIpV4ZeroConfModeRequest {
+    pub interface_id: u32,
+    pub zero_conf_mode: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetIpV4CurrentAddressRequest {
+    pub interface_id: u32,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIpV4CurrentAddress {
+pub struct GetIpV4CurrentAddressResponse {
     pub interface_id: u32,
     pub address: Ipv4Address,
     pub netmask: u8,
     pub dhcp_status: DhcpMode,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetIpV4StaticAddressRequest {
+    pub interface_id: u32,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIpV4StaticAddress {
+pub struct GetIpV4StaticAddressResponse {
     pub interface_id: u32,
     pub address: Ipv4Address,
     pub netmask: u8,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetIpV4StaticAddressRequest {
+    pub interface_id: u32,
+    pub address: Ipv4Address,
+    pub netmask: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetInterfaceApplyConfigurationRequest {
+    pub interface_id: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetInterfaceRenewDhcpRequest {
+    pub interface_id: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetInterfaceReleaseDhcpRequest {
+    pub interface_id: u32,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIpV4DefaultRoute {
+pub struct GetIpV4DefaultRouteResponse {
     pub interface_id: u32,
     pub address: Ipv4Route,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetIpV4DefaultRouteRequest {
+    pub interface_id: u32,
+    pub address: Ipv4Route,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetDnsIpV4NameServerRequest {
+    pub name_server_index: u8,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetDnsIpV4NameServer {
+pub struct GetDnsIpV4NameServerResponse {
     pub name_server_index: u8,
     pub address: Ipv4Address,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDnsIpv4NameServerRequest {
+    pub name_server_index: u8,
+    pub name_server_address: Ipv4Address,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetDnsHostNameResponse {
+    pub dns_host_name: DnsHostName,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDnsHostNameRequest {
+    pub dns_host_name: DnsHostName,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetDnsDomainNameResponse {
+    pub dns_domain_name: DnsDomainName,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDnsDomainNameRequest {
+    pub dns_domain_name: DnsDomainName,
 }

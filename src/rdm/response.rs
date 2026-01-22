@@ -52,27 +52,28 @@ use super::{
     parameter::{
         ParameterId,
         e120::{
-            BootSoftwareVersionLabel, DefaultSlotValue, DeviceLabel, DeviceModelDescription,
-            DisplayInvertMode, DmxPersonalityDescription, LampOnMode, LampState, ManufacturerLabel,
+            BootSoftwareVersionLabel, DefaultSlotValue, DeviceModelDescription, DisplayInvertMode,
+            DmxPersonalityDescription, LampOnMode, LampState, ManufacturerLabel,
             ParameterDescription, ParameterDescriptionLabel, PowerState, ProductDetailValue,
             SelfTestDescription, SensorDefinition, SensorDefinitionDescription, SensorValue,
             SlotDescription, SlotInfo, SoftwareVersionLabel, StatusIdDescription, StatusType,
         },
-        e133::SearchDomain,
         e137_1::{MergeMode, PinCode},
-        e137_2::{DnsDomainName, DnsHostName, NetworkInterface},
     },
     utils::{RdmPadNullStr, RdmTruncateNullStr, bsd_16_crc},
 };
 use crate::rdm::parameter::{
     e120::{
         DiscMuteResponse, DiscUnMuteResponse, GetCommsStatusResponse, GetDeviceInfoResponse,
-        GetDmxPersonality, GetDmxPersonalityDescription, GetLanguageCapabilitiesResponse,
-        GetLanguageResponse, GetPresetPlayback, GetProxiedDeviceCountResponse,
-        GetProxiedDevicesResponse, GetRealTimeClock, GetSelfTestDescription, GetSlotDescription,
-        GetStatusMessagesResponse,
+        GetDeviceLabelResponse, GetDmxPersonality, GetDmxPersonalityDescription,
+        GetLanguageCapabilitiesResponse, GetLanguageResponse, GetPresetPlayback,
+        GetProxiedDeviceCountResponse, GetProxiedDevicesResponse, GetRealTimeClock,
+        GetSelfTestDescription, GetSlotDescription, GetStatusMessagesResponse,
     },
-    e133::{GetBrokerStatus, GetComponentScope, GetTcpCommsStatus, SCOPE_MAX_LENGTH},
+    e133::{
+        GetBrokerStatusResponse, GetComponentScopeResponse, GetSearchDomainResponse,
+        GetTcpCommsStatusResponse,
+    },
     e137_1::{
         GetCurve, GetCurveDescription, GetDimmerInfo, GetDmxBlockAddress, GetDmxFailMode,
         GetDmxStartupMode, GetLockState, GetLockStateDescription, GetMinimumLevel,
@@ -80,19 +81,21 @@ use crate::rdm::parameter::{
         GetOutputResponseTimeDescription, GetPresetInfo, GetPresetStatus,
     },
     e137_2::{
-        GetDnsIpV4NameServer, GetInterfaceHardwareAddressType1, GetInterfaceLabel,
-        GetIpV4CurrentAddress, GetIpV4DefaultRoute, GetIpV4DhcpMode, GetIpV4StaticAddress,
-        GetIpV4ZeroConfMode,
+        GetDnsDomainNameResponse, GetDnsHostNameResponse, GetDnsIpV4NameServerResponse,
+        GetInterfaceHardwareAddressType1Response, GetInterfaceLabelResponse,
+        GetIpV4CurrentAddressResponse, GetIpV4DefaultRouteResponse, GetIpV4DhcpModeResponse,
+        GetIpV4StaticAddressResponse, GetIpV4ZeroConfModeResponse, GetListInterfacesResponse,
     },
     e137_7::{
-        GetBackgroundDiscovery, GetBackgroundQueuedStatusPolicy,
-        GetBackgroundQueuedStatusPolicyDescription, GetBindingControlFields, GetDiscoveryState,
-        GetEndpointLabel, GetEndpointList, GetEndpointListChange, GetEndpointMode,
-        GetEndpointResponderListChange, GetEndpointResponders, GetEndpointTiming,
-        GetEndpointTimingDescription, GetEndpointToUniverse, GetIdentifyEndpoint,
-        GetRdmTrafficEnable, SetBackgroundDiscovery, SetDiscoveryState, SetEndpointLabel,
-        SetEndpointMode, SetEndpointTiming, SetEndpointToUniverse, SetIdentifyEndpoint,
-        SetRdmTrafficEnable,
+        GetBackgroundDiscoveryResponse, GetBackgroundQueuedStatusPolicyDescriptionResponse,
+        GetBackgroundQueuedStatusPolicyResponse, GetBindingControlFieldsResponse,
+        GetDiscoveryStateResponse, GetEndpointLabelResponse, GetEndpointListChangeResponse,
+        GetEndpointListResponse, GetEndpointModeResponse, GetEndpointResponderListChangeResponse,
+        GetEndpointRespondersResponse, GetEndpointTimingDescriptionResponse,
+        GetEndpointTimingResponse, GetEndpointToUniverseResponse, GetIdentifyEndpointResponse,
+        GetRdmTrafficEnableResponse, SetBackgroundDiscoveryResponse, SetDiscoveryStateResponse,
+        SetEndpointLabelResponse, SetEndpointModeResponse, SetEndpointTimingResponse,
+        SetEndpointToUniverseResponse, SetIdentifyEndpointResponse, SetRdmTrafficEnableResponse,
     },
 };
 use core::{convert::TryFrom, fmt::Display, result::Result};
@@ -293,7 +296,7 @@ pub enum ResponseParameterData {
     GetProductDetailIdList(Vec<ProductDetailValue, 115>),
     GetDeviceModelDescription(DeviceModelDescription),
     GetManufacturerLabel(ManufacturerLabel),
-    GetDeviceLabel(DeviceLabel),
+    GetDeviceLabel(GetDeviceLabelResponse),
     GetFactoryDefaults(bool),
     GetLanguageCapabilities(GetLanguageCapabilitiesResponse),
     GetLanguage(GetLanguageResponse),
@@ -348,47 +351,47 @@ pub enum ResponseParameterData {
     GetPresetStatus(GetPresetStatus),
     GetPresetMergeMode(MergeMode),
     // E1.37-2
-    GetListInterfaces(Vec<NetworkInterface, 38>),
-    GetInterfaceLabel(GetInterfaceLabel),
-    GetInterfaceHardwareAddressType1(GetInterfaceHardwareAddressType1),
-    GetIpV4DhcpMode(GetIpV4DhcpMode),
-    GetIpV4ZeroConfMode(GetIpV4ZeroConfMode),
-    GetIpV4CurrentAddress(GetIpV4CurrentAddress),
-    GetIpV4StaticAddress(GetIpV4StaticAddress),
-    GetIpV4DefaultRoute(GetIpV4DefaultRoute),
-    GetDnsIpV4NameServer(GetDnsIpV4NameServer),
-    GetDnsHostName(DnsHostName),
-    GetDnsDomainName(DnsDomainName),
+    GetListInterfaces(GetListInterfacesResponse),
+    GetInterfaceLabel(GetInterfaceLabelResponse),
+    GetInterfaceHardwareAddressType1(GetInterfaceHardwareAddressType1Response),
+    GetIpV4DhcpMode(GetIpV4DhcpModeResponse),
+    GetIpV4ZeroConfMode(GetIpV4ZeroConfModeResponse),
+    GetIpV4CurrentAddress(GetIpV4CurrentAddressResponse),
+    GetIpV4StaticAddress(GetIpV4StaticAddressResponse),
+    GetIpV4DefaultRoute(GetIpV4DefaultRouteResponse),
+    GetDnsIpV4NameServer(GetDnsIpV4NameServerResponse),
+    GetDnsHostName(GetDnsHostNameResponse),
+    GetDnsDomainName(GetDnsDomainNameResponse),
     // E1.37-7
-    GetEndpointList(GetEndpointList),
-    GetEndpointListChange(GetEndpointListChange),
-    GetIdentifyEndpoint(GetIdentifyEndpoint),
-    SetIdentifyEndpoint(SetIdentifyEndpoint),
-    GetEndpointToUniverse(GetEndpointToUniverse),
-    SetEndpointToUniverse(SetEndpointToUniverse),
-    GetEndpointMode(GetEndpointMode),
-    SetEndpointMode(SetEndpointMode),
-    GetEndpointLabel(GetEndpointLabel),
-    SetEndpointLabel(SetEndpointLabel),
-    GetRdmTrafficEnable(GetRdmTrafficEnable),
-    SetRdmTrafficEnable(SetRdmTrafficEnable),
-    GetDiscoveryState(GetDiscoveryState),
-    SetDiscoveryState(SetDiscoveryState),
-    GetBackgroundDiscovery(GetBackgroundDiscovery),
-    SetBackgroundDiscovery(SetBackgroundDiscovery),
-    GetEndpointTiming(GetEndpointTiming),
-    SetEndpointTiming(SetEndpointTiming),
-    GetEndpointTimingDescription(GetEndpointTimingDescription),
-    GetEndpointResponders(GetEndpointResponders),
-    GetEndpointResponderListChange(GetEndpointResponderListChange),
-    GetBindingControlFields(GetBindingControlFields),
-    GetBackgroundQueuedStatusPolicy(GetBackgroundQueuedStatusPolicy),
-    GetBackgroundQueuedStatusPolicyDescription(GetBackgroundQueuedStatusPolicyDescription),
+    GetEndpointList(GetEndpointListResponse),
+    GetEndpointListChange(GetEndpointListChangeResponse),
+    GetIdentifyEndpoint(GetIdentifyEndpointResponse),
+    SetIdentifyEndpoint(SetIdentifyEndpointResponse),
+    GetEndpointToUniverse(GetEndpointToUniverseResponse),
+    SetEndpointToUniverse(SetEndpointToUniverseResponse),
+    GetEndpointMode(GetEndpointModeResponse),
+    SetEndpointMode(SetEndpointModeResponse),
+    GetEndpointLabel(GetEndpointLabelResponse),
+    SetEndpointLabel(SetEndpointLabelResponse),
+    GetRdmTrafficEnable(GetRdmTrafficEnableResponse),
+    SetRdmTrafficEnable(SetRdmTrafficEnableResponse),
+    GetDiscoveryState(GetDiscoveryStateResponse),
+    SetDiscoveryState(SetDiscoveryStateResponse),
+    GetBackgroundDiscovery(GetBackgroundDiscoveryResponse),
+    SetBackgroundDiscovery(SetBackgroundDiscoveryResponse),
+    GetEndpointTiming(GetEndpointTimingResponse),
+    SetEndpointTiming(SetEndpointTimingResponse),
+    GetEndpointTimingDescription(GetEndpointTimingDescriptionResponse),
+    GetEndpointResponders(GetEndpointRespondersResponse),
+    GetEndpointResponderListChange(GetEndpointResponderListChangeResponse),
+    GetBindingControlFields(GetBindingControlFieldsResponse),
+    GetBackgroundQueuedStatusPolicy(GetBackgroundQueuedStatusPolicyResponse),
+    GetBackgroundQueuedStatusPolicyDescription(GetBackgroundQueuedStatusPolicyDescriptionResponse),
     // E1.33
-    GetComponentScope(GetComponentScope),
-    GetSearchDomain(SearchDomain),
-    GetTcpCommsStatus(GetTcpCommsStatus),
-    GetBrokerStatus(GetBrokerStatus),
+    GetComponentScope(GetComponentScopeResponse),
+    GetSearchDomain(GetSearchDomainResponse),
+    GetTcpCommsStatus(GetTcpCommsStatusResponse),
+    GetBrokerStatus(GetBrokerStatusResponse),
     RawParameter(Vec<u8, 231>),
 }
 
@@ -419,7 +422,7 @@ impl ResponseParameterData {
             ResponseParameterData::GetProductDetailIdList(details) => details.len() * 2,
             ResponseParameterData::GetDeviceModelDescription(description) => description.len(),
             ResponseParameterData::GetManufacturerLabel(label) => label.len(),
-            ResponseParameterData::GetDeviceLabel(label) => label.len(),
+            ResponseParameterData::GetDeviceLabel(param) => param.size_of(),
             ResponseParameterData::GetFactoryDefaults(_) => 1,
             ResponseParameterData::GetLanguageCapabilities(param) => param.size_of(),
             ResponseParameterData::GetLanguage(_) => 2,
@@ -491,10 +494,8 @@ impl ResponseParameterData {
             ResponseParameterData::GetPresetInfo(_) => 32,
             ResponseParameterData::GetPresetStatus(_) => 9,
             ResponseParameterData::GetPresetMergeMode(_) => 1,
-            ResponseParameterData::GetListInterfaces(interfaces) => interfaces.len() * 6,
-            ResponseParameterData::GetInterfaceLabel(GetInterfaceLabel {
-                interface_label, ..
-            }) => 4 + interface_label.len(),
+            ResponseParameterData::GetListInterfaces(param) => param.size_of(),
+            ResponseParameterData::GetInterfaceLabel(param) => param.size_of(),
             ResponseParameterData::GetInterfaceHardwareAddressType1(_) => 10,
             ResponseParameterData::GetIpV4DhcpMode(_) => 5,
             ResponseParameterData::GetIpV4ZeroConfMode(_) => 5,
@@ -502,49 +503,39 @@ impl ResponseParameterData {
             ResponseParameterData::GetIpV4StaticAddress(_) => 9,
             ResponseParameterData::GetIpV4DefaultRoute(_) => 8,
             ResponseParameterData::GetDnsIpV4NameServer(_) => 5,
-            ResponseParameterData::GetDnsHostName(host_name) => host_name.len(),
-            ResponseParameterData::GetDnsDomainName(domain_name) => domain_name.len(),
-            ResponseParameterData::GetEndpointList(GetEndpointList { endpoint_list, .. }) => {
-                4 + (endpoint_list.len() * 3)
+            ResponseParameterData::GetDnsHostName(param) => param.size_of(),
+            ResponseParameterData::GetDnsDomainName(param) => param.size_of(),
+            ResponseParameterData::GetEndpointList(param) => param.size_of(),
+            ResponseParameterData::GetEndpointListChange(param) => param.size_of(),
+            ResponseParameterData::GetIdentifyEndpoint(param) => param.size_of(),
+            ResponseParameterData::SetIdentifyEndpoint(param) => param.size_of(),
+            ResponseParameterData::GetEndpointToUniverse(param) => param.size_of(),
+            ResponseParameterData::SetEndpointToUniverse(param) => param.size_of(),
+            ResponseParameterData::GetEndpointMode(param) => param.size_of(),
+            ResponseParameterData::SetEndpointMode(param) => param.size_of(),
+            ResponseParameterData::GetEndpointLabel(param) => param.size_of(),
+            ResponseParameterData::SetEndpointLabel(param) => param.size_of(),
+            ResponseParameterData::GetRdmTrafficEnable(param) => param.size_of(),
+            ResponseParameterData::SetRdmTrafficEnable(param) => param.size_of(),
+            ResponseParameterData::GetDiscoveryState(param) => param.size_of(),
+            ResponseParameterData::SetDiscoveryState(param) => param.size_of(),
+            ResponseParameterData::GetBackgroundDiscovery(param) => param.size_of(),
+            ResponseParameterData::SetBackgroundDiscovery(param) => param.size_of(),
+            ResponseParameterData::GetEndpointTiming(param) => param.size_of(),
+            ResponseParameterData::SetEndpointTiming(param) => param.size_of(),
+            ResponseParameterData::GetEndpointTimingDescription(param) => param.size_of(),
+            ResponseParameterData::GetEndpointResponders(param) => param.size_of(),
+            ResponseParameterData::GetEndpointResponderListChange(param) => param.size_of(),
+            ResponseParameterData::GetBindingControlFields(param) => param.size_of(),
+            ResponseParameterData::GetBackgroundQueuedStatusPolicy(param) => param.size_of(),
+            ResponseParameterData::GetBackgroundQueuedStatusPolicyDescription(param) => {
+                param.size_of()
             }
-            ResponseParameterData::GetEndpointListChange(_) => 4,
-            ResponseParameterData::GetIdentifyEndpoint(_) => 3,
-            ResponseParameterData::SetIdentifyEndpoint(_) => 2,
-            ResponseParameterData::GetEndpointToUniverse(_) => 4,
-            ResponseParameterData::SetEndpointToUniverse(_) => 2,
-            ResponseParameterData::GetEndpointMode(_) => 3,
-            ResponseParameterData::SetEndpointMode(_) => 2,
-            ResponseParameterData::GetEndpointLabel(GetEndpointLabel { label, .. }) => {
-                2 + label.len()
-            }
-            ResponseParameterData::SetEndpointLabel(_) => 2,
-            ResponseParameterData::GetRdmTrafficEnable(_) => 3,
-            ResponseParameterData::SetRdmTrafficEnable(_) => 2,
-            ResponseParameterData::GetDiscoveryState(_) => 5,
-            ResponseParameterData::SetDiscoveryState(_) => 2,
-            ResponseParameterData::GetBackgroundDiscovery(_) => 3,
-            ResponseParameterData::SetBackgroundDiscovery(_) => 2,
-            ResponseParameterData::GetEndpointTiming(_) => 4,
-            ResponseParameterData::SetEndpointTiming(_) => 2,
-            ResponseParameterData::GetEndpointTimingDescription(GetEndpointTimingDescription {
-                description,
-                ..
-            }) => 1 + description.len(),
-            ResponseParameterData::GetEndpointResponders(GetEndpointResponders {
-                responders,
-                ..
-            }) => 6 + (responders.len() * 6),
-            ResponseParameterData::GetEndpointResponderListChange(_) => 6,
-            ResponseParameterData::GetBindingControlFields(_) => 16,
-            ResponseParameterData::GetBackgroundQueuedStatusPolicy(_) => 2,
-            ResponseParameterData::GetBackgroundQueuedStatusPolicyDescription(
-                GetBackgroundQueuedStatusPolicyDescription { description, .. },
-            ) => 2 + description.len(),
-            ResponseParameterData::GetComponentScope(_) => 25 + SCOPE_MAX_LENGTH,
-            ResponseParameterData::GetSearchDomain(search_domain) => search_domain.len(),
-            ResponseParameterData::GetTcpCommsStatus(_) => 24 + SCOPE_MAX_LENGTH,
-            ResponseParameterData::GetBrokerStatus(_) => 2,
-            ResponseParameterData::RawParameter(data) => data.len(),
+            ResponseParameterData::GetComponentScope(param) => param.size_of(),
+            ResponseParameterData::GetSearchDomain(param) => param.size_of(),
+            ResponseParameterData::GetTcpCommsStatus(param) => param.size_of(),
+            ResponseParameterData::GetBrokerStatus(param) => param.size_of(),
+            ResponseParameterData::RawParameter(param) => param.len(),
         }
     }
 
@@ -607,8 +598,8 @@ impl ResponseParameterData {
             Self::GetManufacturerLabel(label) => {
                 label.encode(buf)?;
             }
-            Self::GetDeviceLabel(device_label) => {
-                device_label.encode(buf)?;
+            Self::GetDeviceLabel(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetFactoryDefaults(defaults) => {
                 buf[0] = *defaults as u8;
@@ -804,13 +795,8 @@ impl ResponseParameterData {
             Self::GetPresetMergeMode(mode) => {
                 buf[0] = *mode as u8;
             }
-            Self::GetListInterfaces(interfaces) => {
-                for (idx, interface) in interfaces.iter().enumerate() {
-                    buf[idx * 6..(idx + 4) * 6]
-                        .copy_from_slice(&interface.interface_id.to_be_bytes());
-                    buf[(idx + 4) * 6..(idx + 6) * 6]
-                        .copy_from_slice(&u16::from(interface.hardware_type).to_be_bytes());
-                }
+            Self::GetListInterfaces(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetInterfaceLabel(param) => {
                 param.get_response_encode_data(buf)?;
@@ -836,11 +822,11 @@ impl ResponseParameterData {
             Self::GetDnsIpV4NameServer(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetDnsHostName(dns_hostname) => {
-                dns_hostname.encode(buf)?;
+            Self::GetDnsHostName(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetDnsDomainName(domain_name) => {
-                domain_name.encode(buf)?;
+            Self::GetDnsDomainName(param) => {
+                param.get_response_encode_data(buf)?;
             }
             // E1.37-7
             Self::GetEndpointList(param) => {
@@ -852,67 +838,56 @@ impl ResponseParameterData {
             Self::GetIdentifyEndpoint(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::SetIdentifyEndpoint(SetIdentifyEndpoint { endpoint_id }) => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
+            Self::SetIdentifyEndpoint(param) => {
+                param.set_response_encode_data(buf)?;
             }
             Self::GetEndpointToUniverse(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::SetEndpointToUniverse(SetEndpointToUniverse { endpoint_id }) => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
+            Self::SetEndpointToUniverse(param) => {
+                param.set_response_encode_data(buf)?;
             }
             Self::GetEndpointMode(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::SetEndpointMode(SetEndpointMode { endpoint_id }) => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
+            Self::SetEndpointMode(param) => {
+                param.set_response_encode_data(buf)?;
             }
             Self::GetEndpointLabel(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::SetEndpointLabel(SetEndpointLabel { endpoint_id }) => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
+            Self::SetEndpointLabel(param) => {
+                param.set_response_encode_data(buf)?;
             }
             Self::GetRdmTrafficEnable(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::SetRdmTrafficEnable(SetRdmTrafficEnable { endpoint_id }) => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
+            Self::SetRdmTrafficEnable(param) => {
+                param.set_response_encode_data(buf)?;
             }
             Self::GetDiscoveryState(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::SetDiscoveryState(SetDiscoveryState { endpoint_id }) => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
+            Self::SetDiscoveryState(param) => {
+                param.set_response_encode_data(buf)?;
             }
             Self::GetBackgroundDiscovery(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::SetBackgroundDiscovery(SetBackgroundDiscovery { endpoint_id }) => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
+            Self::SetBackgroundDiscovery(param) => {
+                param.set_response_encode_data(buf)?;
             }
             Self::GetEndpointTiming(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::SetEndpointTiming(SetEndpointTiming { endpoint_id }) => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
+            Self::SetEndpointTiming(param) => {
+                param.set_response_encode_data(buf)?;
             }
             Self::GetEndpointTimingDescription(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetEndpointResponders(GetEndpointResponders {
-                endpoint_id,
-                list_change_number,
-                responders,
-            }) => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                buf[2..6].copy_from_slice(&list_change_number.to_be_bytes());
-
-                let mut offset = 6;
-                for responder in responders.into_iter() {
-                    buf[offset..offset + 6].copy_from_slice(&<[u8; 6]>::from(*responder));
-                    offset += 6;
-                }
+            Self::GetEndpointResponders(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetEndpointResponderListChange(param) => {
                 param.get_response_encode_data(buf)?;
@@ -930,8 +905,8 @@ impl ResponseParameterData {
             Self::GetComponentScope(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetSearchDomain(search_domain) => {
-                search_domain.encode(buf)?;
+            Self::GetSearchDomain(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetTcpCommsStatus(param) => {
                 param.get_response_encode_data(buf)?;
@@ -1026,9 +1001,9 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => Ok(
                 Self::GetManufacturerLabel(ManufacturerLabel::decode(bytes)?),
             ),
-            (CommandClass::GetCommandResponse, ParameterId::DeviceLabel) => {
-                Ok(Self::GetDeviceLabel(DeviceLabel::decode(bytes)?))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::DeviceLabel) => Ok(
+                Self::GetDeviceLabel(GetDeviceLabelResponse::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::FactoryDefaults) => {
                 Ok(Self::GetFactoryDefaults(bytes[0] == 1))
             }
@@ -1280,159 +1255,183 @@ impl ResponseParameterData {
             // E1.37-2
             (CommandClass::GetCommandResponse, ParameterId::ListInterfaces) => {
                 Ok(Self::GetListInterfaces(
-                    bytes
-                        .chunks(6)
-                        .map(|chunk| {
-                            Ok(NetworkInterface {
-                                interface_id: u32::from_be_bytes(chunk[0..=3].try_into()?),
-                                hardware_type: u16::from_be_bytes(chunk[4..=5].try_into()?).into(),
-                            })
-                        })
-                        .collect::<Result<Vec<NetworkInterface, 38>, RdmError>>()?,
+                    GetListInterfacesResponse::get_response_decode_data(bytes)?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::InterfaceLabel) => Ok(
-                Self::GetInterfaceLabel(GetInterfaceLabel::get_response_decode_data(bytes)?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::InterfaceLabel) => {
+                Ok(Self::GetInterfaceLabel(
+                    GetInterfaceLabelResponse::get_response_decode_data(bytes)?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::InterfaceHardwareAddressType1) => {
                 Ok(Self::GetInterfaceHardwareAddressType1(
-                    GetInterfaceHardwareAddressType1::get_response_decode_data(bytes)?,
+                    GetInterfaceHardwareAddressType1Response::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::IpV4DhcpMode) => Ok(
-                Self::GetIpV4DhcpMode(GetIpV4DhcpMode::get_response_decode_data(bytes)?),
+                Self::GetIpV4DhcpMode(GetIpV4DhcpModeResponse::get_response_decode_data(bytes)?),
             ),
-            (CommandClass::GetCommandResponse, ParameterId::IpV4ZeroConfMode) => Ok(
-                Self::GetIpV4ZeroConfMode(GetIpV4ZeroConfMode::get_response_decode_data(bytes)?),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::IpV4CurrentAddress) => {
-                Ok(Self::GetIpV4CurrentAddress(
-                    GetIpV4CurrentAddress::get_response_decode_data(bytes)?,
+            (CommandClass::GetCommandResponse, ParameterId::IpV4ZeroConfMode) => {
+                Ok(Self::GetIpV4ZeroConfMode(
+                    GetIpV4ZeroConfModeResponse::get_response_decode_data(bytes)?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::IpV4StaticAddress) => Ok(
-                Self::GetIpV4StaticAddress(GetIpV4StaticAddress::get_response_decode_data(bytes)?),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::IpV4DefaultRoute) => Ok(
-                Self::GetIpV4DefaultRoute(GetIpV4DefaultRoute::get_response_decode_data(bytes)?),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::DnsIpV4NameServer) => Ok(
-                Self::GetDnsIpV4NameServer(GetDnsIpV4NameServer::get_response_decode_data(bytes)?),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::DnsHostName) => {
-                Ok(Self::GetDnsHostName(DnsHostName::decode(&bytes[0..])?))
+            (CommandClass::GetCommandResponse, ParameterId::IpV4CurrentAddress) => {
+                Ok(Self::GetIpV4CurrentAddress(
+                    GetIpV4CurrentAddressResponse::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DnsDomainName) => {
-                Ok(Self::GetDnsDomainName(DnsDomainName::decode(&bytes[0..])?))
+            (CommandClass::GetCommandResponse, ParameterId::IpV4StaticAddress) => {
+                Ok(Self::GetIpV4StaticAddress(
+                    GetIpV4StaticAddressResponse::get_response_decode_data(bytes)?,
+                ))
             }
+            (CommandClass::GetCommandResponse, ParameterId::IpV4DefaultRoute) => {
+                Ok(Self::GetIpV4DefaultRoute(
+                    GetIpV4DefaultRouteResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DnsIpV4NameServer) => {
+                Ok(Self::GetDnsIpV4NameServer(
+                    GetDnsIpV4NameServerResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DnsHostName) => Ok(
+                Self::GetDnsHostName(GetDnsHostNameResponse::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::DnsDomainName) => Ok(
+                Self::GetDnsDomainName(GetDnsDomainNameResponse::get_response_decode_data(bytes)?),
+            ),
             // E1.37-7
             (CommandClass::GetCommandResponse, ParameterId::EndpointList) => Ok(
-                Self::GetEndpointList(GetEndpointList::get_response_decode_data(bytes)?),
+                Self::GetEndpointList(GetEndpointListResponse::get_response_decode_data(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::EndpointListChange) => {
                 Ok(Self::GetEndpointListChange(
-                    GetEndpointListChange::get_response_decode_data(bytes)?,
+                    GetEndpointListChangeResponse::get_response_decode_data(bytes)?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::IdentifyEndpoint) => Ok(
-                Self::GetIdentifyEndpoint(GetIdentifyEndpoint::get_response_decode_data(bytes)?),
-            ),
-            (CommandClass::SetCommandResponse, ParameterId::IdentifyEndpoint) => Ok(
-                Self::SetIdentifyEndpoint(SetIdentifyEndpoint::set_response_decode_data(bytes)?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::IdentifyEndpoint) => {
+                Ok(Self::GetIdentifyEndpoint(
+                    GetIdentifyEndpointResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::SetCommandResponse, ParameterId::IdentifyEndpoint) => {
+                Ok(Self::SetIdentifyEndpoint(
+                    SetIdentifyEndpointResponse::set_response_decode_data(bytes)?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::EndpointToUniverse) => {
                 Ok(Self::GetEndpointToUniverse(
-                    GetEndpointToUniverse::get_response_decode_data(bytes)?,
+                    GetEndpointToUniverseResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::SetCommandResponse, ParameterId::EndpointToUniverse) => {
                 Ok(Self::SetEndpointToUniverse(
-                    SetEndpointToUniverse::set_response_decode_data(bytes)?,
+                    SetEndpointToUniverseResponse::set_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::EndpointMode) => Ok(
-                Self::GetEndpointMode(GetEndpointMode::get_response_decode_data(bytes)?),
+                Self::GetEndpointMode(GetEndpointModeResponse::get_response_decode_data(bytes)?),
             ),
             (CommandClass::SetCommandResponse, ParameterId::EndpointMode) => Ok(
-                Self::SetEndpointMode(SetEndpointMode::set_response_decode_data(bytes)?),
+                Self::SetEndpointMode(SetEndpointModeResponse::set_response_decode_data(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::EndpointLabel) => Ok(
-                Self::GetEndpointLabel(GetEndpointLabel::get_response_decode_data(bytes)?),
+                Self::GetEndpointLabel(GetEndpointLabelResponse::get_response_decode_data(bytes)?),
             ),
             (CommandClass::SetCommandResponse, ParameterId::EndpointLabel) => Ok(
-                Self::SetEndpointLabel(SetEndpointLabel::set_response_decode_data(bytes)?),
+                Self::SetEndpointLabel(SetEndpointLabelResponse::set_response_decode_data(bytes)?),
             ),
-            (CommandClass::GetCommandResponse, ParameterId::RdmTrafficEnable) => Ok(
-                Self::GetRdmTrafficEnable(GetRdmTrafficEnable::get_response_decode_data(bytes)?),
-            ),
-            (CommandClass::SetCommandResponse, ParameterId::RdmTrafficEnable) => Ok(
-                Self::SetRdmTrafficEnable(SetRdmTrafficEnable::set_response_decode_data(bytes)?),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::DiscoveryState) => Ok(
-                Self::GetDiscoveryState(GetDiscoveryState::get_response_decode_data(bytes)?),
-            ),
-            (CommandClass::SetCommandResponse, ParameterId::DiscoveryState) => Ok(
-                Self::SetDiscoveryState(SetDiscoveryState::set_response_decode_data(bytes)?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::RdmTrafficEnable) => {
+                Ok(Self::GetRdmTrafficEnable(
+                    GetRdmTrafficEnableResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::SetCommandResponse, ParameterId::RdmTrafficEnable) => {
+                Ok(Self::SetRdmTrafficEnable(
+                    SetRdmTrafficEnableResponse::set_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DiscoveryState) => {
+                Ok(Self::GetDiscoveryState(
+                    GetDiscoveryStateResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::SetCommandResponse, ParameterId::DiscoveryState) => {
+                Ok(Self::SetDiscoveryState(
+                    SetDiscoveryStateResponse::set_response_decode_data(bytes)?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::BackgroundDiscovery) => {
                 Ok(Self::GetBackgroundDiscovery(
-                    GetBackgroundDiscovery::get_response_decode_data(bytes)?,
+                    GetBackgroundDiscoveryResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::SetCommandResponse, ParameterId::BackgroundDiscovery) => {
                 Ok(Self::SetBackgroundDiscovery(
-                    SetBackgroundDiscovery::set_response_decode_data(bytes)?,
+                    SetBackgroundDiscoveryResponse::set_response_decode_data(bytes)?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::EndpointTiming) => Ok(
-                Self::GetEndpointTiming(GetEndpointTiming::get_response_decode_data(bytes)?),
-            ),
-            (CommandClass::SetCommandResponse, ParameterId::EndpointTiming) => Ok(
-                Self::SetEndpointTiming(SetEndpointTiming::set_response_decode_data(bytes)?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::EndpointTiming) => {
+                Ok(Self::GetEndpointTiming(
+                    GetEndpointTimingResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::SetCommandResponse, ParameterId::EndpointTiming) => {
+                Ok(Self::SetEndpointTiming(
+                    SetEndpointTimingResponse::set_response_decode_data(bytes)?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::EndpointTimingDescription) => {
                 Ok(Self::GetEndpointTimingDescription(
-                    GetEndpointTimingDescription::get_response_decode_data(bytes)?,
+                    GetEndpointTimingDescriptionResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::EndpointResponders) => {
                 Ok(Self::GetEndpointResponders(
-                    GetEndpointResponders::get_response_decode_data(bytes)?,
+                    GetEndpointRespondersResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::EndpointResponderListChange) => {
                 Ok(Self::GetEndpointResponderListChange(
-                    GetEndpointResponderListChange::get_response_decode_data(bytes)?,
+                    GetEndpointResponderListChangeResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::BindingControlFields) => {
                 Ok(Self::GetBindingControlFields(
-                    GetBindingControlFields::get_response_decode_data(bytes)?,
+                    GetBindingControlFieldsResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::BackgroundQueuedStatusPolicy) => {
                 Ok(Self::GetBackgroundQueuedStatusPolicy(
-                    GetBackgroundQueuedStatusPolicy::get_response_decode_data(bytes)?,
+                    GetBackgroundQueuedStatusPolicyResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (
                 CommandClass::GetCommandResponse,
                 ParameterId::BackgroundQueuedStatusPolicyDescription,
             ) => Ok(Self::GetBackgroundQueuedStatusPolicyDescription(
-                GetBackgroundQueuedStatusPolicyDescription::get_response_decode_data(bytes)?,
+                GetBackgroundQueuedStatusPolicyDescriptionResponse::get_response_decode_data(
+                    bytes,
+                )?,
             )),
             // E1.33
-            (CommandClass::GetCommandResponse, ParameterId::ComponentScope) => Ok(
-                Self::GetComponentScope(GetComponentScope::get_response_decode_data(bytes)?),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::SearchDomain) => {
-                Ok(Self::GetSearchDomain(SearchDomain::decode(bytes)?))
+            (CommandClass::GetCommandResponse, ParameterId::ComponentScope) => {
+                Ok(Self::GetComponentScope(
+                    GetComponentScopeResponse::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::TcpCommsStatus) => Ok(
-                Self::GetTcpCommsStatus(GetTcpCommsStatus::get_response_decode_data(bytes)?),
+            (CommandClass::GetCommandResponse, ParameterId::SearchDomain) => Ok(
+                Self::GetSearchDomain(GetSearchDomainResponse::get_response_decode_data(bytes)?),
             ),
+            (CommandClass::GetCommandResponse, ParameterId::TcpCommsStatus) => {
+                Ok(Self::GetTcpCommsStatus(
+                    GetTcpCommsStatusResponse::get_response_decode_data(bytes)?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::BrokerStatus) => Ok(
-                Self::GetBrokerStatus(GetBrokerStatus::get_response_decode_data(bytes)?),
+                Self::GetBrokerStatus(GetBrokerStatusResponse::get_response_decode_data(bytes)?),
             ),
             (_, _) => Ok(Self::RawParameter(Vec::from_slice(bytes).unwrap())),
         }

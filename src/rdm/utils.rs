@@ -90,3 +90,65 @@ pub trait RdmPadNullStr {
             .parse()
     }
 }
+
+#[macro_export]
+macro_rules! impl_rdm_string {
+    ($t:ty, $e:expr) => {
+        impl $t {
+            pub const MAX_LENGTH: usize = {$e};
+
+            pub const fn new() -> Self {
+                Self(String::new())
+            }
+        }
+
+        impl core::ops::Deref for $t {
+            type Target = str;
+
+            fn deref(&self) -> &Self::Target {
+                self.0.as_str()
+            }
+        }
+
+        impl core::ops::DerefMut for $t {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                self.0.as_mut_str()
+            }
+        }
+
+        impl core::str::FromStr for $t {
+            type Err = rdm_parameter_traits::ParameterCodecError;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Ok(Self(String::<{ Self::MAX_LENGTH }>::from_str(s)?))
+            }
+        }
+
+        impl RdmParameterData for $t {
+            fn size_of(&self) -> usize {
+                self.0.len()
+            }
+
+            fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+                let size = self.size_of();
+
+                if buf.len() < size {
+                    return Err(rdm_parameter_traits::ParameterCodecError::BufferTooSmall {
+                        provided: buf.len(),
+                        required: size,
+                    });
+                }
+
+                buf[..size].copy_from_slice(self.0.as_bytes());
+
+                Ok(size)
+            }
+
+            fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+                Ok(Self(String::decode_rdm_parameter_data($crate::rdm::utils::truncate_at_null(
+                    buf,
+                ))?))
+            }
+        }
+    };
+}

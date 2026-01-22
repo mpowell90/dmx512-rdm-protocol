@@ -53,7 +53,7 @@ use super::{
         e120::{PresetPlaybackMode, SelfTest},
         e133::{BrokerState, Scope, SearchDomain, StaticConfigType},
         e137_1::{MergeMode, PinCode, TimeMode},
-        e137_2::{DnsDomainName, DnsHostName, Ipv4Address, Ipv4Route, Ipv6Address},
+        e137_2::{Ipv4Address, Ipv6Address},
         e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode},
     },
     utils::{RdmPadNullStr, RdmTruncateNullStr, bsd_16_crc},
@@ -79,6 +79,14 @@ use crate::rdm::parameter::{
         SetCurveRequest, SetDmxBlockAddressRequest, SetIdentifyModeRequest, SetMaximumLevelRequest,
         SetMinimumLevelRequest, SetModulationFrequencyRequest, SetOutputResponseTimeRequest,
         SetPresetStatusRequest,
+    },
+    e137_2::{
+        GetDnsIpV4NameServerRequest, GetInterfaceHardwareAddressType1Request,
+        GetInterfaceLabelRequest, GetIpV4CurrentAddressRequest, GetIpV4DhcpModeRequest,
+        GetIpV4StaticAddressRequest, GetIpV4ZeroConfModeRequest, SetDnsDomainNameRequest,
+        SetDnsHostNameRequest, SetDnsIpv4NameServerRequest, SetInterfaceApplyConfigurationRequest,
+        SetInterfaceReleaseDhcpRequest, SetInterfaceRenewDhcpRequest, SetIpV4DefaultRouteRequest,
+        SetIpV4DhcpModeRequest, SetIpV4StaticAddressRequest, SetIpV4ZeroConfModeRequest,
     },
 };
 use heapless::Vec;
@@ -223,62 +231,26 @@ pub enum RequestParameter {
     SetPresetStatus(SetPresetStatusRequest),
     // E1.37-2
     GetListInterfaces,
-    GetInterfaceLabel {
-        interface_id: u32,
-    },
-    GetInterfaceHardwareAddressType1 {
-        interface_id: u32,
-    },
-    GetIpV4DhcpMode {
-        interface_id: u32,
-    },
-    SetIpV4DhcpMode {
-        interface_id: u32,
-        dhcp_mode: bool,
-    },
-    GetIpV4ZeroConfMode {
-        interface_id: u32,
-    },
-    SetIpV4ZeroConfMode {
-        interface_id: u32,
-        zero_conf_mode: bool,
-    },
-    GetIpV4CurrentAddress {
-        interface_id: u32,
-    },
-    GetIpV4StaticAddress {
-        interface_id: u32,
-    },
-    SetIpV4StaticAddress {
-        interface_id: u32,
-        address: Ipv4Address,
-        netmask: u8,
-    },
-    SetInterfaceApplyConfiguration {
-        interface_id: u32,
-    },
-    SetInterfaceRenewDhcp {
-        interface_id: u32,
-    },
-    SetInterfaceReleaseDhcp {
-        interface_id: u32,
-    },
+    GetInterfaceLabel(GetInterfaceLabelRequest),
+    GetInterfaceHardwareAddressType1(GetInterfaceHardwareAddressType1Request),
+    GetIpV4DhcpMode(GetIpV4DhcpModeRequest),
+    SetIpV4DhcpMode(SetIpV4DhcpModeRequest),
+    GetIpV4ZeroConfMode(GetIpV4ZeroConfModeRequest),
+    SetIpV4ZeroConfMode(SetIpV4ZeroConfModeRequest),
+    GetIpV4CurrentAddress(GetIpV4CurrentAddressRequest),
+    GetIpV4StaticAddress(GetIpV4StaticAddressRequest),
+    SetIpV4StaticAddress(SetIpV4StaticAddressRequest),
+    SetInterfaceApplyConfiguration(SetInterfaceApplyConfigurationRequest),
+    SetInterfaceRenewDhcp(SetInterfaceRenewDhcpRequest),
+    SetInterfaceReleaseDhcp(SetInterfaceReleaseDhcpRequest),
     GetIpV4DefaultRoute,
-    SetIpV4DefaultRoute {
-        interface_id: u32,
-        ipv4_default_route: Ipv4Route,
-    },
-    GetDnsIpV4NameServer {
-        name_server_index: u8,
-    },
-    SetDnsIpV4NameServer {
-        name_server_index: u8,
-        name_server_address: Ipv4Address,
-    },
+    SetIpV4DefaultRoute(SetIpV4DefaultRouteRequest),
+    GetDnsIpV4NameServer(GetDnsIpV4NameServerRequest),
+    SetDnsIpV4NameServer(SetDnsIpv4NameServerRequest),
     GetDnsHostName,
-    SetDnsHostName(DnsHostName),
+    SetDnsHostName(SetDnsHostNameRequest),
     GetDnsDomainName,
-    SetDnsDomainName(DnsDomainName),
+    SetDnsDomainName(SetDnsDomainNameRequest),
     // E1.37-7
     GetEndpointList,
     GetEndpointListChange,
@@ -907,8 +879,8 @@ impl RequestParameter {
             }
             Self::SetDeviceLabel(SetDeviceLabelRequest { device_label }) => device_label.len(),
             Self::SetLanguage(_) => 2,
-            Self::SetDnsHostName(dns_hostname) => dns_hostname.len(),
-            Self::SetDnsDomainName(domain_name) => domain_name.len(),
+            Self::SetDnsHostName(param) => param.size_of(),
+            Self::SetDnsDomainName(param) => param.size_of(),
             Self::SetEndpointLabel { label, .. } => 2 + label.len(),
             Self::SetSearchDomain(search_domain) => search_domain.len(),
             Self::SetTcpCommsStatus(_) => SCOPE_MAX_LENGTH,
@@ -1169,81 +1141,59 @@ impl RequestParameter {
             }
             // E1.37-2
             Self::GetListInterfaces => {}
-            Self::GetInterfaceLabel { interface_id } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
+            Self::GetInterfaceLabel(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::GetInterfaceHardwareAddressType1 { interface_id } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
+            Self::GetInterfaceHardwareAddressType1(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::GetIpV4DhcpMode { interface_id } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
+            Self::GetIpV4DhcpMode(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetIpV4DhcpMode {
-                interface_id,
-                dhcp_mode,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4] = *dhcp_mode as u8;
+            Self::SetIpV4DhcpMode(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetIpV4ZeroConfMode { interface_id } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
+            Self::GetIpV4ZeroConfMode(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetIpV4ZeroConfMode {
-                interface_id,
-                zero_conf_mode,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4] = *zero_conf_mode as u8;
+            Self::SetIpV4ZeroConfMode(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetIpV4CurrentAddress { interface_id } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
+            Self::GetIpV4CurrentAddress(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::GetIpV4StaticAddress { interface_id } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
+            Self::GetIpV4StaticAddress(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetIpV4StaticAddress {
-                interface_id,
-                address,
-                netmask,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4..8].copy_from_slice(&<[u8; 4]>::from(*address));
-                buf[8] = *netmask;
+            Self::SetIpV4StaticAddress(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::SetInterfaceApplyConfiguration { interface_id } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
+            Self::SetInterfaceApplyConfiguration(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::SetInterfaceRenewDhcp { interface_id } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
+            Self::SetInterfaceRenewDhcp(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::SetInterfaceReleaseDhcp { interface_id } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
+            Self::SetInterfaceReleaseDhcp(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetIpV4DefaultRoute => {}
-            Self::SetIpV4DefaultRoute {
-                interface_id,
-                ipv4_default_route,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4..8].copy_from_slice(&<[u8; 4]>::from(*ipv4_default_route));
+            Self::SetIpV4DefaultRoute(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetDnsIpV4NameServer { name_server_index } => {
-                buf[0] = *name_server_index;
+            Self::GetDnsIpV4NameServer(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetDnsIpV4NameServer {
-                name_server_index,
-                name_server_address,
-            } => {
-                buf[0] = *name_server_index;
-                buf[1..5].copy_from_slice(&<[u8; 4]>::from(*name_server_address));
+            Self::SetDnsIpV4NameServer(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetDnsHostName => {}
-            Self::SetDnsHostName(dns_hostname) => {
-                dns_hostname.encode(buf)?;
+            Self::SetDnsHostName(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetDnsDomainName => {}
-            Self::SetDnsDomainName(domain_name) => {
-                domain_name.encode(buf)?;
+            Self::SetDnsDomainName(param) => {
+                param.set_request_encode_data(buf)?;
             }
             // E1.37-7
             Self::GetEndpointList => {}
@@ -1731,145 +1681,86 @@ impl RequestParameter {
             }
             // E1.37-2
             (CommandClass::GetCommand, ParameterId::ListInterfaces) => Ok(Self::GetListInterfaces),
-            (CommandClass::GetCommand, ParameterId::InterfaceLabel) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetInterfaceLabel {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
-            }
+            (CommandClass::GetCommand, ParameterId::InterfaceLabel) => Ok(Self::GetInterfaceLabel(
+                GetInterfaceLabelRequest::get_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::InterfaceHardwareAddressType1) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetInterfaceHardwareAddressType1 {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
+                Ok(Self::GetInterfaceHardwareAddressType1(
+                    GetInterfaceHardwareAddressType1Request::get_request_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommand, ParameterId::IpV4DhcpMode) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetIpV4DhcpMode {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
-            }
-            (CommandClass::SetCommand, ParameterId::IpV4DhcpMode) => {
-                if bytes.len() < 5 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetIpV4DhcpMode {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                    dhcp_mode: bytes[4] != 0,
-                })
-            }
+            (CommandClass::GetCommand, ParameterId::IpV4DhcpMode) => Ok(Self::GetIpV4DhcpMode(
+                GetIpV4DhcpModeRequest::get_request_decode_data(bytes)?,
+            )),
+            (CommandClass::SetCommand, ParameterId::IpV4DhcpMode) => Ok(Self::SetIpV4DhcpMode(
+                SetIpV4DhcpModeRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::IpV4ZeroConfMode) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetIpV4ZeroConfMode {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
+                Ok(Self::GetIpV4ZeroConfMode(
+                    GetIpV4ZeroConfModeRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommand, ParameterId::IpV4ZeroConfMode) => {
-                if bytes.len() < 5 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetIpV4ZeroConfMode {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                    zero_conf_mode: bytes[4] != 0,
-                })
+                Ok(Self::SetIpV4ZeroConfMode(
+                    SetIpV4ZeroConfModeRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::IpV4CurrentAddress) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetIpV4CurrentAddress {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
+                Ok(Self::GetIpV4CurrentAddress(
+                    GetIpV4CurrentAddressRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::IpV4StaticAddress) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetIpV4StaticAddress {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
+                Ok(Self::GetIpV4StaticAddress(
+                    GetIpV4StaticAddressRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommand, ParameterId::IpV4StaticAddress) => {
-                if bytes.len() < 9 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetIpV4StaticAddress {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                    address: Ipv4Address::from([bytes[4], bytes[5], bytes[6], bytes[7]]),
-                    netmask: bytes[8],
-                })
+                Ok(Self::SetIpV4StaticAddress(
+                    SetIpV4StaticAddressRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommand, ParameterId::InterfaceApplyConfiguration) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetInterfaceApplyConfiguration {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
+                Ok(Self::SetInterfaceApplyConfiguration(
+                    SetInterfaceApplyConfigurationRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommand, ParameterId::InterfaceRenewDhcp) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetInterfaceRenewDhcp {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
+                Ok(Self::SetInterfaceRenewDhcp(
+                    SetInterfaceRenewDhcpRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommand, ParameterId::InterfaceReleaseDhcp) => {
-                if bytes.len() < 4 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetInterfaceReleaseDhcp {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                })
+                Ok(Self::SetInterfaceReleaseDhcp(
+                    SetInterfaceReleaseDhcpRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::IpV4DefaultRoute) => {
                 Ok(Self::GetIpV4DefaultRoute)
             }
             (CommandClass::SetCommand, ParameterId::IpV4DefaultRoute) => {
-                if bytes.len() < 8 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetIpV4DefaultRoute {
-                    interface_id: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]),
-                    ipv4_default_route: Ipv4Route::from([bytes[4], bytes[5], bytes[6], bytes[7]]),
-                })
+                Ok(Self::SetIpV4DefaultRoute(
+                    SetIpV4DefaultRouteRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::DnsIpV4NameServer) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::GetDnsIpV4NameServer {
-                    name_server_index: bytes[0],
-                })
+                Ok(Self::GetDnsIpV4NameServer(
+                    GetDnsIpV4NameServerRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommand, ParameterId::DnsIpV4NameServer) => {
-                if bytes.len() < 5 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetDnsIpV4NameServer {
-                    name_server_index: bytes[0],
-                    name_server_address: Ipv4Address::from([
-                        bytes[1], bytes[2], bytes[3], bytes[4],
-                    ]),
-                })
+                Ok(Self::SetDnsIpV4NameServer(
+                    SetDnsIpv4NameServerRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::DnsHostName) => Ok(Self::GetDnsHostName),
-            (CommandClass::SetCommand, ParameterId::DnsHostName) => {
-                Ok(Self::SetDnsHostName(DnsHostName::decode(bytes)?))
-            }
+            (CommandClass::SetCommand, ParameterId::DnsHostName) => Ok(Self::SetDnsHostName(
+                SetDnsHostNameRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::DnsDomainName) => Ok(Self::GetDnsDomainName),
-            (CommandClass::SetCommand, ParameterId::DnsDomainName) => {
-                Ok(Self::SetDnsDomainName(DnsDomainName::decode(bytes)?))
-            }
+            (CommandClass::SetCommand, ParameterId::DnsDomainName) => Ok(Self::SetDnsDomainName(
+                SetDnsDomainNameRequest::set_request_decode_data(bytes)?,
+            )),
             // E1.37-7
             (CommandClass::GetCommand, ParameterId::EndpointList) => Ok(Self::GetEndpointList),
             (CommandClass::GetCommand, ParameterId::EndpointListChange) => {

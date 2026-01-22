@@ -16,6 +16,8 @@ pub enum ParameterCodecError {
         required: usize,
     },
     MalformedData,
+    Utf8Error(core::str::Utf8Error),
+    CapacityError,
 }
 
 impl core::fmt::Display for ParameterCodecError {
@@ -26,7 +28,21 @@ impl core::fmt::Display for ParameterCodecError {
                 required,
             } => write!(f, "Buffer too small, provided: {}, required: {}", provided, required),
             ParameterCodecError::MalformedData => write!(f, "Malformed data"),
+            ParameterCodecError::Utf8Error(e) => write!(f, "UTF-8 error: {}", e),
+            ParameterCodecError::CapacityError => write!(f, "Insufficient capacity"),
         }
+    }
+}
+
+impl From<core::str::Utf8Error> for ParameterCodecError {
+    fn from(err: core::str::Utf8Error) -> Self {
+        ParameterCodecError::Utf8Error(err)
+    }
+}
+
+impl From<heapless::CapacityError> for ParameterCodecError {
+    fn from(_: heapless::CapacityError) -> Self {
+        ParameterCodecError::CapacityError
     }
 }
 

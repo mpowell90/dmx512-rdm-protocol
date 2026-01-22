@@ -1,6 +1,5 @@
 use super::RdmError;
-use crate::rdm::{DeviceUID, utils::RdmTruncateNullStr};
-use core::{ops::Deref, str::FromStr};
+use crate::{impl_rdm_string, rdm::DeviceUID};
 use heapless::{String, Vec};
 use rdm_parameter_derive::{RdmGetResponseParameter, RdmSetResponseParameter};
 use rdm_parameter_traits::RdmParameterData;
@@ -271,305 +270,145 @@ impl RdmParameterData for EndpointEntry {
     }
 }
 
-pub const ENDPOINT_LABEL_MAX_LENGTH: usize = 231;
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct EndpointLabel(String<{ EndpointLabel::MAX_LENGTH }>);
+
+impl_rdm_string!(EndpointLabel, 231);
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct EndpointLabel(String<ENDPOINT_LABEL_MAX_LENGTH>);
+pub struct EndpointTimingDescription(String<{ EndpointTimingDescription::MAX_LENGTH }>);
 
-impl RdmTruncateNullStr for EndpointLabel {
-    type Error = RdmError;
-}
-
-impl Deref for EndpointLabel {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_str()
-    }
-}
-
-impl FromStr for EndpointLabel {
-    type Err = RdmError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() > ENDPOINT_LABEL_MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                s.len(),
-                ENDPOINT_LABEL_MAX_LENGTH,
-            ));
-        }
-        Ok(Self(
-            String::<{ ENDPOINT_LABEL_MAX_LENGTH }>::from_str(s).unwrap(),
-        ))
-    }
-}
-
-impl RdmParameterData for EndpointLabel {
-    fn size_of(&self) -> usize {
-        self.0.len()
-    }
-
-    fn encode_rdm_parameter_data(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
-        let len = self.0.len();
-        buf[..len].copy_from_slice(self.0.as_bytes());
-        Ok(len)
-    }
-
-    fn decode_rdm_parameter_data(
-        buf: &[u8],
-    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
-        let s = core::str::from_utf8(buf)
-            .map_err(|_| rdm_parameter_traits::ParameterCodecError::MalformedData)?;
-        let endpoint_label = EndpointLabel::from_str(s)
-            .map_err(|_| rdm_parameter_traits::ParameterCodecError::MalformedData)?;
-        Ok(endpoint_label)
-    }
-}
-
-pub const ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH: usize = 32;
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct EndpointTimingDescription(String<ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH>);
-
-impl RdmTruncateNullStr for EndpointTimingDescription {
-    type Error = RdmError;
-}
-
-impl Deref for EndpointTimingDescription {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_str()
-    }
-}
-
-impl FromStr for EndpointTimingDescription {
-    type Err = RdmError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() > ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                s.len(),
-                ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH,
-            ));
-        }
-        Ok(Self(
-            String::<{ ENDPOINT_TIMING_DESCRIPTION_MAX_LENGTH }>::from_str(s).unwrap(),
-        ))
-    }
-}
-
-impl RdmParameterData for EndpointTimingDescription {
-    fn size_of(&self) -> usize {
-        self.0.len()
-    }
-
-    fn encode_rdm_parameter_data(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
-        let len = self.0.len();
-        buf[..len].copy_from_slice(self.0.as_bytes());
-        Ok(len)
-    }
-
-    fn decode_rdm_parameter_data(
-        buf: &[u8],
-    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
-        let s = core::str::from_utf8(buf)
-            .map_err(|_| rdm_parameter_traits::ParameterCodecError::MalformedData)?;
-        let endpoint_timing_description = EndpointTimingDescription::from_str(s)
-            .map_err(|_| rdm_parameter_traits::ParameterCodecError::MalformedData)?;
-        Ok(endpoint_timing_description)
-    }
-}
-
-pub const BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH: usize = 32;
+impl_rdm_string!(EndpointTimingDescription, 32);
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BackgroundQueuedStatusPolicyDescription(
-    String<BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH>,
+    String<{ BackgroundQueuedStatusPolicyDescription::MAX_LENGTH }>,
 );
 
-impl RdmTruncateNullStr for BackgroundQueuedStatusPolicyDescription {
-    type Error = RdmError;
-}
-
-impl Deref for BackgroundQueuedStatusPolicyDescription {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_str()
-    }
-}
-
-impl FromStr for BackgroundQueuedStatusPolicyDescription {
-    type Err = RdmError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() > BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                s.len(),
-                BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH,
-            ));
-        }
-        Ok(Self(
-            String::<{ BACKGROUND_QUEUED_STATUS_POLICY_DESCRIPTION_MAX_LENGTH }>::from_str(s)
-                .unwrap(),
-        ))
-    }
-}
-
-impl RdmParameterData for BackgroundQueuedStatusPolicyDescription {
-    fn size_of(&self) -> usize {
-        self.0.len()
-    }
-
-    fn encode_rdm_parameter_data(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
-        let len = self.0.len();
-        buf[..len].copy_from_slice(self.0.as_bytes());
-        Ok(len)
-    }
-
-    fn decode_rdm_parameter_data(
-        buf: &[u8],
-    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
-        let s = core::str::from_utf8(buf)
-            .map_err(|_| rdm_parameter_traits::ParameterCodecError::MalformedData)?;
-        let description = BackgroundQueuedStatusPolicyDescription::from_str(s)
-            .map_err(|_| rdm_parameter_traits::ParameterCodecError::MalformedData)?;
-        Ok(description)
-    }
-}
+impl_rdm_string!(BackgroundQueuedStatusPolicyDescription, 32);
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetEndpointList {
+pub struct GetEndpointListResponse {
     pub list_change_number: u32,
     pub endpoint_list: Vec<EndpointEntry, 75>,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetEndpointListChange {
+pub struct GetEndpointListChangeResponse {
     pub list_change_number: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIdentifyEndpoint {
+pub struct GetIdentifyEndpointResponse {
     pub endpoint_id: EndpointIdValue,
     pub identify: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
-pub struct SetIdentifyEndpoint {
+pub struct SetIdentifyEndpointResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetEndpointToUniverse {
+pub struct GetEndpointToUniverseResponse {
     pub endpoint_id: EndpointIdValue,
     pub universe: u16,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
-pub struct SetEndpointToUniverse {
+pub struct SetEndpointToUniverseResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetEndpointMode {
+pub struct GetEndpointModeResponse {
     pub endpoint_id: EndpointIdValue,
     pub mode: EndpointMode,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
-pub struct SetEndpointMode {
+pub struct SetEndpointModeResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetEndpointLabel {
+pub struct GetEndpointLabelResponse {
     pub endpoint_id: EndpointIdValue,
     pub label: EndpointLabel,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
-pub struct SetEndpointLabel {
+pub struct SetEndpointLabelResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetRdmTrafficEnable {
+pub struct GetRdmTrafficEnableResponse {
     pub endpoint_id: EndpointIdValue,
     pub enable: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
-pub struct SetRdmTrafficEnable {
+pub struct SetRdmTrafficEnableResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetDiscoveryState {
+pub struct GetDiscoveryStateResponse {
     pub endpoint_id: EndpointIdValue,
     pub device_count: DiscoveryCountStatus,
     pub discovery_state: DiscoveryState,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
-pub struct SetDiscoveryState {
+pub struct SetDiscoveryStateResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetBackgroundDiscovery {
+pub struct GetBackgroundDiscoveryResponse {
     pub endpoint_id: EndpointIdValue,
     pub enabled: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
-pub struct SetBackgroundDiscovery {
+pub struct SetBackgroundDiscoveryResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetEndpointTiming {
+pub struct GetEndpointTimingResponse {
     pub endpoint_id: EndpointIdValue,
     pub current_setting_id: u8,
     pub setting_count: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
-pub struct SetEndpointTiming {
+pub struct SetEndpointTimingResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetEndpointTimingDescription {
+pub struct GetEndpointTimingDescriptionResponse {
     pub setting_id: u8,
     pub description: EndpointTimingDescription,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetEndpointResponders {
+pub struct GetEndpointRespondersResponse {
     pub endpoint_id: EndpointIdValue,
     pub list_change_number: u32,
     pub responders: Vec<DeviceUID, 37>,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetEndpointResponderListChange {
+pub struct GetEndpointResponderListChangeResponse {
     pub endpoint_id: EndpointIdValue,
     pub list_change_number: u32,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetBindingControlFields {
+pub struct GetBindingControlFieldsResponse {
     pub endpoint_id: EndpointIdValue,
     pub uid: DeviceUID,
     pub control_field: u16,
@@ -577,13 +416,13 @@ pub struct GetBindingControlFields {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetBackgroundQueuedStatusPolicy {
+pub struct GetBackgroundQueuedStatusPolicyResponse {
     pub current_policy_id: u8,
     pub policy_count: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetBackgroundQueuedStatusPolicyDescription {
+pub struct GetBackgroundQueuedStatusPolicyDescriptionResponse {
     pub policy_id: u8,
     pub description: BackgroundQueuedStatusPolicyDescription,
 }

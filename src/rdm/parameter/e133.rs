@@ -1,7 +1,10 @@
 use super::RdmError;
-use crate::rdm::{
-    parameter::e137_2::{Ipv4Address, Ipv6Address},
-    utils::RdmPadNullStr,
+use crate::{
+    impl_rdm_string,
+    rdm::{
+        parameter::e137_2::{Ipv4Address, Ipv6Address},
+        utils::RdmPadNullStr,
+    },
 };
 use core::{ops::Deref, str::FromStr, time::Duration};
 use heapless::String;
@@ -95,101 +98,18 @@ impl RdmParameterData for BrokerState {
     }
 }
 
-pub const SEARCH_DOMAIN_MAX_LENGTH: usize = 231;
-
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub struct SearchDomain(String<SEARCH_DOMAIN_MAX_LENGTH>);
+pub struct SearchDomain(String<{ SearchDomain::MAX_LENGTH }>);
 
-impl SearchDomain {
-    #[allow(clippy::new_without_default)]
-    pub const fn new() -> Self {
-        Self(String::<SEARCH_DOMAIN_MAX_LENGTH>::new())
-    }
-}
-
-impl RdmPadNullStr for SearchDomain {
-    const MAX_LENGTH: usize = SEARCH_DOMAIN_MAX_LENGTH;
-    type Error = RdmError;
-}
-
-impl Deref for SearchDomain {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_str()
-    }
-}
-
-impl FromStr for SearchDomain {
-    type Err = RdmError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() > Self::MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(s.len(), Self::MAX_LENGTH));
-        }
-        Ok(Self(
-            String::<SEARCH_DOMAIN_MAX_LENGTH>::from_str(s).unwrap(),
-        ))
-    }
-}
-
-pub const SCOPE_MAX_LENGTH: usize = 63;
+impl_rdm_string!(SearchDomain, 231);
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Scope(String<SCOPE_MAX_LENGTH>);
+pub struct Scope(String<{ Scope::MAX_LENGTH }>);
 
-impl Scope {
-    #[allow(clippy::new_without_default)]
-    pub const fn new() -> Self {
-        Self(String::<SCOPE_MAX_LENGTH>::new())
-    }
-}
-
-impl RdmPadNullStr for Scope {
-    const MAX_LENGTH: usize = SCOPE_MAX_LENGTH;
-    type Error = RdmError;
-}
-
-impl Deref for Scope {
-    type Target = str;
-
-    fn deref(&self) -> &Self::Target {
-        self.0.as_str()
-    }
-}
-
-impl FromStr for Scope {
-    type Err = RdmError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() > SCOPE_MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(s.len(), SCOPE_MAX_LENGTH));
-        }
-        Ok(Self(String::<{ SCOPE_MAX_LENGTH }>::from_str(s).unwrap()))
-    }
-}
-
-impl RdmParameterData for Scope {
-    fn size_of(&self) -> usize {
-        SCOPE_MAX_LENGTH
-    }
-
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        let scope_bytes = self.as_bytes();
-        buf[0..scope_bytes.len()].copy_from_slice(scope_bytes);
-        Ok(SCOPE_MAX_LENGTH)
-    }
-
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-        let s = core::str::from_utf8(&buf)
-            .unwrap() // TODO error handling
-            .trim_end_matches('\0');
-        Ok(Self::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?)
-    }
-}
+impl_rdm_string!(Scope, 63);
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetComponentScope {
+pub struct GetComponentScopeResponse {
     pub scope_slot: u16,
     pub scope_string: Scope,
     pub static_config_type: StaticConfigType,
@@ -199,7 +119,12 @@ pub struct GetComponentScope {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetTcpCommsStatus {
+pub struct GetSearchDomainResponse {
+    pub search_domain: SearchDomain,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetTcpCommsStatusResponse {
     pub scope_string: Scope,
     pub broker_ipv4_address: Ipv4Address,
     pub broker_ipv6_address: Ipv6Address,
@@ -208,7 +133,7 @@ pub struct GetTcpCommsStatus {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetBrokerStatus {
+pub struct GetBrokerStatusResponse {
     pub is_allowing_set_commands: bool,
     pub broker_state: BrokerState,
 }
