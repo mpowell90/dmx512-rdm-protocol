@@ -10,5 +10,18 @@ edition.workspace = true
 [lib]
 bench = false
 
+[features]
+# Keep default minimal for no_std users.
+default = ["std"]
+
+# Enables implementations for allocation-backed types like `Vec`, `String`, `Box<[T]>`, and alloc collections.
+alloc = []
+
+# Enables implementations for std-only collections like `HashMap` / `HashSet`.
+std = ["alloc"]
+
+[dependencies]
+heapless = "0.9.1"
+
 # [lints]
 # workspace = true

@@ -1,4 +1,5 @@
 use crate::rdm::error::RdmError;
+use rdm_parameter_traits::{ParameterCodecError, RdmParameterData};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum RdmFrameKind {
@@ -106,29 +107,6 @@ impl DeviceUID {
     pub fn is_dynamic(&self) -> bool {
         self.manufacturer_id & 0x8000 != 0
     }
-
-    pub fn from_be_bytes(bytes: &[u8; 6]) -> Self {
-        let manufacturer_id = u16::from_be_bytes([bytes[0], bytes[1]]);
-        let device_id = u32::from_be_bytes([bytes[2], bytes[3], bytes[4], bytes[5]]);
-
-        DeviceUID {
-            manufacturer_id,
-            device_id,
-        }
-    }
-
-    pub fn to_be_bytes(&self) -> [u8; 6] {
-        let manufacturer_id_bytes = self.manufacturer_id.to_be_bytes();
-        let device_id_bytes = self.device_id.to_be_bytes();
-        [
-            manufacturer_id_bytes[0],
-            manufacturer_id_bytes[1],
-            device_id_bytes[0],
-            device_id_bytes[1],
-            device_id_bytes[2],
-            device_id_bytes[3],
-        ]
-    }
 }
 
 impl From<[u8; 6]> for DeviceUID {
@@ -159,6 +137,27 @@ impl From<DeviceUID> for [u8; 6] {
     }
 }
 
+impl RdmParameterData for DeviceUID {
+    fn size_of(&self) -> usize {
+        6
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let bytes: [u8; 6] = (*self).into();
+        buf[0..6].copy_from_slice(&bytes);
+        Ok(6)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        if buf.len() < 6 {
+            return Err(ParameterCodecError::MalformedData);
+        }
+        let mut bytes = [0u8; 6];
+        bytes.copy_from_slice(&buf[0..6]);
+        Ok(DeviceUID::from(bytes))
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubDeviceId {
     RootDevice,
@@ -183,6 +182,26 @@ impl From<SubDeviceId> for u16 {
             SubDeviceId::AllDevices => 0xffff,
             SubDeviceId::Id(id) => id,
         }
+    }
+}
+
+impl RdmParameterData for SubDeviceId {
+    fn size_of(&self) -> usize {
+        2
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let value: u16 = (*self).into();
+        buf[0..2].copy_from_slice(&value.to_be_bytes());
+        Ok(2)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        if buf.len() < 2 {
+            return Err(ParameterCodecError::MalformedData);
+        }
+        let value = u16::from_be_bytes([buf[0], buf[1]]);
+        Ok(SubDeviceId::from(value))
     }
 }
 

@@ -17,5 +17,8 @@ quote = "1.0.9"
 proc-macro2 = "1.0.69"
 rdm-parameter-traits = { path = "../rdm-parameter-traits" }
 
+[dev-dependencies]
+heapless = "0.9.1"
+
 # [lints]
 # workspace = true

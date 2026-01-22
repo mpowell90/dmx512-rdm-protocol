@@ -65,6 +65,7 @@ dependencies = [
 name = "rdm-parameter-derive"
 version = "0.1.0"
 dependencies = [
+ "heapless",
  "proc-macro2",
  "quote",
  "rdm-parameter-traits",
@@ -74,6 +75,9 @@ dependencies = [
 [[package]]
 name = "rdm-parameter-traits"
 version = "0.1.0"
+dependencies = [
+ "heapless",
+]
 
 [[package]]
 name = "stable_deref_trait"

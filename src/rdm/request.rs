@@ -932,32 +932,22 @@ impl RequestParameter {
             Self::GetCommsStatus => {}
             Self::SetCommsStatus => {}
             Self::GetQueuedMessage(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::GetStatusMessages(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::GetStatusIdDescription(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::SetClearStatusId => {}
             Self::GetSubDeviceIdStatusReportThreshold => {}
             Self::SetSubDeviceIdStatusReportThreshold(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetSupportedParameters => {}
             Self::GetParameterDescription(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::GetDeviceInfo => {}
             Self::GetProductDetailIdList => {}
@@ -965,183 +955,123 @@ impl RequestParameter {
             Self::GetManufacturerLabel => {}
             Self::GetDeviceLabel => {}
             Self::SetDeviceLabel(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetFactoryDefaults => {}
             Self::SetFactoryDefaults => {}
             Self::GetLanguageCapabilities => {}
             Self::GetLanguage => {}
             Self::SetLanguage(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetSoftwareVersionLabel => {}
             Self::GetBootSoftwareVersionId => {}
             Self::GetBootSoftwareVersionLabel => {}
             Self::GetDmxPersonality => {}
             Self::SetDmxPersonality(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetDmxPersonalityDescription(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::GetDmxStartAddress => {}
             Self::SetDmxStartAddress(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetSlotInfo => {}
             Self::GetSlotDescription(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::GetDefaultSlotValue => {}
             Self::GetSensorDefinition(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::GetSensorValue(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::SetSensorValue(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::SetRecordSensors(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetDeviceHours => {}
             Self::SetDeviceHours(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetLampHours => {}
             Self::SetLampHours(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetLampStrikes => {}
             Self::SetLampStrikes(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetLampState => {}
             Self::SetLampState(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetLampOnMode => {}
             Self::SetLampOnMode(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetDevicePowerCycles => {}
             Self::SetDevicePowerCycles(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetDisplayInvert => {}
             Self::SetDisplayInvert(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetDisplayLevel => {}
             Self::SetDisplayLevel(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetPanInvert => {}
             Self::SetPanInvert(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetTiltInvert => {}
             Self::SetTiltInvert(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetPanTiltSwap => {}
             Self::SetPanTiltSwap(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetRealTimeClock => {}
             Self::SetRealTimeClock(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetIdentifyDevice => {}
             Self::SetIdentifyDevice(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::SetResetDevice(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetPowerState => {}
             Self::SetPowerState(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetPerformSelfTest => {}
             Self::SetPerformSelfTest(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::SetCapturePreset(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetSelfTestDescription(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::GetPresetPlayback => {}
             Self::SetPresetPlayback(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             // E1.37-1
             Self::GetDmxBlockAddress => {}
             Self::SetDmxBlockAddress(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetDmxFailMode => {}
             Self::SetDmxFailMode {
@@ -1170,48 +1100,32 @@ impl RequestParameter {
             Self::GetDimmerInfo => {}
             Self::GetMinimumLevel => {}
             Self::SetMinimumLevel(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetMaximumLevel => {}
             Self::SetMaximumLevel(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetCurve => {}
             Self::SetCurve(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetCurveDescription(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::GetOutputResponseTime => {}
             Self::SetOutputResponseTime(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetOutputResponseTimeDescription(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::GetModulationFrequency => {}
             Self::SetModulationFrequency(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetModulationFrequencyDescription(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::GetPowerOnSelfTest => {}
             Self::SetPowerOnSelfTest { self_test_id } => {
@@ -1236,26 +1150,18 @@ impl RequestParameter {
             }
             Self::GetBurnIn => {}
             Self::SetBurnIn(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetIdentifyMode => {}
             Self::SetIdentifyMode(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetPresetInfo => {}
             Self::GetPresetStatus(param) => {
-                param
-                    .get_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.get_request_encode_data(buf)?;
             }
             Self::SetPresetStatus(param) => {
-                param
-                    .set_request_encode_data(buf)
-                    .map_err(RdmError::ParameterCodecError)?;
+                param.set_request_encode_data(buf)?;
             }
             Self::GetPresetMergeMode => {}
             Self::SetPresetMergeMode { merge_mode } => {

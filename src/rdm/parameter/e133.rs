@@ -1,7 +1,12 @@
 use super::RdmError;
-use crate::rdm::utils::RdmPadNullStr;
+use crate::rdm::{
+    parameter::e137_2::{Ipv4Address, Ipv6Address},
+    utils::RdmPadNullStr,
+};
 use core::{ops::Deref, str::FromStr, time::Duration};
 use heapless::String;
+use rdm_parameter_derive::RdmGetResponseParameter;
+use rdm_parameter_traits::{ParameterCodecError, RdmParameterData};
 
 pub const E133_TCP_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 pub const E133_HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(45);
@@ -26,6 +31,33 @@ impl TryFrom<u8> for StaticConfigType {
     }
 }
 
+impl StaticConfigType {
+    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
+        Self::try_from(bytes[0]).unwrap() // TODO error handling
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 1] {
+        [*self as u8]
+    }
+}
+
+impl RdmParameterData for StaticConfigType {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = *self as u8;
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let static_config_type =
+            StaticConfigType::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(static_config_type)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum BrokerState {
     Disabled = 0x00,
@@ -43,6 +75,23 @@ impl TryFrom<u8> for BrokerState {
             0x02 => Ok(Self::Standby),
             value => Err(RdmError::InvalidBrokerState(value)),
         }
+    }
+}
+
+impl RdmParameterData for BrokerState {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = *self as u8;
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let broker_state =
+            BrokerState::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(broker_state)
     }
 }
 
@@ -118,6 +167,50 @@ impl FromStr for Scope {
         }
         Ok(Self(String::<{ SCOPE_MAX_LENGTH }>::from_str(s).unwrap()))
     }
+}
+
+impl RdmParameterData for Scope {
+    fn size_of(&self) -> usize {
+        SCOPE_MAX_LENGTH
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let scope_bytes = self.as_bytes();
+        buf[0..scope_bytes.len()].copy_from_slice(scope_bytes);
+        Ok(SCOPE_MAX_LENGTH)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let s = core::str::from_utf8(&buf)
+            .unwrap() // TODO error handling
+            .trim_end_matches('\0');
+        Ok(Self::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetComponentScope {
+    pub scope_slot: u16,
+    pub scope_string: Scope,
+    pub static_config_type: StaticConfigType,
+    pub static_ipv4_address: Ipv4Address,
+    pub static_ipv6_address: Ipv6Address,
+    pub static_port: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetTcpCommsStatus {
+    pub scope_string: Scope,
+    pub broker_ipv4_address: Ipv4Address,
+    pub broker_ipv6_address: Ipv6Address,
+    pub broker_port: u16,
+    pub unhealthy_tcp_events: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetBrokerStatus {
+    pub is_allowing_set_commands: bool,
+    pub broker_state: BrokerState,
 }
 
 // #[cfg(test)]

@@ -1,13 +1,30 @@
+#![no_std]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+// Allows using std types when desired, while keeping the crate `no_std`.
+#[cfg(feature = "std")]
+extern crate std;
+
+pub mod rdm_parameter_data_impl;
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterCodecError {
-    BufferTooSmall,
+    BufferTooSmall {
+        provided: usize,
+        required: usize,
+    },
     MalformedData,
 }
 
 impl core::fmt::Display for ParameterCodecError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ParameterCodecError::BufferTooSmall => write!(f, "Buffer too small"),
+            ParameterCodecError::BufferTooSmall {
+                provided,
+                required,
+            } => write!(f, "Buffer too small, provided: {}, required: {}", provided, required),
             ParameterCodecError::MalformedData => write!(f, "Malformed data"),
         }
     }
@@ -15,42 +32,58 @@ impl core::fmt::Display for ParameterCodecError {
 
 impl core::error::Error for ParameterCodecError {}
 
-pub trait RdmGetRequestParameterCodec: Sized {
-    // const BODY_SIZE: usize;
+pub trait RdmParameterData: Sized {
+    fn size_of(&self) -> usize;
 
-    // fn get_request_data_length(&self, _buf: &mut [u8]) -> usize;
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
 
-    fn get_request_encode_data(&self, _buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
-
-    fn get_request_decode_data(_bytes: &[u8]) -> Result<Self, ParameterCodecError>;
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError>;
 }
 
-pub trait RdmSetRequestParameterCodec: Sized {
-    // const BODY_SIZE: usize;
+pub trait RdmDiscoveryRequestParameterCodec: Sized {
+    fn size_of(&self) -> usize;
 
-    // fn get_request_data_length(&self, _buf: &mut [u8]) -> usize;
+    fn discovery_request_encode_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
 
-    fn set_request_encode_data(&self, _buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
+    fn discovery_request_decode_data(buf: &[u8]) -> Result<Self, ParameterCodecError>;
+}
 
-    fn set_request_decode_data(_bytes: &[u8]) -> Result<Self, ParameterCodecError>;
+pub trait RdmDiscoveryResponseParameterCodec: Sized {
+    fn size_of(&self) -> usize;
+
+    fn discovery_response_encode_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
+
+    fn discovery_response_decode_data(buf: &[u8]) -> Result<Self, ParameterCodecError>;
+}
+
+pub trait RdmGetRequestParameterCodec: Sized {
+    fn size_of(&self) -> usize;
+
+    fn get_request_encode_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
+
+    fn get_request_decode_data(buf: &[u8]) -> Result<Self, ParameterCodecError>;
 }
 
 pub trait RdmGetResponseParameterCodec: Sized {
-    // const BODY_SIZE: usize;
+    fn size_of(&self) -> usize;
 
-    // fn get_request_data_length(&self, _buf: &mut [u8]) -> usize;
+    fn get_response_encode_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
 
-    fn get_response_encode_data(&self, _buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
+    fn get_response_decode_data(buf: &[u8]) -> Result<Self, ParameterCodecError>;
+}
 
-    fn get_response_decode_data(_bytes: &[u8]) -> Result<Self, ParameterCodecError>;
+pub trait RdmSetRequestParameterCodec: Sized {
+    fn size_of(&self) -> usize;
+
+    fn set_request_encode_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
+
+    fn set_request_decode_data(buf: &[u8]) -> Result<Self, ParameterCodecError>;
 }
 
 pub trait RdmSetResponseParameterCodec: Sized {
-    // const BODY_SIZE: usize;
+    fn size_of(&self) -> usize;
 
-    // fn get_response_data_length(&self, _buf: &mut [u8]) -> usize;
+    fn set_response_encode_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
 
-    fn set_response_encode_data(&self, _buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
-
-    fn set_response_decode_data(_bytes: &[u8]) -> Result<Self, ParameterCodecError>;
+    fn set_response_decode_data(buf: &[u8]) -> Result<Self, ParameterCodecError>;
 }

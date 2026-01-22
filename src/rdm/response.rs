@@ -46,38 +46,60 @@
 //! ```
 
 use super::{
+    DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
+    RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE, RdmError,
     header::{CommandClass, DeviceUID, SubDeviceId},
     parameter::{
-        e120::{
-            BootSoftwareVersionLabel, CurveDescription, DefaultSlotValue, DeviceLabel,
-            DeviceModelDescription, DisplayInvertMode, DmxPersonalityDescription, Iso639_1,
-            LampOnMode, LampState, LockStateDescription, ManufacturerLabel,
-            ModulationFrequencyDescription, OutputResponseTimeDescription, ParameterDescription,
-            ParameterDescriptionLabel, PowerState, PresetPlaybackMode, ProductCategory,
-            ProductDetailValue, ProtocolVersion, SelfTest, SelfTestDescription, SensorDefinition,
-            SensorDefinitionDescription, SensorValue, SlotDescription, SlotInfo,
-            SoftwareVersionLabel, StatusIdDescription, StatusMessage, StatusType,
-        },
-        e133::{BrokerState, Scope, SearchDomain, StaticConfigType},
-        e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
-        e137_2::{
-            DhcpMode, DnsDomainName, DnsHostName, InterfaceLabel, Ipv4Address, Ipv4Route,
-            Ipv6Address, NetworkInterface,
-        },
-        e137_7::{
-            BackgroundQueuedStatusPolicyDescription, DiscoveryCountStatus, DiscoveryState,
-            EndpointIdValue, EndpointLabel, EndpointMode, EndpointTimingDescription, EndpointType,
-        },
         ParameterId,
+        e120::{
+            BootSoftwareVersionLabel, DefaultSlotValue, DeviceLabel, DeviceModelDescription,
+            DisplayInvertMode, DmxPersonalityDescription, LampOnMode, LampState, ManufacturerLabel,
+            ParameterDescription, ParameterDescriptionLabel, PowerState, ProductDetailValue,
+            SelfTestDescription, SensorDefinition, SensorDefinitionDescription, SensorValue,
+            SlotDescription, SlotInfo, SoftwareVersionLabel, StatusIdDescription, StatusType,
+        },
+        e133::SearchDomain,
+        e137_1::{MergeMode, PinCode},
+        e137_2::{DnsDomainName, DnsHostName, NetworkInterface},
     },
-    utils::{bsd_16_crc, RdmPadNullStr, RdmTruncateNullStr},
-    RdmError, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-    DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
+    utils::{RdmPadNullStr, RdmTruncateNullStr, bsd_16_crc},
 };
-use crate::rdm::parameter::e133::SCOPE_MAX_LENGTH;
+use crate::rdm::parameter::{
+    e120::{
+        DiscMuteResponse, DiscUnMuteResponse, GetCommsStatusResponse, GetDeviceInfoResponse,
+        GetDmxPersonality, GetDmxPersonalityDescription, GetLanguageCapabilitiesResponse,
+        GetLanguageResponse, GetPresetPlayback, GetProxiedDeviceCountResponse,
+        GetProxiedDevicesResponse, GetRealTimeClock, GetSelfTestDescription, GetSlotDescription,
+        GetStatusMessagesResponse,
+    },
+    e133::{GetBrokerStatus, GetComponentScope, GetTcpCommsStatus, SCOPE_MAX_LENGTH},
+    e137_1::{
+        GetCurve, GetCurveDescription, GetDimmerInfo, GetDmxBlockAddress, GetDmxFailMode,
+        GetDmxStartupMode, GetLockState, GetLockStateDescription, GetMinimumLevel,
+        GetModulationFrequency, GetModulationFrequencyDescription, GetOutputResponseTime,
+        GetOutputResponseTimeDescription, GetPresetInfo, GetPresetStatus,
+    },
+    e137_2::{
+        GetDnsIpV4NameServer, GetInterfaceHardwareAddressType1, GetInterfaceLabel,
+        GetIpV4CurrentAddress, GetIpV4DefaultRoute, GetIpV4DhcpMode, GetIpV4StaticAddress,
+        GetIpV4ZeroConfMode,
+    },
+    e137_7::{
+        GetBackgroundDiscovery, GetBackgroundQueuedStatusPolicy,
+        GetBackgroundQueuedStatusPolicyDescription, GetBindingControlFields, GetDiscoveryState,
+        GetEndpointLabel, GetEndpointList, GetEndpointListChange, GetEndpointMode,
+        GetEndpointResponderListChange, GetEndpointResponders, GetEndpointTiming,
+        GetEndpointTimingDescription, GetEndpointToUniverse, GetIdentifyEndpoint,
+        GetRdmTrafficEnable, SetBackgroundDiscovery, SetDiscoveryState, SetEndpointLabel,
+        SetEndpointMode, SetEndpointTiming, SetEndpointToUniverse, SetIdentifyEndpoint,
+        SetRdmTrafficEnable,
+    },
+};
 use core::{convert::TryFrom, fmt::Display, result::Result};
 use heapless::Vec;
-use macaddr::MacAddr6;
+use rdm_parameter_traits::{
+    RdmDiscoveryResponseParameterCodec, RdmGetResponseParameterCodec, RdmSetResponseParameterCodec,
+};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[repr(u16)]
@@ -127,18 +149,30 @@ impl TryFrom<u16> for ResponseNackReasonCode {
 impl Display for ResponseNackReasonCode {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let message = match self {
-            Self::UnknownPid => "The responder cannot comply with request because the message is not implemented in responder.",
-            Self::FormatError => "The responder cannot interpret request as controller data was not formatted correctly.",
+            Self::UnknownPid => {
+                "The responder cannot comply with request because the message is not implemented in responder."
+            }
+            Self::FormatError => {
+                "The responder cannot interpret request as controller data was not formatted correctly."
+            }
             Self::HardwareFault => "The responder cannot comply due to an internal hardware fault.",
             Self::ProxyReject => "Proxy is not the RDM line master and cannot comply with message.",
             Self::WriteProtect => "Command normally allowed but being blocked currently.",
-            Self::UnsupportedCommandClass => "Not valid for Command Class attempted. May be used where GET allowed but SET is not supported.",
-            Self::DataOutOfRange => "Value for given Parameter out of allowable range or not supported.",
+            Self::UnsupportedCommandClass => {
+                "Not valid for Command Class attempted. May be used where GET allowed but SET is not supported."
+            }
+            Self::DataOutOfRange => {
+                "Value for given Parameter out of allowable range or not supported."
+            }
             Self::BufferFull => "Buffer or Queue space currently has no free space to store data.",
             Self::PacketSizeUnsupported => "Incoming message exceeds buffer capacity.",
             Self::SubDeviceIdOutOfRange => "Sub-Device is out of range or unknown.",
-            Self::ProxyBufferFull => "The proxy buffer is full and can not store any more Queued Message or Status Message responses.",
-            Self::ActionNotSupported => "The parameter data is valid but the SET operation cannot be performed with the current configuration.",
+            Self::ProxyBufferFull => {
+                "The proxy buffer is full and can not store any more Queued Message or Status Message responses."
+            }
+            Self::ActionNotSupported => {
+                "The parameter data is valid but the SET operation cannot be performed with the current configuration."
+            }
             Self::EndpointNumberInvalid => "The Endpoint Number is invalid.",
             Self::InvalidEndpointMode => "The Endpoint Mode is invalid.",
             Self::UnknownUid => "The UID is not known to the responder.",
@@ -245,66 +279,32 @@ impl ResponseData {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ResponseParameterData {
     // E1.20
-    DiscMute {
-        control_field: u16,
-        binding_uid: Option<DeviceUID>,
-    },
-    DiscUnMute {
-        control_field: u16,
-        binding_uid: Option<DeviceUID>,
-    },
-    GetProxiedDeviceCount {
-        device_count: u16,
-        list_change: bool,
-    },
-    GetProxiedDevices(Vec<DeviceUID, 38>),
-    GetCommsStatus {
-        short_message: u16,
-        length_mismatch: u16,
-        checksum_fail: u16,
-    },
-    GetStatusMessages(Vec<StatusMessage, 25>),
+    DiscMute(DiscMuteResponse),
+    DiscUnMute(DiscUnMuteResponse),
+    GetProxiedDeviceCount(GetProxiedDeviceCountResponse),
+    GetProxiedDevices(GetProxiedDevicesResponse),
+    GetCommsStatus(GetCommsStatusResponse),
+    GetStatusMessages(GetStatusMessagesResponse),
     GetStatusIdDescription(StatusIdDescription),
     GetSubDeviceIdStatusReportThreshold(StatusType),
     GetSupportedParameters(Vec<u16, 115>),
     GetParameterDescription(ParameterDescription),
-    GetDeviceInfo {
-        protocol_version: ProtocolVersion,
-        model_id: u16,
-        product_category: ProductCategory,
-        software_version_id: u32,
-        footprint: u16,
-        current_personality: u8,
-        personality_count: u8,
-        start_address: u16,
-        sub_device_count: u16,
-        sensor_count: u8,
-    },
+    GetDeviceInfo(GetDeviceInfoResponse),
     GetProductDetailIdList(Vec<ProductDetailValue, 115>),
     GetDeviceModelDescription(DeviceModelDescription),
     GetManufacturerLabel(ManufacturerLabel),
     GetDeviceLabel(DeviceLabel),
     GetFactoryDefaults(bool),
-    GetLanguageCapabilities(Vec<Iso639_1, 115>),
-    GetLanguage(Iso639_1),
+    GetLanguageCapabilities(GetLanguageCapabilitiesResponse),
+    GetLanguage(GetLanguageResponse),
     GetSoftwareVersionLabel(SoftwareVersionLabel),
     GetBootSoftwareVersionId(u32),
     GetBootSoftwareVersionLabel(BootSoftwareVersionLabel),
-    GetDmxPersonality {
-        current_personality: u8,
-        personality_count: u8,
-    },
-    GetDmxPersonalityDescription {
-        id: u8,
-        dmx_slots_required: u16,
-        description: DmxPersonalityDescription,
-    },
+    GetDmxPersonality(GetDmxPersonality),
+    GetDmxPersonalityDescription(GetDmxPersonalityDescription),
     GetDmxStartAddress(u16),
     GetSlotInfo(Vec<SlotInfo, 46>),
-    GetSlotDescription {
-        slot_id: u16,
-        description: SlotDescription,
-    },
+    GetSlotDescription(GetSlotDescription),
     GetDefaultSlotValue(Vec<DefaultSlotValue, 77>),
     GetSensorDefinition(SensorDefinition),
     GetSensorValue(SensorValue),
@@ -320,317 +320,122 @@ pub enum ResponseParameterData {
     GetPanInvert(bool),
     GetTiltInvert(bool),
     GetPanTiltSwap(bool),
-    GetRealTimeClock {
-        year: u16,
-        month: u8,
-        day: u8,
-        hour: u8,
-        minute: u8,
-        second: u8,
-    },
+    GetRealTimeClock(GetRealTimeClock),
     GetIdentifyDevice(bool),
     GetPowerState(PowerState),
     GetPerformSelfTest(bool),
-    GetSelfTestDescription {
-        self_test_id: SelfTest,
-        description: SelfTestDescription,
-    },
-    GetPresetPlayback {
-        mode: PresetPlaybackMode,
-        level: u8,
-    },
+    GetSelfTestDescription(GetSelfTestDescription),
+    GetPresetPlayback(GetPresetPlayback),
     // E1.37-1
-    GetDmxBlockAddress {
-        total_sub_device_footprint: u16,
-        base_dmx_address: u16,
-    },
-    GetDmxFailMode {
-        scene_id: PresetPlaybackMode,
-        loss_of_signal_delay: TimeMode,
-        hold_time: TimeMode,
-        level: u8,
-    },
-    GetDmxStartupMode {
-        scene_id: PresetPlaybackMode,
-        startup_delay: TimeMode,
-        hold_time: TimeMode,
-        level: u8,
-    },
+    GetDmxBlockAddress(GetDmxBlockAddress),
+    GetDmxFailMode(GetDmxFailMode),
+    GetDmxStartupMode(GetDmxStartupMode),
     GetPowerOnSelfTest(bool),
-    GetLockState {
-        lock_state_id: u8,
-        lock_state_count: u8,
-    },
-    GetLockStateDescription {
-        lock_state_id: u8,
-        description: LockStateDescription,
-    },
+    GetLockState(GetLockState),
+    GetLockStateDescription(GetLockStateDescription),
     GetLockPin(PinCode),
     GetBurnIn(u8),
-    GetDimmerInfo {
-        minimum_level_lower_limit: u16,
-        minimum_level_upper_limit: u16,
-        maximum_level_lower_limit: u16,
-        maximum_level_upper_limit: u16,
-        number_of_supported_curves: u8,
-        levels_resolution: u8,
-        minimum_level_split_levels_supported: bool,
-    },
-    GetMinimumLevel {
-        minimum_level_increasing: u16,
-        minimum_level_decreasing: u16,
-        on_below_minimum: bool,
-    },
+    GetDimmerInfo(GetDimmerInfo),
+    GetMinimumLevel(GetMinimumLevel),
     GetMaximumLevel(u16),
-    GetCurve {
-        curve_id: u8,
-        curve_count: u8,
-    },
-    GetCurveDescription {
-        curve_id: u8,
-        description: CurveDescription,
-    },
-    GetOutputResponseTime {
-        response_time_id: u8,
-        response_time_count: u8,
-    },
-    GetOutputResponseTimeDescription {
-        response_time_id: u8,
-        description: OutputResponseTimeDescription,
-    },
-    GetModulationFrequency {
-        modulation_frequency_id: u8,
-        modulation_frequency_count: u8,
-    },
-    GetModulationFrequencyDescription {
-        modulation_frequency_id: u8,
-        frequency: u32,
-        description: ModulationFrequencyDescription,
-    },
-    GetPresetInfo {
-        level_field_supported: bool,
-        preset_sequence_supported: bool,
-        split_times_supported: bool,
-        dmx_fail_infinite_delay_time_supported: bool,
-        dmx_fail_infinite_hold_time_supported: bool,
-        startup_infinite_hold_time_supported: bool,
-        maximum_scene_number: u16,
-        minimum_preset_fade_time_supported: u16,
-        maximum_preset_fade_time_supported: u16,
-        minimum_preset_wait_time_supported: u16,
-        maximum_preset_wait_time_supported: u16,
-        minimum_dmx_fail_delay_time_supported: SupportedTimes,
-        maximum_dmx_fail_delay_time_supported: SupportedTimes,
-        minimum_dmx_fail_hold_time_supported: SupportedTimes,
-        maximum_dmx_fail_hold_time_supported: SupportedTimes,
-        minimum_startup_delay_time_supported: SupportedTimes,
-        maximum_startup_delay_time_supported: SupportedTimes,
-        minimum_startup_hold_time_supported: SupportedTimes,
-        maximum_startup_hold_time_supported: SupportedTimes,
-    },
-    GetPresetStatus {
-        scene_id: u16,
-        up_fade_time: u16,
-        down_fade_time: u16,
-        wait_time: u16,
-        programmed: PresetProgrammed,
-    },
+    GetCurve(GetCurve),
+    GetCurveDescription(GetCurveDescription),
+    GetOutputResponseTime(GetOutputResponseTime),
+    GetOutputResponseTimeDescription(GetOutputResponseTimeDescription),
+    GetModulationFrequency(GetModulationFrequency),
+    GetModulationFrequencyDescription(GetModulationFrequencyDescription),
+    GetPresetInfo(GetPresetInfo),
+    GetPresetStatus(GetPresetStatus),
     GetPresetMergeMode(MergeMode),
     // E1.37-2
     GetListInterfaces(Vec<NetworkInterface, 38>),
-    GetInterfaceLabel {
-        interface_id: u32,
-        interface_label: InterfaceLabel,
-    },
-    GetInterfaceHardwareAddressType1 {
-        interface_id: u32,
-        hardware_address: MacAddr6,
-    },
-    GetIpV4DhcpMode {
-        interface_id: u32,
-        dhcp_mode: bool,
-    },
-    GetIpV4ZeroConfMode {
-        interface_id: u32,
-        zero_conf_mode: bool,
-    },
-    GetIpV4CurrentAddress {
-        interface_id: u32,
-        address: Ipv4Address,
-        netmask: u8,
-        dhcp_status: DhcpMode,
-    },
-    GetIpV4StaticAddress {
-        interface_id: u32,
-        address: Ipv4Address,
-        netmask: u8,
-    },
-    GetIpV4DefaultRoute {
-        interface_id: u32,
-        address: Ipv4Route,
-    },
-    GetDnsIpV4NameServer {
-        name_server_index: u8,
-        address: Ipv4Address,
-    },
+    GetInterfaceLabel(GetInterfaceLabel),
+    GetInterfaceHardwareAddressType1(GetInterfaceHardwareAddressType1),
+    GetIpV4DhcpMode(GetIpV4DhcpMode),
+    GetIpV4ZeroConfMode(GetIpV4ZeroConfMode),
+    GetIpV4CurrentAddress(GetIpV4CurrentAddress),
+    GetIpV4StaticAddress(GetIpV4StaticAddress),
+    GetIpV4DefaultRoute(GetIpV4DefaultRoute),
+    GetDnsIpV4NameServer(GetDnsIpV4NameServer),
     GetDnsHostName(DnsHostName),
     GetDnsDomainName(DnsDomainName),
     // E1.37-7
-    GetEndpointList {
-        list_change_number: u32,
-        endpoint_list: Vec<(EndpointIdValue, EndpointType), 75>,
-    },
-    GetEndpointListChange {
-        list_change_number: u32,
-    },
-    GetIdentifyEndpoint {
-        endpoint_id: EndpointIdValue,
-        identify: bool,
-    },
-    SetIdentifyEndpoint {
-        endpoint_id: EndpointIdValue,
-    },
-    GetEndpointToUniverse {
-        endpoint_id: EndpointIdValue,
-        universe: u16,
-    },
-    SetEndpointToUniverse {
-        endpoint_id: EndpointIdValue,
-    },
-    GetEndpointMode {
-        endpoint_id: EndpointIdValue,
-        mode: EndpointMode,
-    },
-    SetEndpointMode {
-        endpoint_id: EndpointIdValue,
-    },
-    GetEndpointLabel {
-        endpoint_id: EndpointIdValue,
-        label: EndpointLabel,
-    },
-    SetEndpointLabel {
-        endpoint_id: EndpointIdValue,
-    },
-    GetRdmTrafficEnable {
-        endpoint_id: EndpointIdValue,
-        enable: bool,
-    },
-    SetRdmTrafficEnable {
-        endpoint_id: EndpointIdValue,
-    },
-    GetDiscoveryState {
-        endpoint_id: EndpointIdValue,
-        device_count: DiscoveryCountStatus,
-        discovery_state: DiscoveryState,
-    },
-    SetDiscoveryState {
-        endpoint_id: EndpointIdValue,
-    },
-    GetBackgroundDiscovery {
-        endpoint_id: EndpointIdValue,
-        enabled: bool,
-    },
-    SetBackgroundDiscovery {
-        endpoint_id: EndpointIdValue,
-    },
-    GetEndpointTiming {
-        endpoint_id: EndpointIdValue,
-        current_setting_id: u8,
-        setting_count: u8,
-    },
-    SetEndpointTiming {
-        endpoint_id: EndpointIdValue,
-    },
-    GetEndpointTimingDescription {
-        setting_id: u8,
-        description: EndpointTimingDescription,
-    },
-    GetEndpointResponders {
-        endpoint_id: EndpointIdValue,
-        list_change_number: u32,
-        responders: Vec<DeviceUID, 37>,
-    },
-    GetEndpointResponderListChange {
-        endpoint_id: EndpointIdValue,
-        list_change_number: u32,
-    },
-    GetBindingControlFields {
-        endpoint_id: EndpointIdValue,
-        uid: DeviceUID,
-        control_field: u16,
-        binding_uid: DeviceUID,
-    },
-    GetBackgroundQueuedStatusPolicy {
-        current_policy_id: u8,
-        policy_count: u8,
-    },
-    GetBackgroundQueuedStatusPolicyDescription {
-        policy_id: u8,
-        description: BackgroundQueuedStatusPolicyDescription,
-    },
+    GetEndpointList(GetEndpointList),
+    GetEndpointListChange(GetEndpointListChange),
+    GetIdentifyEndpoint(GetIdentifyEndpoint),
+    SetIdentifyEndpoint(SetIdentifyEndpoint),
+    GetEndpointToUniverse(GetEndpointToUniverse),
+    SetEndpointToUniverse(SetEndpointToUniverse),
+    GetEndpointMode(GetEndpointMode),
+    SetEndpointMode(SetEndpointMode),
+    GetEndpointLabel(GetEndpointLabel),
+    SetEndpointLabel(SetEndpointLabel),
+    GetRdmTrafficEnable(GetRdmTrafficEnable),
+    SetRdmTrafficEnable(SetRdmTrafficEnable),
+    GetDiscoveryState(GetDiscoveryState),
+    SetDiscoveryState(SetDiscoveryState),
+    GetBackgroundDiscovery(GetBackgroundDiscovery),
+    SetBackgroundDiscovery(SetBackgroundDiscovery),
+    GetEndpointTiming(GetEndpointTiming),
+    SetEndpointTiming(SetEndpointTiming),
+    GetEndpointTimingDescription(GetEndpointTimingDescription),
+    GetEndpointResponders(GetEndpointResponders),
+    GetEndpointResponderListChange(GetEndpointResponderListChange),
+    GetBindingControlFields(GetBindingControlFields),
+    GetBackgroundQueuedStatusPolicy(GetBackgroundQueuedStatusPolicy),
+    GetBackgroundQueuedStatusPolicyDescription(GetBackgroundQueuedStatusPolicyDescription),
     // E1.33
-    GetComponentScope {
-        scope_slot: u16,
-        scope_string: Scope,
-        static_config_type: StaticConfigType,
-        static_ipv4_address: Ipv4Address,
-        static_ipv6_address: Ipv6Address,
-        static_port: u16,
-    },
+    GetComponentScope(GetComponentScope),
     GetSearchDomain(SearchDomain),
-    GetTcpCommsStatus {
-        scope_string: Scope,
-        broker_ipv4_address: Ipv4Address,
-        broker_ipv6_address: Ipv6Address,
-        broker_port: u16,
-        unhealthy_tcp_events: u16,
-    },
-    GetBrokerStatus {
-        is_allowing_set_commands: bool,
-        broker_state: BrokerState,
-    },
+    GetTcpCommsStatus(GetTcpCommsStatus),
+    GetBrokerStatus(GetBrokerStatus),
     RawParameter(Vec<u8, 231>),
 }
 
 impl ResponseParameterData {
     pub fn size(&self) -> usize {
         match self {
-            ResponseParameterData::DiscMute { binding_uid, .. }
-            | ResponseParameterData::DiscUnMute { binding_uid, .. } => {
+            ResponseParameterData::DiscMute(DiscMuteResponse { binding_uid, .. })
+            | ResponseParameterData::DiscUnMute(DiscUnMuteResponse { binding_uid, .. }) => {
                 if binding_uid.is_some() {
                     8
                 } else {
                     2
                 }
             }
-            ResponseParameterData::GetProxiedDeviceCount { .. } => 3,
-            ResponseParameterData::GetProxiedDevices(device_uids) => device_uids.len() * 6,
-            ResponseParameterData::GetCommsStatus { .. } => 6,
-            ResponseParameterData::GetStatusMessages(status_messages) => status_messages.len() * 9,
+            ResponseParameterData::GetProxiedDeviceCount(_) => 3,
+            ResponseParameterData::GetProxiedDevices(GetProxiedDevicesResponse { device_uids }) => {
+                device_uids.len() * 6
+            }
+            ResponseParameterData::GetCommsStatus(_) => 6,
+            ResponseParameterData::GetStatusMessages(param) => param.size_of(),
             ResponseParameterData::GetStatusIdDescription(description) => description.len(),
             ResponseParameterData::GetSubDeviceIdStatusReportThreshold(_) => 1,
             ResponseParameterData::GetSupportedParameters(parameters) => parameters.len() * 2,
             ResponseParameterData::GetParameterDescription(description) => {
                 20 + description.description.len()
             }
-            ResponseParameterData::GetDeviceInfo { .. } => 19,
+            ResponseParameterData::GetDeviceInfo(_) => 19,
             ResponseParameterData::GetProductDetailIdList(details) => details.len() * 2,
             ResponseParameterData::GetDeviceModelDescription(description) => description.len(),
             ResponseParameterData::GetManufacturerLabel(label) => label.len(),
             ResponseParameterData::GetDeviceLabel(label) => label.len(),
             ResponseParameterData::GetFactoryDefaults(_) => 1,
-            ResponseParameterData::GetLanguageCapabilities(languages) => languages.len() * 2,
+            ResponseParameterData::GetLanguageCapabilities(param) => param.size_of(),
             ResponseParameterData::GetLanguage(_) => 2,
             ResponseParameterData::GetSoftwareVersionLabel(label) => label.len(),
             ResponseParameterData::GetBootSoftwareVersionId(_) => 4,
             ResponseParameterData::GetBootSoftwareVersionLabel(label) => label.len(),
-            ResponseParameterData::GetDmxPersonality { .. } => 2,
-            ResponseParameterData::GetDmxPersonalityDescription { description, .. } => {
-                3 + description.len()
-            }
+            ResponseParameterData::GetDmxPersonality(_) => 2,
+            ResponseParameterData::GetDmxPersonalityDescription(GetDmxPersonalityDescription {
+                description,
+                ..
+            }) => 3 + description.len(),
             ResponseParameterData::GetDmxStartAddress(_) => 2,
             ResponseParameterData::GetSlotInfo(slots) => slots.len() * 5,
-            ResponseParameterData::GetSlotDescription { description, .. } => 2 + description.len(),
+            ResponseParameterData::GetSlotDescription(GetSlotDescription {
+                description, ..
+            }) => 2 + description.len(),
             ResponseParameterData::GetDefaultSlotValue(values) => values.len() * 3,
             ResponseParameterData::GetSensorDefinition(definition) => {
                 14 + definition.description.len()
@@ -648,150 +453,120 @@ impl ResponseParameterData {
             ResponseParameterData::GetPanInvert(_) => 1,
             ResponseParameterData::GetTiltInvert(_) => 1,
             ResponseParameterData::GetPanTiltSwap(_) => 1,
-            ResponseParameterData::GetRealTimeClock { .. } => 7,
+            ResponseParameterData::GetRealTimeClock(_) => 7,
             ResponseParameterData::GetIdentifyDevice(_) => 1,
             ResponseParameterData::GetPowerState(_) => 1,
             ResponseParameterData::GetPerformSelfTest(_) => 1,
-            ResponseParameterData::GetSelfTestDescription { description, .. } => {
-                1 + description.len()
-            }
-            ResponseParameterData::GetPresetPlayback { .. } => 3,
-            ResponseParameterData::GetDmxBlockAddress { .. } => 4,
-            ResponseParameterData::GetDmxFailMode { .. } => 7,
-            ResponseParameterData::GetDmxStartupMode { .. } => 7,
-            ResponseParameterData::GetPowerOnSelfTest(_) => 1,
-            ResponseParameterData::GetLockState { .. } => 2,
-            ResponseParameterData::GetLockStateDescription { description, .. } => {
-                1 + description.len()
-            }
-            ResponseParameterData::GetLockPin(_) => 2,
-            ResponseParameterData::GetBurnIn(_) => 1,
-            ResponseParameterData::GetDimmerInfo { .. } => 11,
-            ResponseParameterData::GetMinimumLevel { .. } => 5,
-            ResponseParameterData::GetMaximumLevel(_) => 2,
-            ResponseParameterData::GetCurve { .. } => 2,
-            ResponseParameterData::GetCurveDescription { description, .. } => 1 + description.len(),
-            ResponseParameterData::GetOutputResponseTime { .. } => 2,
-            ResponseParameterData::GetOutputResponseTimeDescription { description, .. } => {
-                1 + description.len()
-            }
-            ResponseParameterData::GetModulationFrequency { .. } => 2,
-            ResponseParameterData::GetModulationFrequencyDescription { description, .. } => {
-                5 + description.len()
-            }
-            ResponseParameterData::GetPresetInfo { .. } => 32,
-            ResponseParameterData::GetPresetStatus { .. } => 9,
-            ResponseParameterData::GetPresetMergeMode(_) => 1,
-            ResponseParameterData::GetListInterfaces(interfaces) => interfaces.len() * 6,
-            ResponseParameterData::GetInterfaceLabel {
-                interface_label, ..
-            } => 4 + interface_label.len(),
-            ResponseParameterData::GetInterfaceHardwareAddressType1 { .. } => 10,
-            ResponseParameterData::GetIpV4DhcpMode { .. } => 5,
-            ResponseParameterData::GetIpV4ZeroConfMode { .. } => 5,
-            ResponseParameterData::GetIpV4CurrentAddress { .. } => 10,
-            ResponseParameterData::GetIpV4StaticAddress { .. } => 9,
-            ResponseParameterData::GetIpV4DefaultRoute { .. } => 8,
-            ResponseParameterData::GetDnsIpV4NameServer { .. } => 5,
-            ResponseParameterData::GetDnsHostName(host_name) => host_name.len(),
-            ResponseParameterData::GetDnsDomainName(domain_name) => domain_name.len(),
-            ResponseParameterData::GetEndpointList { endpoint_list, .. } => {
-                4 + (endpoint_list.len() * 3)
-            }
-            ResponseParameterData::GetEndpointListChange { .. } => 4,
-            ResponseParameterData::GetIdentifyEndpoint { .. } => 3,
-            ResponseParameterData::SetIdentifyEndpoint { .. } => 2,
-            ResponseParameterData::GetEndpointToUniverse { .. } => 4,
-            ResponseParameterData::SetEndpointToUniverse { .. } => 2,
-            ResponseParameterData::GetEndpointMode { .. } => 3,
-            ResponseParameterData::SetEndpointMode { .. } => 2,
-            ResponseParameterData::GetEndpointLabel { label, .. } => 2 + label.len(),
-            ResponseParameterData::SetEndpointLabel { .. } => 2,
-            ResponseParameterData::GetRdmTrafficEnable { .. } => 3,
-            ResponseParameterData::SetRdmTrafficEnable { .. } => 2,
-            ResponseParameterData::GetDiscoveryState { .. } => 5,
-            ResponseParameterData::SetDiscoveryState { .. } => 2,
-            ResponseParameterData::GetBackgroundDiscovery { .. } => 3,
-            ResponseParameterData::SetBackgroundDiscovery { .. } => 2,
-            ResponseParameterData::GetEndpointTiming { .. } => 4,
-            ResponseParameterData::SetEndpointTiming { .. } => 2,
-            ResponseParameterData::GetEndpointTimingDescription { description, .. } => {
-                1 + description.len()
-            }
-            ResponseParameterData::GetEndpointResponders { responders, .. } => {
-                6 + (responders.len() * 6)
-            }
-            ResponseParameterData::GetEndpointResponderListChange { .. } => 6,
-            ResponseParameterData::GetBindingControlFields { .. } => 16,
-            ResponseParameterData::GetBackgroundQueuedStatusPolicy { .. } => 2,
-            ResponseParameterData::GetBackgroundQueuedStatusPolicyDescription {
+            ResponseParameterData::GetSelfTestDescription(GetSelfTestDescription {
                 description,
                 ..
-            } => 2 + description.len(),
-            ResponseParameterData::GetComponentScope { .. } => 25 + SCOPE_MAX_LENGTH,
+            }) => 1 + description.len(),
+            ResponseParameterData::GetPresetPlayback(_) => 3,
+            ResponseParameterData::GetDmxBlockAddress(_) => 4,
+            ResponseParameterData::GetDmxFailMode(_) => 7,
+            ResponseParameterData::GetDmxStartupMode(_) => 7,
+            ResponseParameterData::GetPowerOnSelfTest(_) => 1,
+            ResponseParameterData::GetLockState(_) => 2,
+            ResponseParameterData::GetLockStateDescription(GetLockStateDescription {
+                description,
+                ..
+            }) => 1 + description.len(),
+            ResponseParameterData::GetLockPin(_) => 2,
+            ResponseParameterData::GetBurnIn(_) => 1,
+            ResponseParameterData::GetDimmerInfo(_) => 11,
+            ResponseParameterData::GetMinimumLevel(_) => 5,
+            ResponseParameterData::GetMaximumLevel(_) => 2,
+            ResponseParameterData::GetCurve(_) => 2,
+            ResponseParameterData::GetCurveDescription(GetCurveDescription {
+                description, ..
+            }) => 1 + description.len(),
+            ResponseParameterData::GetOutputResponseTime(_) => 2,
+            ResponseParameterData::GetOutputResponseTimeDescription(
+                GetOutputResponseTimeDescription { description, .. },
+            ) => 1 + description.len(),
+            ResponseParameterData::GetModulationFrequency(_) => 2,
+            ResponseParameterData::GetModulationFrequencyDescription(
+                GetModulationFrequencyDescription { description, .. },
+            ) => 5 + description.len(),
+            ResponseParameterData::GetPresetInfo(_) => 32,
+            ResponseParameterData::GetPresetStatus(_) => 9,
+            ResponseParameterData::GetPresetMergeMode(_) => 1,
+            ResponseParameterData::GetListInterfaces(interfaces) => interfaces.len() * 6,
+            ResponseParameterData::GetInterfaceLabel(GetInterfaceLabel {
+                interface_label, ..
+            }) => 4 + interface_label.len(),
+            ResponseParameterData::GetInterfaceHardwareAddressType1(_) => 10,
+            ResponseParameterData::GetIpV4DhcpMode(_) => 5,
+            ResponseParameterData::GetIpV4ZeroConfMode(_) => 5,
+            ResponseParameterData::GetIpV4CurrentAddress(_) => 10,
+            ResponseParameterData::GetIpV4StaticAddress(_) => 9,
+            ResponseParameterData::GetIpV4DefaultRoute(_) => 8,
+            ResponseParameterData::GetDnsIpV4NameServer(_) => 5,
+            ResponseParameterData::GetDnsHostName(host_name) => host_name.len(),
+            ResponseParameterData::GetDnsDomainName(domain_name) => domain_name.len(),
+            ResponseParameterData::GetEndpointList(GetEndpointList { endpoint_list, .. }) => {
+                4 + (endpoint_list.len() * 3)
+            }
+            ResponseParameterData::GetEndpointListChange(_) => 4,
+            ResponseParameterData::GetIdentifyEndpoint(_) => 3,
+            ResponseParameterData::SetIdentifyEndpoint(_) => 2,
+            ResponseParameterData::GetEndpointToUniverse(_) => 4,
+            ResponseParameterData::SetEndpointToUniverse(_) => 2,
+            ResponseParameterData::GetEndpointMode(_) => 3,
+            ResponseParameterData::SetEndpointMode(_) => 2,
+            ResponseParameterData::GetEndpointLabel(GetEndpointLabel { label, .. }) => {
+                2 + label.len()
+            }
+            ResponseParameterData::SetEndpointLabel(_) => 2,
+            ResponseParameterData::GetRdmTrafficEnable(_) => 3,
+            ResponseParameterData::SetRdmTrafficEnable(_) => 2,
+            ResponseParameterData::GetDiscoveryState(_) => 5,
+            ResponseParameterData::SetDiscoveryState(_) => 2,
+            ResponseParameterData::GetBackgroundDiscovery(_) => 3,
+            ResponseParameterData::SetBackgroundDiscovery(_) => 2,
+            ResponseParameterData::GetEndpointTiming(_) => 4,
+            ResponseParameterData::SetEndpointTiming(_) => 2,
+            ResponseParameterData::GetEndpointTimingDescription(GetEndpointTimingDescription {
+                description,
+                ..
+            }) => 1 + description.len(),
+            ResponseParameterData::GetEndpointResponders(GetEndpointResponders {
+                responders,
+                ..
+            }) => 6 + (responders.len() * 6),
+            ResponseParameterData::GetEndpointResponderListChange(_) => 6,
+            ResponseParameterData::GetBindingControlFields(_) => 16,
+            ResponseParameterData::GetBackgroundQueuedStatusPolicy(_) => 2,
+            ResponseParameterData::GetBackgroundQueuedStatusPolicyDescription(
+                GetBackgroundQueuedStatusPolicyDescription { description, .. },
+            ) => 2 + description.len(),
+            ResponseParameterData::GetComponentScope(_) => 25 + SCOPE_MAX_LENGTH,
             ResponseParameterData::GetSearchDomain(search_domain) => search_domain.len(),
-            ResponseParameterData::GetTcpCommsStatus { .. } => 24 + SCOPE_MAX_LENGTH,
-            ResponseParameterData::GetBrokerStatus { .. } => 2,
+            ResponseParameterData::GetTcpCommsStatus(_) => 24 + SCOPE_MAX_LENGTH,
+            ResponseParameterData::GetBrokerStatus(_) => 2,
             ResponseParameterData::RawParameter(data) => data.len(),
         }
     }
 
     pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
         match self {
-            Self::DiscMute {
-                control_field,
-                binding_uid,
-            } => {
-                buf[0..2].copy_from_slice(&control_field.to_be_bytes());
-
-                if let Some(binding_uid) = binding_uid {
-                    buf[2..8].copy_from_slice(&<[u8; 6]>::from(*binding_uid));
-                }
+            Self::DiscMute(param) => {
+                param.discovery_response_encode_data(buf)?;
             }
-            Self::DiscUnMute {
-                control_field,
-                binding_uid,
-            } => {
-                buf[0..2].copy_from_slice(&control_field.to_be_bytes());
-
-                if let Some(binding_uid) = binding_uid {
-                    buf[2..8].copy_from_slice(&<[u8; 6]>::from(*binding_uid));
-                }
+            Self::DiscUnMute(param) => {
+                param.discovery_response_encode_data(buf)?;
             }
-            Self::GetProxiedDeviceCount {
-                device_count,
-                list_change,
-            } => {
-                buf[0..2].copy_from_slice(&device_count.to_be_bytes());
-                buf[2] = *list_change as u8;
+            Self::GetProxiedDeviceCount(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetProxiedDevices(device_uids) => {
-                for (idx, device_uid) in device_uids.iter().enumerate() {
-                    buf[idx * 6..(idx + 1) * 6].copy_from_slice(&<[u8; 6]>::from(*device_uid));
-                }
+            Self::GetProxiedDevices(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetCommsStatus {
-                short_message,
-                length_mismatch,
-                checksum_fail,
-            } => {
-                buf[0..2].copy_from_slice(&short_message.to_be_bytes());
-                buf[2..4].copy_from_slice(&length_mismatch.to_be_bytes());
-                buf[4..6].copy_from_slice(&checksum_fail.to_be_bytes());
+            Self::GetCommsStatus(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetStatusMessages(messages) => {
-                for (idx, message) in messages.iter().enumerate() {
-                    let offset = idx * 9;
-                    buf[offset..offset + 2]
-                        .copy_from_slice(&u16::from(message.sub_device_id).to_be_bytes());
-
-                    buf[offset + 2] = message.status_message_id as u8;
-
-                    buf[offset + 3..offset + 5]
-                        .copy_from_slice(&message.status_message_id.to_be_bytes());
-                    buf[offset + 5..offset + 7].copy_from_slice(&message.data_value1.to_be_bytes());
-                    buf[offset + 7..offset + 9].copy_from_slice(&message.data_value2.to_be_bytes());
-                }
+            Self::GetStatusMessages(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetStatusIdDescription(description) => {
                 description.encode(buf)?;
@@ -818,28 +593,8 @@ impl ResponseParameterData {
                     .description
                     .encode(&mut buf[20..20 + description.description.len()])?;
             }
-            Self::GetDeviceInfo {
-                protocol_version,
-                model_id,
-                product_category,
-                software_version_id,
-                footprint,
-                current_personality,
-                personality_count,
-                start_address,
-                sub_device_count,
-                sensor_count,
-            } => {
-                buf[0..2].copy_from_slice(&u16::from(*protocol_version).to_be_bytes());
-                buf[2..4].copy_from_slice(&model_id.to_be_bytes());
-                buf[4..6].copy_from_slice(&u16::from(*product_category).to_be_bytes());
-                buf[6..10].copy_from_slice(&software_version_id.to_be_bytes());
-                buf[10..12].copy_from_slice(&footprint.to_be_bytes());
-                buf[12] = *current_personality;
-                buf[13] = *personality_count;
-                buf[14..16].copy_from_slice(&start_address.to_be_bytes());
-                buf[16..18].copy_from_slice(&sub_device_count.to_be_bytes());
-                buf[19] = *sensor_count;
+            Self::GetDeviceInfo(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetProductDetailIdList(details) => {
                 for (idx, detail) in details.iter().enumerate() {
@@ -858,13 +613,11 @@ impl ResponseParameterData {
             Self::GetFactoryDefaults(defaults) => {
                 buf[0] = *defaults as u8;
             }
-            Self::GetLanguageCapabilities(languages) => {
-                for (idx, language) in languages.iter().enumerate() {
-                    buf[idx * 2..(idx + 2) * 2].copy_from_slice(language.as_str().as_bytes());
-                }
+            Self::GetLanguageCapabilities(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetLanguage(language) => {
-                language.encode(buf)?;
+            Self::GetLanguage(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetSoftwareVersionLabel(label) => {
                 label.encode(buf)?;
@@ -875,21 +628,11 @@ impl ResponseParameterData {
             Self::GetBootSoftwareVersionLabel(label) => {
                 label.encode(buf)?;
             }
-            Self::GetDmxPersonality {
-                current_personality,
-                personality_count,
-            } => {
-                buf[0] = *current_personality;
-                buf[1] = *personality_count;
+            Self::GetDmxPersonality(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetDmxPersonalityDescription {
-                id,
-                dmx_slots_required,
-                description,
-            } => {
-                buf[0] = *id;
-                buf[1..3].copy_from_slice(&dmx_slots_required.to_be_bytes());
-                buf[3..3 + description.len()].copy_from_slice(description.as_bytes());
+            Self::GetDmxPersonalityDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetDmxStartAddress(address) => {
                 buf[0..2].copy_from_slice(&address.to_be_bytes());
@@ -901,12 +644,8 @@ impl ResponseParameterData {
                     buf[(idx + 3) * 5..(idx + 5) * 5].copy_from_slice(&slot.label_id.to_be_bytes());
                 }
             }
-            Self::GetSlotDescription {
-                slot_id,
-                description,
-            } => {
-                buf[0..2].copy_from_slice(&slot_id.to_be_bytes());
-                buf[2..2 + description.len()].copy_from_slice(description.as_bytes());
+            Self::GetSlotDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetDefaultSlotValue(values) => {
                 for (idx, slot) in values.iter().enumerate() {
@@ -975,14 +714,14 @@ impl ResponseParameterData {
             Self::GetPanTiltSwap(swap) => {
                 buf[0] = *swap as u8;
             }
-            Self::GetRealTimeClock {
+            Self::GetRealTimeClock(GetRealTimeClock {
                 year,
                 month,
                 day,
                 hour,
                 minute,
                 second,
-            } => {
+            }) => {
                 buf[0..2].copy_from_slice(&year.to_be_bytes());
                 buf[2] = *month;
                 buf[3] = *day;
@@ -999,62 +738,29 @@ impl ResponseParameterData {
             Self::GetPerformSelfTest(test) => {
                 buf[0] = *test as u8;
             }
-            Self::GetSelfTestDescription {
-                self_test_id,
-                description,
-            } => {
-                buf[0] = (*self_test_id).into();
-                buf[1..1 + description.len()].copy_from_slice(description.as_bytes());
+            Self::GetSelfTestDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetPresetPlayback { mode, level } => {
-                buf[0..2].copy_from_slice(&u16::from(*mode).to_be_bytes());
-                buf[0] = *level;
+            Self::GetPresetPlayback(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetDmxBlockAddress {
-                total_sub_device_footprint,
-                base_dmx_address,
-            } => {
-                buf[0..2].copy_from_slice(&total_sub_device_footprint.to_be_bytes());
-                buf[2..4].copy_from_slice(&base_dmx_address.to_be_bytes());
+            Self::GetDmxBlockAddress(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetDmxFailMode {
-                scene_id,
-                loss_of_signal_delay,
-                hold_time,
-                level,
-            } => {
-                buf[0..2].copy_from_slice(&u16::from(*scene_id).to_be_bytes());
-                buf[2..4].copy_from_slice(&u16::from(*loss_of_signal_delay).to_be_bytes());
-                buf[4..6].copy_from_slice(&u16::from(*hold_time).to_be_bytes());
-                buf[6] = *level;
+            Self::GetDmxFailMode(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetDmxStartupMode {
-                scene_id,
-                startup_delay,
-                hold_time,
-                level,
-            } => {
-                buf[0..2].copy_from_slice(&u16::from(*scene_id).to_be_bytes());
-                buf[2..4].copy_from_slice(&u16::from(*startup_delay).to_be_bytes());
-                buf[4..6].copy_from_slice(&u16::from(*hold_time).to_be_bytes());
-                buf[6] = *level;
+            Self::GetDmxStartupMode(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetPowerOnSelfTest(test) => {
                 buf[0] = *test as u8;
             }
-            Self::GetLockState {
-                lock_state_id,
-                lock_state_count,
-            } => {
-                buf[0] = *lock_state_id;
-                buf[1] = *lock_state_count;
+            Self::GetLockState(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetLockStateDescription {
-                lock_state_id,
-                description,
-            } => {
-                buf[0] = *lock_state_id;
-                buf[1..1 + description.len()].copy_from_slice(description.as_bytes());
+            Self::GetLockStateDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetLockPin(pin) => {
                 buf[0..2].copy_from_slice(&pin.0.to_be_bytes());
@@ -1062,148 +768,38 @@ impl ResponseParameterData {
             Self::GetBurnIn(hours) => {
                 buf[0] = *hours;
             }
-            Self::GetDimmerInfo {
-                minimum_level_lower_limit,
-                minimum_level_upper_limit,
-                maximum_level_lower_limit,
-                maximum_level_upper_limit,
-                number_of_supported_curves,
-                levels_resolution,
-                minimum_level_split_levels_supported,
-            } => {
-                buf[0..2].copy_from_slice(&minimum_level_lower_limit.to_be_bytes());
-                buf[2..4].copy_from_slice(&minimum_level_upper_limit.to_be_bytes());
-                buf[4..6].copy_from_slice(&maximum_level_lower_limit.to_be_bytes());
-                buf[6..8].copy_from_slice(&maximum_level_upper_limit.to_be_bytes());
-                buf[8] = *number_of_supported_curves;
-                buf[9] = *levels_resolution;
-                buf[10] = *minimum_level_split_levels_supported as u8;
+            Self::GetDimmerInfo(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetMinimumLevel {
-                minimum_level_increasing,
-                minimum_level_decreasing,
-                on_below_minimum,
-            } => {
-                buf[0..2].copy_from_slice(&minimum_level_increasing.to_be_bytes());
-                buf[2..4].copy_from_slice(&minimum_level_decreasing.to_be_bytes());
-                buf[4] = *on_below_minimum as u8;
+            Self::GetMinimumLevel(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetMaximumLevel(level) => {
                 buf[0..2].copy_from_slice(&level.to_be_bytes());
             }
-            Self::GetCurve {
-                curve_id,
-                curve_count,
-            } => {
-                buf[0] = *curve_id;
-                buf[1] = *curve_count;
+            Self::GetCurve(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetCurveDescription {
-                curve_id,
-                description,
-            } => {
-                buf[0] = *curve_id;
-                buf[1..1 + description.len()].copy_from_slice(description.as_bytes());
+            Self::GetCurveDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetOutputResponseTime {
-                response_time_id,
-                response_time_count,
-            } => {
-                buf[0] = *response_time_id;
-                buf[1] = *response_time_count;
+            Self::GetOutputResponseTime(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetOutputResponseTimeDescription {
-                response_time_id,
-                description,
-            } => {
-                buf[0] = *response_time_id;
-                buf[1..1 + description.len()].copy_from_slice(description.as_bytes());
+            Self::GetOutputResponseTimeDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetModulationFrequency {
-                modulation_frequency_id,
-                modulation_frequency_count,
-            } => {
-                buf[0] = *modulation_frequency_id;
-                buf[1] = *modulation_frequency_count;
+            Self::GetModulationFrequency(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetModulationFrequencyDescription {
-                modulation_frequency_id,
-                frequency,
-                description,
-            } => {
-                buf[0] = *modulation_frequency_id;
-                buf[1..5].copy_from_slice(&frequency.to_be_bytes());
-                buf[5..5 + description.len()].copy_from_slice(description.as_bytes());
+            Self::GetModulationFrequencyDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetPresetInfo {
-                level_field_supported,
-                preset_sequence_supported,
-                split_times_supported,
-                dmx_fail_infinite_delay_time_supported,
-                dmx_fail_infinite_hold_time_supported,
-                startup_infinite_hold_time_supported,
-                maximum_scene_number,
-                minimum_preset_fade_time_supported,
-                maximum_preset_fade_time_supported,
-                minimum_preset_wait_time_supported,
-                maximum_preset_wait_time_supported,
-                minimum_dmx_fail_delay_time_supported,
-                maximum_dmx_fail_delay_time_supported,
-                minimum_dmx_fail_hold_time_supported,
-                maximum_dmx_fail_hold_time_supported,
-                minimum_startup_delay_time_supported,
-                maximum_startup_delay_time_supported,
-                minimum_startup_hold_time_supported,
-                maximum_startup_hold_time_supported,
-            } => {
-                buf[0] = *level_field_supported as u8;
-                buf[1] = *preset_sequence_supported as u8;
-                buf[2] = *split_times_supported as u8;
-                buf[3] = *dmx_fail_infinite_delay_time_supported as u8;
-                buf[4] = *dmx_fail_infinite_hold_time_supported as u8;
-                buf[5] = *startup_infinite_hold_time_supported as u8;
-                buf[6..8].copy_from_slice(&maximum_scene_number.to_be_bytes());
-                buf[8..10].copy_from_slice(&minimum_preset_fade_time_supported.to_be_bytes());
-                buf[10..12].copy_from_slice(&maximum_preset_fade_time_supported.to_be_bytes());
-                buf[12..14].copy_from_slice(&minimum_preset_wait_time_supported.to_be_bytes());
-                buf[14..16].copy_from_slice(&maximum_preset_wait_time_supported.to_be_bytes());
-                buf[16..18].copy_from_slice(
-                    &u16::from(*minimum_dmx_fail_delay_time_supported).to_be_bytes(),
-                );
-                buf[18..20].copy_from_slice(
-                    &u16::from(*maximum_dmx_fail_delay_time_supported).to_be_bytes(),
-                );
-                buf[20..22].copy_from_slice(
-                    &u16::from(*minimum_dmx_fail_hold_time_supported).to_be_bytes(),
-                );
-                buf[22..24].copy_from_slice(
-                    &u16::from(*maximum_dmx_fail_hold_time_supported).to_be_bytes(),
-                );
-                buf[24..26].copy_from_slice(
-                    &u16::from(*minimum_startup_delay_time_supported).to_be_bytes(),
-                );
-                buf[26..28].copy_from_slice(
-                    &u16::from(*maximum_startup_delay_time_supported).to_be_bytes(),
-                );
-                buf[28..30].copy_from_slice(
-                    &u16::from(*minimum_startup_hold_time_supported).to_be_bytes(),
-                );
-                buf[30..32].copy_from_slice(
-                    &u16::from(*maximum_startup_hold_time_supported).to_be_bytes(),
-                );
+            Self::GetPresetInfo(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetPresetStatus {
-                scene_id,
-                up_fade_time,
-                down_fade_time,
-                wait_time,
-                programmed,
-            } => {
-                buf[0..2].copy_from_slice(&scene_id.to_be_bytes());
-                buf[2..4].copy_from_slice(&up_fade_time.to_be_bytes());
-                buf[4..6].copy_from_slice(&down_fade_time.to_be_bytes());
-                buf[6..8].copy_from_slice(&wait_time.to_be_bytes());
-                buf[8] = *programmed as u8;
+            Self::GetPresetStatus(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetPresetMergeMode(mode) => {
                 buf[0] = *mode as u8;
@@ -1216,67 +812,29 @@ impl ResponseParameterData {
                         .copy_from_slice(&u16::from(interface.hardware_type).to_be_bytes());
                 }
             }
-            Self::GetInterfaceLabel {
-                interface_id,
-                interface_label,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4..4 + interface_label.len()].copy_from_slice(interface_label.as_bytes());
+            Self::GetInterfaceLabel(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetInterfaceHardwareAddressType1 {
-                interface_id,
-                hardware_address,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4..10].copy_from_slice(&hardware_address.into_array());
+            Self::GetInterfaceHardwareAddressType1(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetIpV4DhcpMode {
-                interface_id,
-                dhcp_mode,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4] = *dhcp_mode as u8;
+            Self::GetIpV4DhcpMode(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetIpV4ZeroConfMode {
-                interface_id,
-                zero_conf_mode,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4] = *zero_conf_mode as u8;
+            Self::GetIpV4ZeroConfMode(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetIpV4CurrentAddress {
-                interface_id,
-                address,
-                netmask,
-                dhcp_status,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4..8].copy_from_slice(&u32::from(*address).to_be_bytes());
-                buf[8] = *netmask;
-                buf[9] = *dhcp_status as u8;
+            Self::GetIpV4CurrentAddress(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetIpV4StaticAddress {
-                interface_id,
-                address,
-                netmask,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4..8].copy_from_slice(&u32::from(*address).to_be_bytes());
-                buf[8] = *netmask;
+            Self::GetIpV4StaticAddress(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetIpV4DefaultRoute {
-                interface_id,
-                address,
-            } => {
-                buf[0..4].copy_from_slice(&interface_id.to_be_bytes());
-                buf[4..8].copy_from_slice(&u32::from(*address).to_be_bytes());
+            Self::GetIpV4DefaultRoute(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetDnsIpV4NameServer {
-                name_server_index,
-                address,
-            } => {
-                buf[0] = *name_server_index;
-                buf[1..5].copy_from_slice(&u32::from(*address).to_be_bytes());
+            Self::GetDnsIpV4NameServer(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetDnsHostName(dns_hostname) => {
                 dns_hostname.encode(buf)?;
@@ -1285,114 +843,68 @@ impl ResponseParameterData {
                 domain_name.encode(buf)?;
             }
             // E1.37-7
-            Self::GetEndpointList {
-                list_change_number,
-                endpoint_list,
-            } => {
-                buf[0..4].copy_from_slice(&list_change_number.to_be_bytes());
-
-                let mut offset = 4;
-
-                for (endpoint_id, endpoint_type) in endpoint_list.into_iter() {
-                    buf[offset..offset + 2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                    buf[offset + 2] = *endpoint_type as u8;
-
-                    offset += 3;
-                }
+            Self::GetEndpointList(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetEndpointListChange { list_change_number } => {
-                buf[0..4].copy_from_slice(&list_change_number.to_be_bytes());
+            Self::GetEndpointListChange(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetIdentifyEndpoint {
-                endpoint_id,
-                identify,
-            } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                buf[2] = *identify as u8;
+            Self::GetIdentifyEndpoint(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::SetIdentifyEndpoint { endpoint_id } => {
+            Self::SetIdentifyEndpoint(SetIdentifyEndpoint { endpoint_id }) => {
                 buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
-            Self::GetEndpointToUniverse {
-                endpoint_id,
-                universe,
-            } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                buf[2..4].copy_from_slice(&universe.to_be_bytes());
+            Self::GetEndpointToUniverse(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::SetEndpointToUniverse { endpoint_id } => {
+            Self::SetEndpointToUniverse(SetEndpointToUniverse { endpoint_id }) => {
                 buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
-            Self::GetEndpointMode { endpoint_id, mode } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                buf[2] = *mode as u8;
+            Self::GetEndpointMode(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::SetEndpointMode { endpoint_id } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-            }
-            Self::GetEndpointLabel { endpoint_id, label } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                label.encode(&mut buf[2..2 + label.len()])?;
-            }
-            Self::SetEndpointLabel { endpoint_id } => {
+            Self::SetEndpointMode(SetEndpointMode { endpoint_id }) => {
                 buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
-            Self::GetRdmTrafficEnable {
-                endpoint_id,
-                enable,
-            } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                buf[2] = *enable as u8;
+            Self::GetEndpointLabel(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::SetRdmTrafficEnable { endpoint_id } => {
+            Self::SetEndpointLabel(SetEndpointLabel { endpoint_id }) => {
                 buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
-            Self::GetDiscoveryState {
-                endpoint_id,
-                device_count,
-                discovery_state,
-            } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                buf[2..4].copy_from_slice(&u16::from(*device_count).to_be_bytes());
-                buf[4] = (*discovery_state).into();
+            Self::GetRdmTrafficEnable(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::SetDiscoveryState { endpoint_id } => {
+            Self::SetRdmTrafficEnable(SetRdmTrafficEnable { endpoint_id }) => {
                 buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
-            Self::GetBackgroundDiscovery {
-                endpoint_id,
-                enabled,
-            } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                buf[2] = *enabled as u8;
+            Self::GetDiscoveryState(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::SetBackgroundDiscovery { endpoint_id } => {
+            Self::SetDiscoveryState(SetDiscoveryState { endpoint_id }) => {
                 buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
-            Self::GetEndpointTiming {
-                endpoint_id,
-                current_setting_id,
-                setting_count,
-            } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                buf[2] = *current_setting_id;
-                buf[3] = *setting_count;
+            Self::GetBackgroundDiscovery(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::SetEndpointTiming { endpoint_id } => {
+            Self::SetBackgroundDiscovery(SetBackgroundDiscovery { endpoint_id }) => {
                 buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
             }
-            Self::GetEndpointTimingDescription {
-                setting_id,
-                description,
-            } => {
-                buf[0] = *setting_id;
-                buf[1..1 + description.len()].copy_from_slice(description.as_bytes());
+            Self::GetEndpointTiming(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetEndpointResponders {
+            Self::SetEndpointTiming(SetEndpointTiming { endpoint_id }) => {
+                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
+            }
+            Self::GetEndpointTimingDescription(param) => {
+                param.get_response_encode_data(buf)?;
+            }
+            Self::GetEndpointResponders(GetEndpointResponders {
                 endpoint_id,
                 list_change_number,
                 responders,
-            } => {
+            }) => {
                 buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
                 buf[2..6].copy_from_slice(&list_change_number.to_be_bytes());
 
@@ -1402,83 +914,30 @@ impl ResponseParameterData {
                     offset += 6;
                 }
             }
-            Self::GetEndpointResponderListChange {
-                endpoint_id,
-                list_change_number,
-            } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                buf[2..6].copy_from_slice(&list_change_number.to_be_bytes());
+            Self::GetEndpointResponderListChange(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetBindingControlFields {
-                endpoint_id,
-                uid,
-                control_field,
-                binding_uid,
-            } => {
-                buf[0..2].copy_from_slice(&endpoint_id.0.to_be_bytes());
-                buf[2..8].copy_from_slice(&<[u8; 6]>::from(*uid));
-                buf[8..10].copy_from_slice(&control_field.to_be_bytes());
-                buf[10..16].copy_from_slice(&<[u8; 6]>::from(*binding_uid));
+            Self::GetBindingControlFields(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetBackgroundQueuedStatusPolicy {
-                current_policy_id,
-                policy_count,
-            } => {
-                buf[0] = *current_policy_id;
-                buf[1] = *policy_count;
+            Self::GetBackgroundQueuedStatusPolicy(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetBackgroundQueuedStatusPolicyDescription {
-                policy_id,
-                description,
-            } => {
-                buf[0] = *policy_id;
-                buf[1..1 + description.len()].copy_from_slice(description.as_bytes());
+            Self::GetBackgroundQueuedStatusPolicyDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
             // E1.33
-            Self::GetComponentScope {
-                scope_slot,
-                scope_string,
-                static_config_type,
-                static_ipv4_address,
-                static_ipv6_address,
-                static_port,
-            } => {
-                buf[0..2].copy_from_slice(&scope_slot.to_be_bytes());
-                scope_string.encode(&mut buf[2..2 + SCOPE_MAX_LENGTH])?;
-                buf[2 + SCOPE_MAX_LENGTH] = *static_config_type as u8;
-                buf[3 + SCOPE_MAX_LENGTH..7 + SCOPE_MAX_LENGTH]
-                    .copy_from_slice(&u32::from(*static_ipv4_address).to_be_bytes());
-                buf[7 + SCOPE_MAX_LENGTH..23 + SCOPE_MAX_LENGTH]
-                    .copy_from_slice(&<[u8; 16]>::from(*static_ipv6_address));
-                buf[23 + SCOPE_MAX_LENGTH..25 + SCOPE_MAX_LENGTH]
-                    .copy_from_slice(&static_port.to_be_bytes());
+            Self::GetComponentScope(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetSearchDomain(search_domain) => {
                 search_domain.encode(buf)?;
             }
-            Self::GetTcpCommsStatus {
-                scope_string,
-                broker_ipv4_address,
-                broker_ipv6_address,
-                broker_port,
-                unhealthy_tcp_events,
-            } => {
-                scope_string.encode(&mut buf[0..SCOPE_MAX_LENGTH])?;
-                buf[SCOPE_MAX_LENGTH..SCOPE_MAX_LENGTH + 4]
-                    .copy_from_slice(&u32::from(*broker_ipv4_address).to_be_bytes());
-                buf[SCOPE_MAX_LENGTH + 4..SCOPE_MAX_LENGTH + 20]
-                    .copy_from_slice(&<[u8; 16]>::from(*broker_ipv6_address));
-                buf[SCOPE_MAX_LENGTH + 20..SCOPE_MAX_LENGTH + 22]
-                    .copy_from_slice(&broker_port.to_be_bytes());
-                buf[SCOPE_MAX_LENGTH + 22..SCOPE_MAX_LENGTH + 24]
-                    .copy_from_slice(&unhealthy_tcp_events.to_be_bytes());
+            Self::GetTcpCommsStatus(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetBrokerStatus {
-                is_allowing_set_commands,
-                broker_state,
-            } => {
-                buf[0] = *is_allowing_set_commands as u8;
-                buf[1] = *broker_state as u8;
+            Self::GetBrokerStatus(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::RawParameter(data) => {
                 buf[0..data.len()].copy_from_slice(data);
@@ -1494,65 +953,28 @@ impl ResponseParameterData {
         bytes: &[u8],
     ) -> Result<Self, RdmError> {
         match (command_class, parameter_id) {
-            (CommandClass::DiscoveryCommandResponse, ParameterId::DiscMute) => {
-                let binding_uid = if bytes.len() > 2 {
-                    Some(DeviceUID::from(<[u8; 6]>::try_from(&bytes[2..=7])?))
-                } else {
-                    None
-                };
-
-                Ok(Self::DiscMute {
-                    control_field: u16::from_be_bytes(bytes[..=1].try_into()?),
-                    binding_uid,
-                })
-            }
-            (CommandClass::DiscoveryCommandResponse, ParameterId::DiscUnMute) => {
-                let binding_uid = if bytes.len() > 2 {
-                    Some(DeviceUID::from(<[u8; 6]>::try_from(&bytes[2..=7])?))
-                } else {
-                    None
-                };
-
-                Ok(Self::DiscUnMute {
-                    control_field: u16::from_be_bytes(bytes[..=1].try_into()?),
-                    binding_uid,
-                })
-            }
+            (CommandClass::DiscoveryCommandResponse, ParameterId::DiscMute) => Ok(Self::DiscMute(
+                DiscMuteResponse::discovery_response_decode_data(bytes)?,
+            )),
+            (CommandClass::DiscoveryCommandResponse, ParameterId::DiscUnMute) => Ok(
+                Self::DiscUnMute(DiscUnMuteResponse::discovery_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::ProxiedDeviceCount) => {
-                Ok(Self::GetProxiedDeviceCount {
-                    device_count: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    list_change: bytes[2] == 1,
-                })
+                Ok(Self::GetProxiedDeviceCount(
+                    GetProxiedDeviceCountResponse::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::ProxiedDevices) => {
                 Ok(Self::GetProxiedDevices(
-                    bytes
-                        .chunks(6)
-                        .map(|chunk| Ok(DeviceUID::from(<[u8; 6]>::try_from(chunk)?)))
-                        .collect::<Result<Vec<DeviceUID, 38>, RdmError>>()?,
+                    GetProxiedDevicesResponse::get_response_decode_data(bytes)?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::CommsStatus) => {
-                Ok(Self::GetCommsStatus {
-                    short_message: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    length_mismatch: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                    checksum_fail: u16::from_be_bytes(bytes[4..=5].try_into()?),
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::CommsStatus) => Ok(
+                Self::GetCommsStatus(GetCommsStatusResponse::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::StatusMessages) => {
                 Ok(Self::GetStatusMessages(
-                    bytes
-                        .chunks(9)
-                        .map(|chunk| {
-                            Ok(StatusMessage {
-                                sub_device_id: u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
-                                status_type: chunk[2].try_into()?,
-                                status_message_id: u16::from_be_bytes(chunk[3..=4].try_into()?),
-                                data_value1: u16::from_be_bytes(chunk[5..=6].try_into()?),
-                                data_value2: u16::from_be_bytes(chunk[7..=8].try_into()?),
-                            })
-                        })
-                        .collect::<Result<Vec<StatusMessage, 25>, RdmError>>()?,
+                    GetStatusMessagesResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => Ok(
@@ -1587,20 +1009,9 @@ impl ResponseParameterData {
                     description: ParameterDescriptionLabel::decode(&bytes[20..])?,
                 }))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => {
-                Ok(Self::GetDeviceInfo {
-                    protocol_version: ProtocolVersion::new(bytes[0], bytes[1]),
-                    model_id: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                    product_category: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
-                    software_version_id: u32::from_be_bytes(bytes[6..=9].try_into()?),
-                    footprint: u16::from_be_bytes(bytes[10..=11].try_into()?),
-                    current_personality: bytes[12],
-                    personality_count: bytes[13],
-                    start_address: u16::from_be_bytes(bytes[14..=15].try_into()?),
-                    sub_device_count: u16::from_be_bytes(bytes[16..=17].try_into()?),
-                    sensor_count: u8::from_be(bytes[18]),
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => Ok(Self::GetDeviceInfo(
+                GetDeviceInfoResponse::get_response_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommandResponse, ParameterId::ProductDetailIdList) => {
                 Ok(Self::GetProductDetailIdList(
                     bytes
@@ -1623,15 +1034,12 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::LanguageCapabilities) => {
                 Ok(Self::GetLanguageCapabilities(
-                    bytes
-                        .chunks(2)
-                        .map(Iso639_1::decode)
-                        .collect::<Result<Vec<Iso639_1, 115>, RdmError>>()?,
+                    GetLanguageCapabilitiesResponse::get_response_decode_data(bytes)?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::Language) => {
-                Ok(Self::GetLanguage(Iso639_1::decode(bytes)?))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(
+                GetLanguageResponse::get_response_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => Ok(
                 Self::GetSoftwareVersionLabel(SoftwareVersionLabel::decode(bytes)?),
             ),
@@ -1642,18 +1050,18 @@ impl ResponseParameterData {
                 Self::GetBootSoftwareVersionLabel(BootSoftwareVersionLabel::decode(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::DmxPersonality) => {
-                Ok(Self::GetDmxPersonality {
+                Ok(Self::GetDmxPersonality(GetDmxPersonality {
                     current_personality: bytes[0],
                     personality_count: bytes[1],
-                })
+                }))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DmxPersonalityDescription) => {
-                Ok(Self::GetDmxPersonalityDescription {
+            (CommandClass::GetCommandResponse, ParameterId::DmxPersonalityDescription) => Ok(
+                Self::GetDmxPersonalityDescription(GetDmxPersonalityDescription {
                     id: bytes[0],
                     dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into()?),
                     description: DmxPersonalityDescription::decode(&bytes[3..])?,
-                })
-            }
+                }),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => Ok(
                 Self::GetDmxStartAddress(u16::from_be_bytes(bytes[0..=1].try_into()?)),
             ),
@@ -1670,10 +1078,10 @@ impl ResponseParameterData {
                     .collect::<Result<Vec<SlotInfo, 46>, RdmError>>()?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
-                Ok(Self::GetSlotDescription {
+                Ok(Self::GetSlotDescription(GetSlotDescription {
                     slot_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     description: SlotDescription::decode(&bytes[2..])?,
-                })
+                }))
             }
             (CommandClass::GetCommandResponse, ParameterId::DefaultSlotValue) => {
                 Ok(Self::GetDefaultSlotValue(
@@ -1755,14 +1163,14 @@ impl ResponseParameterData {
                 Ok(Self::GetPanTiltSwap(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::RealTimeClock) => {
-                Ok(Self::GetRealTimeClock {
+                Ok(Self::GetRealTimeClock(GetRealTimeClock {
                     year: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     month: bytes[2],
                     day: bytes[3],
                     hour: bytes[4],
                     minute: bytes[5],
                     second: bytes[6],
-                })
+                }))
             }
             (CommandClass::GetCommandResponse, ParameterId::IdentifyDevice) => {
                 Ok(Self::GetIdentifyDevice(bytes[0] == 1))
@@ -1774,52 +1182,50 @@ impl ResponseParameterData {
                 Ok(Self::GetPerformSelfTest(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::SelfTestDescription) => {
-                Ok(Self::GetSelfTestDescription {
+                Ok(Self::GetSelfTestDescription(GetSelfTestDescription {
                     self_test_id: bytes[0].into(),
                     description: SelfTestDescription::decode(&bytes[1..])?,
-                })
+                }))
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetPlayback) => {
-                Ok(Self::GetPresetPlayback {
+                Ok(Self::GetPresetPlayback(GetPresetPlayback {
                     mode: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     level: bytes[2],
-                })
+                }))
             }
             // E1.37-1
             (CommandClass::GetCommandResponse, ParameterId::DmxBlockAddress) => {
-                Ok(Self::GetDmxBlockAddress {
+                Ok(Self::GetDmxBlockAddress(GetDmxBlockAddress {
                     total_sub_device_footprint: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     base_dmx_address: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                })
+                }))
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxFailMode) => {
-                Ok(Self::GetDmxFailMode {
+                Ok(Self::GetDmxFailMode(GetDmxFailMode {
                     scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     loss_of_signal_delay: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
                     hold_time: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
                     level: bytes[6],
-                })
+                }))
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxStartupMode) => {
-                Ok(Self::GetDmxStartupMode {
+                Ok(Self::GetDmxStartupMode(GetDmxStartupMode {
                     scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     startup_delay: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
                     hold_time: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
                     level: bytes[6],
-                })
+                }))
             }
             (CommandClass::GetCommandResponse, ParameterId::PowerOnSelfTest) => {
                 Ok(Self::GetPowerOnSelfTest(bytes[0] == 1))
             }
-            (CommandClass::GetCommandResponse, ParameterId::LockState) => Ok(Self::GetLockState {
-                lock_state_id: bytes[0],
-                lock_state_count: bytes[1],
-            }),
+            (CommandClass::GetCommandResponse, ParameterId::LockState) => Ok(Self::GetLockState(
+                GetLockState::get_response_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommandResponse, ParameterId::LockStateDescription) => {
-                Ok(Self::GetLockStateDescription {
-                    lock_state_id: bytes[0],
-                    description: LockStateDescription::decode(&bytes[1..])?,
-                })
+                Ok(Self::GetLockStateDescription(
+                    GetLockStateDescription::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::LockPin) => Ok(Self::GetLockPin(
                 PinCode::try_from(u16::from_be_bytes(bytes[0..=1].try_into()?))?,
@@ -1827,118 +1233,47 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::BurnIn) => {
                 Ok(Self::GetBurnIn(bytes[0]))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DimmerInfo) => {
-                Ok(Self::GetDimmerInfo {
-                    minimum_level_lower_limit: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    minimum_level_upper_limit: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                    maximum_level_lower_limit: u16::from_be_bytes(bytes[4..=5].try_into()?),
-                    maximum_level_upper_limit: u16::from_be_bytes(bytes[6..=7].try_into()?),
-                    number_of_supported_curves: bytes[8],
-                    levels_resolution: bytes[9],
-                    minimum_level_split_levels_supported: bytes[10] == 1,
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::MinimumLevel) => {
-                Ok(Self::GetMinimumLevel {
-                    minimum_level_increasing: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    minimum_level_decreasing: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                    on_below_minimum: bytes[4] == 1,
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::DimmerInfo) => Ok(Self::GetDimmerInfo(
+                GetDimmerInfo::get_response_decode_data(bytes)?,
+            )),
+            (CommandClass::GetCommandResponse, ParameterId::MinimumLevel) => Ok(
+                Self::GetMinimumLevel(GetMinimumLevel::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::MaximumLevel) => Ok(
                 Self::GetMaximumLevel(u16::from_be_bytes(bytes[0..=1].try_into()?)),
             ),
-            (CommandClass::GetCommandResponse, ParameterId::Curve) => Ok(Self::GetCurve {
-                curve_id: bytes[0],
-                curve_count: bytes[1],
-            }),
-            (CommandClass::GetCommandResponse, ParameterId::CurveDescription) => {
-                Ok(Self::GetCurveDescription {
-                    curve_id: bytes[0],
-                    description: CurveDescription::decode(&bytes[1..])?,
-                })
+            (CommandClass::GetCommandResponse, ParameterId::Curve) => {
+                Ok(Self::GetCurve(GetCurve::get_response_decode_data(bytes)?))
             }
+            (CommandClass::GetCommandResponse, ParameterId::CurveDescription) => Ok(
+                Self::GetCurveDescription(GetCurveDescription::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::OutputResponseTime) => {
-                Ok(Self::GetOutputResponseTime {
-                    response_time_id: bytes[0],
-                    response_time_count: bytes[1],
-                })
+                Ok(Self::GetOutputResponseTime(
+                    GetOutputResponseTime::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::OutputResponseTimeDescription) => {
-                Ok(Self::GetOutputResponseTimeDescription {
-                    response_time_id: bytes[0],
-                    description: OutputResponseTimeDescription::decode(&bytes[1..])?,
-                })
+                Ok(Self::GetOutputResponseTimeDescription(
+                    GetOutputResponseTimeDescription::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::ModulationFrequency) => {
-                Ok(Self::GetModulationFrequency {
-                    modulation_frequency_id: bytes[0],
-                    modulation_frequency_count: bytes[1],
-                })
+                Ok(Self::GetModulationFrequency(
+                    GetModulationFrequency::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::ModulationFrequencyDescription) => {
-                Ok(Self::GetModulationFrequencyDescription {
-                    modulation_frequency_id: bytes[0],
-                    frequency: u32::from_be_bytes(bytes[1..=4].try_into()?),
-                    description: ModulationFrequencyDescription::decode(&bytes[5..])?,
-                })
+                Ok(Self::GetModulationFrequencyDescription(
+                    GetModulationFrequencyDescription::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::PresetInfo) => {
-                Ok(Self::GetPresetInfo {
-                    level_field_supported: bytes[0] == 1,
-                    preset_sequence_supported: bytes[1] == 1,
-                    split_times_supported: bytes[2] == 1,
-                    dmx_fail_infinite_delay_time_supported: bytes[3] == 1,
-                    dmx_fail_infinite_hold_time_supported: bytes[4] == 1,
-                    startup_infinite_hold_time_supported: bytes[5] == 1,
-                    maximum_scene_number: u16::from_be_bytes(bytes[6..=7].try_into()?),
-                    minimum_preset_fade_time_supported: u16::from_be_bytes(
-                        bytes[8..=9].try_into()?,
-                    ),
-                    maximum_preset_fade_time_supported: u16::from_be_bytes(
-                        bytes[10..=11].try_into()?,
-                    ),
-                    minimum_preset_wait_time_supported: u16::from_be_bytes(
-                        bytes[12..=13].try_into()?,
-                    ),
-                    maximum_preset_wait_time_supported: u16::from_be_bytes(
-                        bytes[14..=15].try_into()?,
-                    ),
-                    minimum_dmx_fail_delay_time_supported: SupportedTimes::from(
-                        u16::from_be_bytes(bytes[16..=17].try_into()?),
-                    ),
-                    maximum_dmx_fail_delay_time_supported: SupportedTimes::from(
-                        u16::from_be_bytes(bytes[18..=19].try_into()?),
-                    ),
-                    minimum_dmx_fail_hold_time_supported: SupportedTimes::from(u16::from_be_bytes(
-                        bytes[20..=21].try_into()?,
-                    )),
-                    maximum_dmx_fail_hold_time_supported: SupportedTimes::from(u16::from_be_bytes(
-                        bytes[22..=23].try_into()?,
-                    )),
-                    minimum_startup_delay_time_supported: SupportedTimes::from(u16::from_be_bytes(
-                        bytes[24..=25].try_into()?,
-                    )),
-                    maximum_startup_delay_time_supported: SupportedTimes::from(u16::from_be_bytes(
-                        bytes[26..=27].try_into()?,
-                    )),
-                    minimum_startup_hold_time_supported: SupportedTimes::from(u16::from_be_bytes(
-                        bytes[28..=29].try_into()?,
-                    )),
-                    maximum_startup_hold_time_supported: SupportedTimes::from(u16::from_be_bytes(
-                        bytes[30..=31].try_into()?,
-                    )),
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::PresetStatus) => {
-                Ok(Self::GetPresetStatus {
-                    scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    up_fade_time: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                    down_fade_time: u16::from_be_bytes(bytes[4..=5].try_into()?),
-                    wait_time: u16::from_be_bytes(bytes[6..=7].try_into()?),
-                    programmed: PresetProgrammed::try_from(bytes[8])?,
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::PresetInfo) => Ok(Self::GetPresetInfo(
+                GetPresetInfo::get_response_decode_data(bytes)?,
+            )),
+            (CommandClass::GetCommandResponse, ParameterId::PresetStatus) => Ok(
+                Self::GetPresetStatus(GetPresetStatus::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::PresetMergeMode) => {
                 Ok(Self::GetPresetMergeMode(MergeMode::try_from(bytes[0])?))
             }
@@ -1956,57 +1291,34 @@ impl ResponseParameterData {
                         .collect::<Result<Vec<NetworkInterface, 38>, RdmError>>()?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::InterfaceLabel) => {
-                Ok(Self::GetInterfaceLabel {
-                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    interface_label: InterfaceLabel::decode(&bytes[4..])?,
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::InterfaceLabel) => Ok(
+                Self::GetInterfaceLabel(GetInterfaceLabel::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::InterfaceHardwareAddressType1) => {
-                Ok(Self::GetInterfaceHardwareAddressType1 {
-                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    hardware_address: <[u8; 6]>::try_from(&bytes[4..=9])?.into(),
-                })
+                Ok(Self::GetInterfaceHardwareAddressType1(
+                    GetInterfaceHardwareAddressType1::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::IpV4DhcpMode) => {
-                Ok(Self::GetIpV4DhcpMode {
-                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    dhcp_mode: bytes[4] == 1,
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::IpV4ZeroConfMode) => {
-                Ok(Self::GetIpV4ZeroConfMode {
-                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    zero_conf_mode: bytes[4] == 1,
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::IpV4DhcpMode) => Ok(
+                Self::GetIpV4DhcpMode(GetIpV4DhcpMode::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::IpV4ZeroConfMode) => Ok(
+                Self::GetIpV4ZeroConfMode(GetIpV4ZeroConfMode::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::IpV4CurrentAddress) => {
-                Ok(Self::GetIpV4CurrentAddress {
-                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    address: <[u8; 4]>::try_from(&bytes[4..=7])?.into(),
-                    netmask: bytes[8],
-                    dhcp_status: DhcpMode::try_from(bytes[9])?,
-                })
+                Ok(Self::GetIpV4CurrentAddress(
+                    GetIpV4CurrentAddress::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::IpV4StaticAddress) => {
-                Ok(Self::GetIpV4StaticAddress {
-                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    address: <[u8; 4]>::try_from(&bytes[4..=7])?.into(),
-                    netmask: bytes[8],
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::IpV4DefaultRoute) => {
-                Ok(Self::GetIpV4DefaultRoute {
-                    interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    address: <[u8; 4]>::try_from(&bytes[4..=7])?.into(),
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::DnsIpV4NameServer) => {
-                Ok(Self::GetDnsIpV4NameServer {
-                    name_server_index: bytes[0],
-                    address: <[u8; 4]>::try_from(&bytes[1..=4])?.into(),
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::IpV4StaticAddress) => Ok(
+                Self::GetIpV4StaticAddress(GetIpV4StaticAddress::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::IpV4DefaultRoute) => Ok(
+                Self::GetIpV4DefaultRoute(GetIpV4DefaultRoute::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::DnsIpV4NameServer) => Ok(
+                Self::GetDnsIpV4NameServer(GetDnsIpV4NameServer::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::DnsHostName) => {
                 Ok(Self::GetDnsHostName(DnsHostName::decode(&bytes[0..])?))
             }
@@ -2014,216 +1326,114 @@ impl ResponseParameterData {
                 Ok(Self::GetDnsDomainName(DnsDomainName::decode(&bytes[0..])?))
             }
             // E1.37-7
-            (CommandClass::GetCommandResponse, ParameterId::EndpointList) => {
-                Ok(Self::GetEndpointList {
-                    list_change_number: u32::from_be_bytes(bytes[0..4].try_into()?),
-                    endpoint_list: bytes[4..]
-                        .chunks(3)
-                        .map(|chunk| {
-                            Ok((
-                                EndpointIdValue(u16::from_be_bytes(chunk[0..2].try_into()?)),
-                                chunk[2].try_into()?,
-                            ))
-                        })
-                        .collect::<Result<Vec<(EndpointIdValue, EndpointType), 75>, RdmError>>()?,
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::EndpointList) => Ok(
+                Self::GetEndpointList(GetEndpointList::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::EndpointListChange) => {
-                Ok(Self::GetEndpointListChange {
-                    list_change_number: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                })
+                Ok(Self::GetEndpointListChange(
+                    GetEndpointListChange::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::IdentifyEndpoint) => {
-                Ok(Self::GetIdentifyEndpoint {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    identify: bytes[2] == 1,
-                })
-            }
-            (CommandClass::SetCommandResponse, ParameterId::IdentifyEndpoint) => {
-                Ok(Self::SetIdentifyEndpoint {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::IdentifyEndpoint) => Ok(
+                Self::GetIdentifyEndpoint(GetIdentifyEndpoint::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::SetCommandResponse, ParameterId::IdentifyEndpoint) => Ok(
+                Self::SetIdentifyEndpoint(SetIdentifyEndpoint::set_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::EndpointToUniverse) => {
-                Ok(Self::GetEndpointToUniverse {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    universe: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                })
+                Ok(Self::GetEndpointToUniverse(
+                    GetEndpointToUniverse::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommandResponse, ParameterId::EndpointToUniverse) => {
-                Ok(Self::SetEndpointToUniverse {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                })
+                Ok(Self::SetEndpointToUniverse(
+                    SetEndpointToUniverse::set_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::EndpointMode) => {
-                Ok(Self::GetEndpointMode {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    mode: bytes[2].try_into()?,
-                })
-            }
-            (CommandClass::SetCommandResponse, ParameterId::EndpointMode) => {
-                Ok(Self::SetEndpointMode {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::EndpointLabel) => {
-                Ok(Self::GetEndpointLabel {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    label: EndpointLabel::decode(&bytes[2..])?,
-                })
-            }
-            (CommandClass::SetCommandResponse, ParameterId::EndpointLabel) => {
-                Ok(Self::SetEndpointLabel {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::RdmTrafficEnable) => {
-                Ok(Self::GetRdmTrafficEnable {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    enable: bytes[2] == 1,
-                })
-            }
-            (CommandClass::SetCommandResponse, ParameterId::RdmTrafficEnable) => {
-                Ok(Self::SetRdmTrafficEnable {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::DiscoveryState) => {
-                Ok(Self::GetDiscoveryState {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    device_count: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
-                    discovery_state: bytes[4].try_into()?,
-                })
-            }
-            (CommandClass::SetCommandResponse, ParameterId::DiscoveryState) => {
-                Ok(Self::SetDiscoveryState {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::EndpointMode) => Ok(
+                Self::GetEndpointMode(GetEndpointMode::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::SetCommandResponse, ParameterId::EndpointMode) => Ok(
+                Self::SetEndpointMode(SetEndpointMode::set_response_decode_data(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::EndpointLabel) => Ok(
+                Self::GetEndpointLabel(GetEndpointLabel::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::SetCommandResponse, ParameterId::EndpointLabel) => Ok(
+                Self::SetEndpointLabel(SetEndpointLabel::set_response_decode_data(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::RdmTrafficEnable) => Ok(
+                Self::GetRdmTrafficEnable(GetRdmTrafficEnable::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::SetCommandResponse, ParameterId::RdmTrafficEnable) => Ok(
+                Self::SetRdmTrafficEnable(SetRdmTrafficEnable::set_response_decode_data(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::DiscoveryState) => Ok(
+                Self::GetDiscoveryState(GetDiscoveryState::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::SetCommandResponse, ParameterId::DiscoveryState) => Ok(
+                Self::SetDiscoveryState(SetDiscoveryState::set_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::BackgroundDiscovery) => {
-                Ok(Self::GetBackgroundDiscovery {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    enabled: bytes[2] == 1,
-                })
+                Ok(Self::GetBackgroundDiscovery(
+                    GetBackgroundDiscovery::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommandResponse, ParameterId::BackgroundDiscovery) => {
-                Ok(Self::SetBackgroundDiscovery {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                })
+                Ok(Self::SetBackgroundDiscovery(
+                    SetBackgroundDiscovery::set_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::EndpointTiming) => {
-                Ok(Self::GetEndpointTiming {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    current_setting_id: bytes[2],
-                    setting_count: bytes[3],
-                })
-            }
-            (CommandClass::SetCommandResponse, ParameterId::EndpointTiming) => {
-                Ok(Self::SetEndpointTiming {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::EndpointTiming) => Ok(
+                Self::GetEndpointTiming(GetEndpointTiming::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::SetCommandResponse, ParameterId::EndpointTiming) => Ok(
+                Self::SetEndpointTiming(SetEndpointTiming::set_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::EndpointTimingDescription) => {
-                Ok(Self::GetEndpointTimingDescription {
-                    setting_id: bytes[0],
-                    description: EndpointTimingDescription::decode(&bytes[1..])?,
-                })
+                Ok(Self::GetEndpointTimingDescription(
+                    GetEndpointTimingDescription::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::EndpointResponders) => {
-                Ok(Self::GetEndpointResponders {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    list_change_number: u32::from_be_bytes(bytes[2..=5].try_into()?),
-                    responders: bytes[6..]
-                        .chunks(6)
-                        .map(|chunk| {
-                            Ok(DeviceUID::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?),
-                                u32::from_be_bytes(chunk[2..=5].try_into()?),
-                            ))
-                        })
-                        .collect::<Result<Vec<DeviceUID, 37>, RdmError>>()?,
-                })
+                Ok(Self::GetEndpointResponders(
+                    GetEndpointResponders::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::EndpointResponderListChange) => {
-                Ok(Self::GetEndpointResponderListChange {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    list_change_number: u32::from_be_bytes(bytes[2..=5].try_into()?),
-                })
+                Ok(Self::GetEndpointResponderListChange(
+                    GetEndpointResponderListChange::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::BindingControlFields) => {
-                Ok(Self::GetBindingControlFields {
-                    endpoint_id: EndpointIdValue(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-                    uid: DeviceUID::new(
-                        u16::from_be_bytes(bytes[2..=3].try_into()?),
-                        u32::from_be_bytes(bytes[4..=7].try_into()?),
-                    ),
-                    control_field: u16::from_be_bytes(bytes[8..=9].try_into()?),
-                    binding_uid: DeviceUID::new(
-                        u16::from_be_bytes(bytes[10..=11].try_into()?),
-                        u32::from_be_bytes(bytes[12..=15].try_into()?),
-                    ),
-                })
+                Ok(Self::GetBindingControlFields(
+                    GetBindingControlFields::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::BackgroundQueuedStatusPolicy) => {
-                Ok(Self::GetBackgroundQueuedStatusPolicy {
-                    current_policy_id: bytes[0],
-                    policy_count: bytes[1],
-                })
+                Ok(Self::GetBackgroundQueuedStatusPolicy(
+                    GetBackgroundQueuedStatusPolicy::get_response_decode_data(bytes)?,
+                ))
             }
             (
                 CommandClass::GetCommandResponse,
                 ParameterId::BackgroundQueuedStatusPolicyDescription,
-            ) => Ok(Self::GetBackgroundQueuedStatusPolicyDescription {
-                policy_id: bytes[0],
-                description: BackgroundQueuedStatusPolicyDescription::decode(&bytes[1..])?,
-            }),
+            ) => Ok(Self::GetBackgroundQueuedStatusPolicyDescription(
+                GetBackgroundQueuedStatusPolicyDescription::get_response_decode_data(bytes)?,
+            )),
             // E1.33
-            (CommandClass::GetCommandResponse, ParameterId::ComponentScope) => {
-                Ok(Self::GetComponentScope {
-                    scope_slot: u16::from_be_bytes(bytes[0..2].try_into()?),
-                    scope_string: Scope::decode(&bytes[2..2 + SCOPE_MAX_LENGTH])?,
-                    static_config_type: bytes[3 + SCOPE_MAX_LENGTH].try_into()?,
-                    static_ipv4_address: <[u8; 4]>::try_from(
-                        &bytes[4 + SCOPE_MAX_LENGTH..8 + SCOPE_MAX_LENGTH],
-                    )?
-                    .into(),
-                    static_ipv6_address: <[u8; 16]>::try_from(
-                        &bytes[8 + SCOPE_MAX_LENGTH..24 + SCOPE_MAX_LENGTH],
-                    )?
-                    .into(),
-                    static_port: u16::from_be_bytes(
-                        bytes[24 + SCOPE_MAX_LENGTH..26 + SCOPE_MAX_LENGTH].try_into()?,
-                    ),
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::ComponentScope) => Ok(
+                Self::GetComponentScope(GetComponentScope::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::SearchDomain) => {
                 Ok(Self::GetSearchDomain(SearchDomain::decode(bytes)?))
             }
-            (CommandClass::GetCommandResponse, ParameterId::TcpCommsStatus) => {
-                Ok(Self::GetTcpCommsStatus {
-                    scope_string: Scope::decode(&bytes[0..SCOPE_MAX_LENGTH])?,
-                    broker_ipv4_address: <[u8; 4]>::try_from(
-                        &bytes[SCOPE_MAX_LENGTH..SCOPE_MAX_LENGTH + 4],
-                    )?
-                    .into(),
-                    broker_ipv6_address: <[u8; 16]>::try_from(
-                        &bytes[SCOPE_MAX_LENGTH + 4..SCOPE_MAX_LENGTH + 20],
-                    )?
-                    .into(),
-                    broker_port: u16::from_be_bytes(
-                        bytes[SCOPE_MAX_LENGTH + 20..SCOPE_MAX_LENGTH + 22].try_into()?,
-                    ),
-                    unhealthy_tcp_events: u16::from_be_bytes(
-                        bytes[SCOPE_MAX_LENGTH + 22..SCOPE_MAX_LENGTH + 24].try_into()?,
-                    ),
-                })
-            }
-            (CommandClass::GetCommandResponse, ParameterId::BrokerStatus) => {
-                Ok(Self::GetBrokerStatus {
-                    is_allowing_set_commands: bytes[0] == 1,
-                    broker_state: bytes[1].try_into()?,
-                })
-            }
+            (CommandClass::GetCommandResponse, ParameterId::TcpCommsStatus) => Ok(
+                Self::GetTcpCommsStatus(GetTcpCommsStatus::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::BrokerStatus) => Ok(
+                Self::GetBrokerStatus(GetBrokerStatus::get_response_decode_data(bytes)?),
+            ),
             (_, _) => Ok(Self::RawParameter(Vec::from_slice(bytes).unwrap())),
         }
     }

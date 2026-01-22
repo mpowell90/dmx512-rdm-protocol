@@ -1,18 +1,25 @@
 use super::{RdmError, SubDeviceId};
-use crate::rdm::utils::RdmTruncateNullStr;
-use core::{fmt, ops::Deref, str::FromStr};
-use heapless::String;
-use rdm_parameter_derive::{
-    RdmGetRequestParameter, RdmGetResponseParameter, RdmSetRequestParameter,
+use crate::rdm::{
+    DeviceUID,
+    utils::{RdmTruncateNullStr, truncate_at_null},
 };
+use core::{fmt, ops::Deref, str::FromStr};
+use heapless::{String, Vec};
+use rdm_parameter_derive::{
+    RdmDiscoveryResponseParameter, RdmGetRequestParameter, RdmGetResponseParameter,
+    RdmSetRequestParameter,
+};
+use rdm_parameter_traits::{ParameterCodecError, RdmParameterData};
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub struct ProtocolVersion {
     major: u8,
     minor: u8,
 }
 
 impl ProtocolVersion {
+    pub const V1: Self = Self { major: 1, minor: 0 };
+
     pub fn new(major: u8, minor: u8) -> Self {
         Self { major, minor }
     }
@@ -27,6 +34,33 @@ impl From<ProtocolVersion> for u16 {
 impl fmt::Display for ProtocolVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}.{}", self.major, self.minor)
+    }
+}
+
+impl RdmParameterData for ProtocolVersion {
+    fn size_of(&self) -> usize {
+        2
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        if buf.len() < 2 {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 2,
+            });
+        }
+        buf[0] = self.major;
+        buf[1] = self.minor;
+        Ok(2)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        if buf.len() < 2 {
+            return Err(ParameterCodecError::MalformedData);
+        }
+        let major = buf[0];
+        let minor = buf[1];
+        Ok(Self { major, minor })
     }
 }
 
@@ -521,6 +555,30 @@ impl FromStr for DmxPersonalityDescription {
     }
 }
 
+impl RdmParameterData for DmxPersonalityDescription {
+    fn size_of(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let len = self.0.len();
+        if buf.len() < len {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: len,
+            });
+        }
+        buf[..len].copy_from_slice(self.0.as_bytes());
+        Ok(len)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let s = core::str::from_utf8(buf).map_err(|_| ParameterCodecError::MalformedData)?;
+        let description = Self::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(description)
+    }
+}
+
 pub const SLOT_DESCRIPTION_MAX_LENGTH: usize = 32;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -554,6 +612,30 @@ impl FromStr for SlotDescription {
     }
 }
 
+impl RdmParameterData for SlotDescription {
+    fn size_of(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let len = self.0.len();
+        if buf.len() < len {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: len,
+            });
+        }
+        buf[..len].copy_from_slice(self.0.as_bytes());
+        Ok(len)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let s = core::str::from_utf8(buf).map_err(|_| ParameterCodecError::MalformedData)?;
+        let slot_description = Self::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(slot_description)
+    }
+}
+
 pub const DEVICE_LABEL_MAX_LENGTH: usize = 32;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -562,19 +644,6 @@ pub struct DeviceLabel(String<DEVICE_LABEL_MAX_LENGTH>);
 impl DeviceLabel {
     pub const fn new() -> Self {
         Self(String::new())
-    }
-
-    pub fn from_be_bytes(bytes: &[u8]) -> Self {
-        let s = core::str::from_utf8(bytes).unwrap(); // TODO error handling
-        Self::from_str(s).unwrap() // TODO error handling
-    }
-
-    pub fn to_be_bytes(&self) -> [u8; DEVICE_LABEL_MAX_LENGTH] {
-        let mut bytes = [0u8; DEVICE_LABEL_MAX_LENGTH];
-        let s_bytes = self.as_bytes();
-        let len = s_bytes.len().min(DEVICE_LABEL_MAX_LENGTH);
-        bytes[..len].copy_from_slice(&s_bytes[..len]);
-        bytes
     }
 }
 
@@ -594,15 +663,62 @@ impl FromStr for DeviceLabel {
     type Err = RdmError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.len() > DEVICE_LABEL_MAX_LENGTH {
-            return Err(RdmError::InvalidStringLength(
-                s.len(),
-                DEVICE_LABEL_MAX_LENGTH,
-            ));
-        }
+        // if s.len() > DEVICE_LABEL_MAX_LENGTH {
+        //     return Err(RdmError::InvalidStringLength(
+        //         s.len(),
+        //         DEVICE_LABEL_MAX_LENGTH,
+        //     ));
+        // }
         Ok(Self(
             String::<{ DEVICE_LABEL_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
+    }
+}
+
+impl RdmParameterData for DeviceLabel {
+    fn size_of(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let size = self.size_of();
+        dbg!(size);
+
+        if buf.len() < size {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: size,
+            });
+        }
+
+        //     pub trait RdmTruncateNullStr {
+        // type Error: Error + From<RdmError> + From<Utf8Error>;
+
+        // fn encode(&self, buf: &mut [u8]) -> Result<usize, Self::Error>
+        // where
+        //     Self: Deref<Target = str>,
+        // {
+        //     let buffer_len = buf.len();
+        //     let str_len = self.len();
+
+        //     if str_len > buffer_len {
+        //         return Err(RdmError::InvalidBufferLength(buffer_len, str_len).into());
+        //     }
+
+        //     buf[0..str_len].copy_from_slice(self.as_bytes());
+
+        //     Ok(str_len)
+        // }
+
+        buf[..size].copy_from_slice(self.0.as_bytes());
+        Ok(size)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let s = core::str::from_utf8(truncate_at_null(buf))
+            .map_err(|_| ParameterCodecError::MalformedData)?;
+        let device_label = Self::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(device_label)
     }
 }
 
@@ -768,6 +884,24 @@ impl TryFrom<u8> for StatusType {
     }
 }
 
+impl RdmParameterData for StatusType {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = *self as u8;
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let status_type = StatusType::from_be_bytes([buf[0]]);
+        Ok(status_type)
+    }
+}
+
 impl StatusType {
     pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
         Self::try_from(bytes[0]).unwrap() // TODO consider error handling
@@ -780,6 +914,7 @@ impl StatusType {
 
 // Product Categories - Page 105 RDM Spec
 #[derive(Copy, Clone, Debug, PartialEq)]
+#[repr(u16)]
 pub enum ProductCategory {
     NotDeclared,
     Fixture,
@@ -986,6 +1121,26 @@ impl From<ProductCategory> for u16 {
     }
 }
 
+impl RdmParameterData for ProductCategory {
+    fn size_of(&self) -> usize {
+        2
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let bytes = u16::from(*self).to_be_bytes();
+        buf[0] = bytes[0];
+        buf[1] = bytes[1];
+        Ok(2)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let category = ProductCategory::from(u16::from_be_bytes([buf[0], buf[1]]));
+        Ok(category)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LampState {
     LampOff,
@@ -1028,13 +1183,21 @@ impl From<LampState> for u8 {
     }
 }
 
-impl LampState {
-    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
-        Self::try_from(bytes[0]).unwrap() // TODO error handling
+impl RdmParameterData for LampState {
+    fn size_of(&self) -> usize {
+        1
     }
 
-    pub fn to_be_bytes(&self) -> [u8; 1] {
-        [(*self).into()]
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = (*self).into();
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let lamp_state = Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(lamp_state)
     }
 }
 
@@ -1074,13 +1237,22 @@ impl From<LampOnMode> for u8 {
     }
 }
 
-impl LampOnMode {
-    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
-        Self::try_from(bytes[0]).unwrap() // TODO error handling
+impl RdmParameterData for LampOnMode {
+    fn size_of(&self) -> usize {
+        1
     }
 
-    pub fn to_be_bytes(&self) -> [u8; 1] {
-        [(*self).into()]
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = (*self).into();
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let lamp_on_mode =
+            Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(lamp_on_mode)
     }
 }
 
@@ -1106,13 +1278,21 @@ impl TryFrom<u8> for PowerState {
     }
 }
 
-impl PowerState {
-    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
-        Self::try_from(bytes[0]).unwrap() // TODO error handling
+impl RdmParameterData for PowerState {
+    fn size_of(&self) -> usize {
+        1
     }
 
-    pub fn to_be_bytes(&self) -> [u8; 1] {
-        [*self as u8]
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = *self as u8;
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let power_state = Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(power_state)
     }
 }
 
@@ -1154,13 +1334,22 @@ impl TryFrom<u8> for DisplayInvertMode {
     }
 }
 
-impl DisplayInvertMode {
-    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
-        Self::try_from(bytes[0]).unwrap() // TODO error handling
+impl RdmParameterData for DisplayInvertMode {
+    fn size_of(&self) -> usize {
+        1
     }
 
-    pub fn to_be_bytes(&self) -> [u8; 1] {
-        [*self as u8]
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = *self as u8;
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let display_invert_mode =
+            Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(display_invert_mode)
     }
 }
 
@@ -1182,13 +1371,22 @@ impl TryFrom<u8> for ResetDeviceMode {
     }
 }
 
-impl ResetDeviceMode {
-    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
-        Self::try_from(bytes[0]).unwrap() // TODO error handling
+impl RdmParameterData for ResetDeviceMode {
+    fn size_of(&self) -> usize {
+        1
     }
 
-    pub fn to_be_bytes(&self) -> [u8; 1] {
-        [*self as u8]
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = *self as u8;
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let reset_device_mode =
+            Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(reset_device_mode)
     }
 }
 
@@ -1216,6 +1414,22 @@ impl From<SelfTest> for u8 {
             SelfTest::All => 0xff,
             SelfTest::ManufacturerId(value) => value,
         }
+    }
+}
+
+impl RdmParameterData for SelfTest {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = (*self).into();
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let self_test = SelfTest::from_be_bytes([buf[0]]);
+        Ok(self_test)
     }
 }
 
@@ -1256,14 +1470,23 @@ impl From<PresetPlaybackMode> for u16 {
     }
 }
 
-impl PresetPlaybackMode {
-    pub fn from_be_bytes(bytes: [u8; 2]) -> Self {
-        Self::from(u16::from_be_bytes(bytes))
+impl RdmParameterData for PresetPlaybackMode {
+    fn size_of(&self) -> usize {
+        2
     }
 
-    pub fn to_be_bytes(&self) -> [u8; 2] {
-        let value: u16 = (*self).into();
-        value.to_be_bytes()
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let bytes = u16::from(*self).to_be_bytes();
+        buf[0] = bytes[0];
+        buf[1] = bytes[1];
+        Ok(2)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let mode = PresetPlaybackMode::from(u16::from_be_bytes([buf[0], buf[1]]));
+        Ok(mode)
     }
 }
 
@@ -1274,27 +1497,26 @@ pub struct FadeTimes {
     pub wait_time: u16,
 }
 
-impl FadeTimes {
-    pub fn from_be_bytes(bytes: [u8; 6]) -> Self {
-        Self {
-            up_fade_time: u16::from_be_bytes([bytes[0], bytes[1]]),
-            down_fade_time: u16::from_be_bytes([bytes[2], bytes[3]]),
-            wait_time: u16::from_be_bytes([bytes[4], bytes[5]]),
-        }
+impl RdmParameterData for FadeTimes {
+    fn size_of(&self) -> usize {
+        6
     }
 
-    pub fn to_be_bytes(&self) -> [u8; 6] {
-        let up_fade_bytes = self.up_fade_time.to_be_bytes();
-        let down_fade_bytes = self.down_fade_time.to_be_bytes();
-        let wait_bytes = self.wait_time.to_be_bytes();
-        [
-            up_fade_bytes[0],
-            up_fade_bytes[1],
-            down_fade_bytes[0],
-            down_fade_bytes[1],
-            wait_bytes[0],
-            wait_bytes[1],
-        ]
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0..2].copy_from_slice(&self.up_fade_time.to_be_bytes());
+        buf[2..4].copy_from_slice(&self.down_fade_time.to_be_bytes());
+        buf[4..6].copy_from_slice(&self.wait_time.to_be_bytes());
+        Ok(6)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        Ok(FadeTimes {
+            up_fade_time: u16::from_be_bytes([buf[0], buf[1]]),
+            down_fade_time: u16::from_be_bytes([buf[2], buf[3]]),
+            wait_time: u16::from_be_bytes([buf[4], buf[5]]),
+        })
     }
 }
 
@@ -1357,6 +1579,27 @@ impl FromStr for StatusIdDescription {
         Ok(Self(
             String::<{ STATUS_ID_DESCRIPTION_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
+    }
+}
+
+impl RdmParameterData for StatusIdDescription {
+    fn size_of(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let bytes = self.0.as_bytes();
+        buf[..bytes.len()].copy_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let s = core::str::from_utf8(buf).map_err(|_| ParameterCodecError::MalformedData)?;
+        let description =
+            StatusIdDescription::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(description)
     }
 }
 
@@ -1483,6 +1726,32 @@ impl StatusMessage {
         } else {
             None
         }
+    }
+}
+
+impl RdmParameterData for StatusMessage {
+    fn size_of(&self) -> usize {
+        8
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        self.sub_device_id
+            .encode_rdm_parameter_data(&mut buf[0..2])?;
+        buf[2] = self.status_type as u8;
+        buf[3..5].copy_from_slice(&self.status_message_id.to_be_bytes());
+        buf[5..7].copy_from_slice(&self.data_value1.to_be_bytes());
+        buf[7..9].copy_from_slice(&self.data_value2.to_be_bytes());
+        Ok(8)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        Ok(StatusMessage {
+            sub_device_id: SubDeviceId::decode_rdm_parameter_data(buf)?,
+            status_type: StatusType::decode_rdm_parameter_data(buf)?,
+            status_message_id: u16::from_be_bytes([buf[3], buf[4]]),
+            data_value1: u16::from_be_bytes([buf[5], buf[6]]),
+            data_value2: u16::from_be_bytes([buf[7], buf[8]]),
+        })
     }
 }
 
@@ -1853,6 +2122,22 @@ impl From<SensorType> for u8 {
             SensorType::Other => 0x7f,
             SensorType::ManufacturerSpecific(value) => value,
         }
+    }
+}
+
+impl RdmParameterData for SensorType {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = (*self).into();
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let sensor_type = Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(sensor_type)
     }
 }
 
@@ -2675,20 +2960,19 @@ impl Iso639_1 {
             }
         }
     }
+}
 
-    pub fn from_be_bytes(bytes: [u8; 2]) -> Self {
-        let iso639_1 = core::str::from_utf8(&bytes).unwrap(); // TODO error handling
-        Self::from_str(iso639_1) // TODO error handling
+impl RdmParameterData for Iso639_1 {
+    fn size_of(&self) -> usize {
+        Self::LENGTH
     }
 
-    pub fn to_be_bytes(&self) -> [u8; 2] {
-        let s = self.as_str();
-        [s.as_bytes()[0], s.as_bytes()[1]]
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         if buf.len() < Self::LENGTH {
-            return Err(RdmError::InvalidBufferLength(buf.len(), Self::LENGTH));
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: Self::LENGTH,
+            });
         }
 
         buf[0..Self::LENGTH].copy_from_slice(self.as_str().as_bytes());
@@ -2696,13 +2980,16 @@ impl Iso639_1 {
         Ok(Self::LENGTH)
     }
 
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes.len() > Self::LENGTH {
-            return Err(RdmError::InvalidStringLength(bytes.len(), Self::LENGTH));
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        if buf.len() < Self::LENGTH {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: Self::LENGTH,
+            });
         }
 
-        let iso639_1 = core::str::from_utf8(&bytes[0..Self::LENGTH]).map_err(RdmError::from)?;
-
+        let iso639_1 = core::str::from_utf8(&buf[0..Self::LENGTH])
+            .map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(Iso639_1::from_str(iso639_1))
     }
 }
@@ -2740,6 +3027,31 @@ impl FromStr for SelfTestDescription {
     }
 }
 
+impl RdmParameterData for SelfTestDescription {
+    fn size_of(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let bytes = self.as_bytes();
+        let len = bytes.len().min(SELF_TEST_DESCRIPTION_MAX_LENGTH);
+        if buf.len() < len {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: len,
+            });
+        }
+        buf[0..len].copy_from_slice(&bytes[0..len]);
+        Ok(len)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let s = core::str::from_utf8(buf).map_err(|_| ParameterCodecError::MalformedData)?;
+        let description = Self::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(description)
+    }
+}
+
 pub const LOCK_STATE_DESCRIPTION_MAX_LENGTH: usize = 32;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -2770,6 +3082,31 @@ impl FromStr for LockStateDescription {
         Ok(Self(
             String::<{ SELF_TEST_DESCRIPTION_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
+    }
+}
+
+impl RdmParameterData for LockStateDescription {
+    fn size_of(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let bytes = self.as_bytes();
+        let len = bytes.len().min(LOCK_STATE_DESCRIPTION_MAX_LENGTH);
+        if buf.len() < len {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: len,
+            });
+        }
+        buf[0..len].copy_from_slice(&bytes[0..len]);
+        Ok(len)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let s = core::str::from_utf8(buf).map_err(|_| ParameterCodecError::MalformedData)?;
+        let description = Self::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(description)
     }
 }
 
@@ -2806,6 +3143,31 @@ impl FromStr for CurveDescription {
     }
 }
 
+impl RdmParameterData for CurveDescription {
+    fn size_of(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let bytes = self.as_bytes();
+        let len = bytes.len().min(CURVE_DESCRIPTION_MAX_LENGTH);
+        if buf.len() < len {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: len,
+            });
+        }
+        buf[0..len].copy_from_slice(&bytes[0..len]);
+        Ok(len)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let s = core::str::from_utf8(buf).map_err(|_| ParameterCodecError::MalformedData)?;
+        let description = Self::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(description)
+    }
+}
+
 pub const OUTPUT_RESPONSE_TIME_DESCRIPTION_MAX_LENGTH: usize = 32;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -2836,6 +3198,31 @@ impl FromStr for OutputResponseTimeDescription {
         Ok(Self(
             String::<{ SELF_TEST_DESCRIPTION_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
+    }
+}
+
+impl RdmParameterData for OutputResponseTimeDescription {
+    fn size_of(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let bytes = self.as_bytes();
+        let len = bytes.len().min(OUTPUT_RESPONSE_TIME_DESCRIPTION_MAX_LENGTH);
+        if buf.len() < len {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: len,
+            });
+        }
+        buf[0..len].copy_from_slice(&bytes[0..len]);
+        Ok(len)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let s = core::str::from_utf8(buf).map_err(|_| ParameterCodecError::MalformedData)?;
+        let description = Self::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(description)
     }
 }
 
@@ -2872,36 +3259,108 @@ impl FromStr for ModulationFrequencyDescription {
     }
 }
 
+impl RdmParameterData for ModulationFrequencyDescription {
+    fn size_of(&self) -> usize {
+        self.0.len()
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        let bytes = self.as_bytes();
+        let len = bytes.len().min(MODULATION_FREQUENCY_DESCRIPTION_MAX_LENGTH);
+        if buf.len() < len {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: len,
+            });
+        }
+        buf[0..len].copy_from_slice(&bytes[0..len]);
+        Ok(len)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let s = core::str::from_utf8(buf).map_err(|_| ParameterCodecError::MalformedData)?;
+        let description = Self::from_str(s).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(description)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, RdmDiscoveryResponseParameter)]
+#[repr(C)]
+pub struct DiscMuteResponse {
+    pub control_field: u16,
+    pub binding_uid: Option<DeviceUID>,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmDiscoveryResponseParameter)]
+#[repr(C)]
+pub struct DiscUnMuteResponse {
+    pub control_field: u16,
+    pub binding_uid: Option<DeviceUID>,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+#[repr(C, packed)]
 pub struct GetQueuedMessageRequest {
     pub status_type: StatusType,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetProxiedDeviceCountResponse {
+    pub device_count: u16,
+    pub list_change: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetProxiedDevicesResponse {
+    pub device_uids: Vec<DeviceUID, 38>,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetCommsStatusResponse {
+    pub short_message: u16,
+    pub length_mismatch: u16,
+    pub checksum_fail: u16,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+#[repr(C, packed)]
 pub struct GetStatusMessagesRequest {
     pub status_type: StatusType,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetStatusMessagesResponse {
+    pub messages: Vec<StatusMessage, 25>,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+#[repr(C)]
 pub struct GetStatusIdDescriptionRequest {
     pub status_id: u16,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetSubDeviceIdStatusReportThresholdRequest {
     pub status_type: StatusType,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+#[repr(C)]
 pub struct GetParameterDescriptionRequest {
     pub parameter_id: u16,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
 pub struct GetDeviceInfoResponse {
-    pub protocol_version: u16,
+    pub protocol_version: ProtocolVersion,
     pub device_model_id: u16,
-    pub product_category: u16,
+    pub product_category: ProductCategory,
     pub software_version_id: u32,
     pub dmx512_footprint: u16,
     pub current_personality: u8,
@@ -2912,144 +3371,206 @@ pub struct GetDeviceInfoResponse {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetDeviceLabelRequest {
     pub device_label: DeviceLabel,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetLanguageResponse {
+    pub language: Iso639_1,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetLanguageRequest {
     pub language: Iso639_1,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetLanguageCapabilitiesResponse {
+    pub supported_languages: Vec<Iso639_1, 115>,
+}
+
 // #[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
+// #[repr(C, packed)]
 // pub struct GetParameterDescriptionResponse {
 //     pub parameter_id: u16,
 // }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetDmxPersonality {
+    pub current_personality: u8,
+    pub personality_count: u8,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetDmxPersonalityRequest {
     pub personality_id: u8,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+#[repr(C, packed)]
 pub struct GetDmxPersonalityDescriptionRequest {
     pub personality_id: u8,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetDmxPersonalityDescription {
+    pub id: u8,
+    pub dmx_slots_required: u16,
+    pub description: DmxPersonalityDescription,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetDmxStartAddressRequest {
     pub dmx_start_address: u16,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+#[repr(C)]
 pub struct GetSlotDescriptionRequest {
     pub slot_id: u16,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetSlotDescription {
+    pub slot_id: u16,
+    pub description: SlotDescription,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+#[repr(C, packed)]
 pub struct GetSensorDefinitionRequest {
     pub sensor_id: u8,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+#[repr(C, packed)]
 pub struct GetSensorValueRequest {
     pub sensor_id: u8,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetSensorValueRequest {
     pub sensor_id: u8,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetRecordSensorsRequest {
     pub sensor_id: u8,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetDeviceHoursRequest {
     pub device_hours: u32,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetLampHoursRequest {
     pub lamp_hours: u32,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetLampStrikesRequest {
     pub lamp_strikes: u32,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetLampStateRequest {
     pub lamp_state: LampState,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetLampOnModeRequest {
     pub lamp_on_mode: LampOnMode,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetPowerStateRequest {
     pub power_state: PowerState,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetPerformSelfTestRequest {
     pub self_test_id: SelfTest,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetCapturePresetRequest {
     pub scene_id: u16,
     pub fade_times: Option<FadeTimes>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+#[repr(C, packed)]
 pub struct GetSelfTestDescriptionRequest {
     pub self_test_id: SelfTest,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetPresetPlaybackRequest {
     pub mode: PresetPlaybackMode,
     pub level: u8,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetDevicePowerCyclesRequest {
     pub device_power_cycles: u32,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetDisplayInvertModeRequest {
     pub display_invert_mode: DisplayInvertMode,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetDisplayLevelRequest {
     pub display_level: u8,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetPanInvertRequest {
     pub pan_invert: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetTiltInvertRequest {
     pub tilt_invert: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetPanTiltSwapRequest {
     pub pan_tilt_swap: bool,
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetRealTimeClockRequest {
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetRealTimeClock {
     pub year: u16,
     pub month: u8,
     pub day: u8,
@@ -3059,41 +3580,106 @@ pub struct SetRealTimeClockRequest {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
+pub struct SetRealTimeClockRequest {
+    pub year: u16,
+    pub month: u8,
+    pub day: u8,
+    pub hour: u8,
+    pub minute: u8,
+    pub second: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetSelfTestDescription {
+    pub self_test_id: SelfTest,
+    pub description: SelfTestDescription,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
 pub struct SetIdentifyDeviceRequest {
     pub identify: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
 pub struct SetResetDeviceRequest {
     pub reset_device: ResetDeviceMode,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetPresetPlayback {
+    pub mode: PresetPlaybackMode,
+    pub level: u8,
+}
+
+#[cfg(test)]
 mod tests {
+    use core::str::FromStr;
+    use rdm_parameter_traits::{
+        RdmDiscoveryResponseParameterCodec, RdmGetResponseParameterCodec,
+        RdmSetRequestParameterCodec,
+    };
+
     #[test]
-    fn get_device_info() {
-        use rdm_parameter_traits::RdmGetResponseParameterCodec;
+    fn disc_mute_response_roundtrip() {
+        let resp = super::DiscMuteResponse {
+            control_field: 0x1234,
+            binding_uid: None,
+        };
+
+        let mut buf = [0u8; 8];
+        let bytes_written = resp.discovery_response_encode_data(&mut buf).unwrap();
+        let decoded =
+            super::DiscMuteResponse::discovery_response_decode_data(&buf[..bytes_written]).unwrap();
+        assert_eq!(resp, decoded);
+    }
+
+    #[test]
+    fn get_device_info_response() {
+        use crate::rdm::parameter::e120::{ProductCategory, ProtocolVersion};
 
         let device_info = super::GetDeviceInfoResponse {
-            protocol_version: 0x0001,
+            protocol_version: ProtocolVersion::V1,
             device_model_id: 0x0002,
-            product_category: 0x0003,
+            product_category: ProductCategory::Dimmer,
             software_version_id: 0x00000004,
             dmx512_footprint: 0x0005,
             current_personality: 0x06,
             personality_count: 0x07,
             dmx512_start_address: 0x0008,
             sub_device_count: 0x0009,
-            sensor_count: 0x0A,
+            sensor_count: 0x0a,
         };
 
-        let mut buf = [0u8; 19];
+        let mut buf = [0u8; 0x13];
 
-        let res = device_info.get_response_encode_data(&mut buf);
-
-        assert!(res.is_ok());
+        let bytes_written = device_info.get_response_encode_data(&mut buf).unwrap();
+        assert_eq!(bytes_written, 19);
         assert_eq!(
             buf,
-            [0, 1, 0, 2, 0, 3, 0, 0, 0, 4, 0, 5, 6, 7, 0, 8, 0, 9, 10]
+            [1, 0, 0, 2, 5, 0, 0, 0, 0, 4, 0, 5, 6, 7, 0, 8, 0, 9, 0x0a]
         );
+
+        let ret = super::GetDeviceInfoResponse::get_response_decode_data(&buf).unwrap();
+        assert_eq!(device_info, ret);
+    }
+
+    #[test]
+    fn set_device_label_request() {
+        use crate::rdm::parameter::e120::DeviceLabel;
+
+        let device_label = super::SetDeviceLabelRequest {
+            device_label: DeviceLabel::from_str("Test").unwrap(),
+        };
+
+        let mut buf = [0u8; 4];
+
+        let bytes_written = device_label.set_request_encode_data(&mut buf).unwrap();
+        assert_eq!(bytes_written, 4);
+        assert_eq!(buf, [b'T', b'e', b's', b't']);
     }
 }

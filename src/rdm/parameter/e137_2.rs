@@ -6,6 +6,9 @@ use core::{
     str::FromStr,
 };
 use heapless::String;
+use macaddr::MacAddr6;
+use rdm_parameter_derive::RdmGetResponseParameter;
+use rdm_parameter_traits::RdmParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DhcpMode {
@@ -24,6 +27,28 @@ impl TryFrom<u8> for DhcpMode {
             0x02 => Ok(Self::Unknown),
             value => Err(RdmError::InvalidDhcpMode(value)),
         }
+    }
+}
+
+impl RdmParameterData for DhcpMode {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+        buf[0] = *self as u8;
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let dhcp_mode =
+            DhcpMode::try_from(buf[0]).map_err(|_| rdm_parameter_traits::ParameterCodecError::MalformedData)?;
+        Ok(dhcp_mode)
     }
 }
 
@@ -77,6 +102,28 @@ impl From<Ipv4Address> for u32 {
     }
 }
 
+impl RdmParameterData for Ipv4Address {
+    fn size_of(&self) -> usize {
+        4
+    }
+
+    fn encode_rdm_parameter_data(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+        let bytes: [u8; 4] = (*self).into();
+        buf[0..4].copy_from_slice(&bytes);
+        Ok(4)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let address = Ipv4Address::from([buf[0], buf[1], buf[2], buf[3]]);
+        Ok(address)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Ipv6Address {
     Unconfigured,
@@ -127,6 +174,31 @@ impl From<Ipv6Address> for u128 {
     }
 }
 
+impl RdmParameterData for Ipv6Address {
+    fn size_of(&self) -> usize {
+        16
+    }
+
+    fn encode_rdm_parameter_data(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+        let bytes: [u8; 16] = (*self).into();
+        buf[0..16].copy_from_slice(&bytes);
+        Ok(16)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let address = Ipv6Address::from([
+            buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7], buf[8], buf[9], buf[10],
+            buf[11], buf[12], buf[13], buf[14], buf[15],
+        ]);
+        Ok(address)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Ipv4Route {
     NoDefault,
@@ -174,6 +246,28 @@ impl From<Ipv4Route> for u32 {
             Ipv4Route::NoDefault => 0,
             Ipv4Route::Configured(ip) => ip.to_bits(),
         }
+    }
+}
+
+impl RdmParameterData for Ipv4Route {
+    fn size_of(&self) -> usize {
+        4
+    }
+
+    fn encode_rdm_parameter_data(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+        let bytes: [u8; 4] = (*self).into();
+        buf[0..4].copy_from_slice(&bytes);
+        Ok(4)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let route = Ipv4Route::from([buf[0], buf[1], buf[2], buf[3]]);
+        Ok(route)
     }
 }
 
@@ -362,6 +456,31 @@ impl FromStr for InterfaceLabel {
     }
 }
 
+impl RdmParameterData for InterfaceLabel {
+    fn size_of(&self) -> usize {
+        INTERFACE_LABEL_MAX_LENGTH
+    }
+
+    fn encode_rdm_parameter_data(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+        let label_bytes = self.as_bytes();
+        buf[0..label_bytes.len()].copy_from_slice(label_bytes);
+        Ok(INTERFACE_LABEL_MAX_LENGTH)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let s = core::str::from_utf8(&buf)
+            .unwrap() // TODO error handling
+            .trim_end_matches('\0');
+        let label = Self::from_str(s).unwrap(); // TODO error handling
+        Ok(label)
+    }
+}
+
 pub const DNS_HOSTNAME_MAX_LENGTH: usize = 63;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -426,4 +545,92 @@ impl FromStr for DnsDomainName {
             String::<{ DNS_DOMAINNAME_MAX_LENGTH }>::from_str(s).unwrap(),
         ))
     }
+}
+
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct MacAddress(pub MacAddr6);
+
+impl From<MacAddr6> for MacAddress {
+    fn from(value: MacAddr6) -> Self {
+        Self(value)
+    }
+}
+
+impl From<[u8; 6]> for MacAddress {
+    fn from(value: [u8; 6]) -> Self {
+        Self(MacAddr6::from(value))
+    }
+}
+
+impl RdmParameterData for MacAddress {
+    fn size_of(&self) -> usize {
+        6
+    }
+
+    fn encode_rdm_parameter_data(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+        buf[0..6].copy_from_slice(self.0.as_bytes());
+        Ok(6)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let address = MacAddress::from([buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]]);
+        Ok(address)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetInterfaceLabel {
+    pub interface_id: u32,
+    pub interface_label: InterfaceLabel,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetInterfaceHardwareAddressType1 {
+    pub interface_id: u32,
+    pub hardware_address: MacAddress,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetIpV4DhcpMode {
+    pub interface_id: u32,
+    pub dhcp_mode: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetIpV4ZeroConfMode {
+    pub interface_id: u32,
+    pub zero_conf_mode: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetIpV4CurrentAddress {
+    pub interface_id: u32,
+    pub address: Ipv4Address,
+    pub netmask: u8,
+    pub dhcp_status: DhcpMode,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetIpV4StaticAddress {
+    pub interface_id: u32,
+    pub address: Ipv4Address,
+    pub netmask: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetIpV4DefaultRoute {
+    pub interface_id: u32,
+    pub address: Ipv4Route,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetDnsIpV4NameServer {
+    pub name_server_index: u8,
+    pub address: Ipv4Address,
 }

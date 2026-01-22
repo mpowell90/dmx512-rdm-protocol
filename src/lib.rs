@@ -23,7 +23,8 @@
 //!
 //! See module documentation or test suite for examples.
 
-#![no_std]
+// TODO use `no_std` after testing
+// #![no_std]
 
 pub mod dmx;
 
