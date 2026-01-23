@@ -4,7 +4,7 @@ use core::{fmt, str::FromStr};
 use heapless::{String, Vec};
 use rdm_parameter_derive::{
     RdmDiscoveryResponseParameter, RdmGetRequestParameter, RdmGetResponseParameter,
-    RdmSetRequestParameter,
+    RdmSetRequestParameter, RdmSetResponseParameter,
 };
 use rdm_parameter_traits::{ParameterCodecError, RdmParameterData};
 
@@ -340,6 +340,33 @@ impl From<ProductDetail> for ProductDetailValue {
     }
 }
 
+impl RdmParameterData for ProductDetailValue {
+    fn size_of(&self) -> usize {
+        2
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        if buf.len() < 2 {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 2,
+            });
+        }
+        let bytes = self.0.to_be_bytes();
+        buf[0] = bytes[0];
+        buf[1] = bytes[1];
+        Ok(2)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        if buf.len() < 2 {
+            return Err(ParameterCodecError::MalformedData);
+        }
+        let value = u16::from_be_bytes([buf[0], buf[1]]);
+        Ok(Self(value))
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ImplementedCommandClass {
     Get = 0x01,
@@ -357,6 +384,32 @@ impl TryFrom<u8> for ImplementedCommandClass {
             0x03 => Ok(Self::GetSet),
             _ => Err(RdmError::InvalidCommandClassImplementation(value)),
         }
+    }
+}
+
+impl RdmParameterData for ImplementedCommandClass {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        if buf.len() < 1 {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 1,
+            });
+        }
+        buf[0] = *self as u8;
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        if buf.len() < 1 {
+            return Err(ParameterCodecError::MalformedData);
+        }
+        let command_class = ImplementedCommandClass::try_from(buf[0])
+            .map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(command_class)
     }
 }
 
@@ -411,47 +464,9 @@ impl From<ParameterDataType> for u8 {
     }
 }
 
-pub enum ConvertedParameterValue {
-    BitField(u32),
-    Ascii(String<4>),
-    UnsignedByte(u8),
-    SignedByte(i8),
-    UnsignedWord(u16),
-    SignedWord(i16),
-    UnsignedDWord(u32),
-    SignedDWord(i32),
-    Raw([u8; 4]),
-}
-
-pub const PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH: usize = 32;
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub struct ParameterDescriptionLabel(String<PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH>);
-impl_rdm_string!(
-    ParameterDescriptionLabel,
-    PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH
-);
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ParameterDescription {
-    pub parameter_id: u16,
-    pub parameter_data_length: u8,
-    pub data_type: ParameterDataType,
-    pub command_class: ImplementedCommandClass,
-    pub unit_type: SensorUnit,
-    pub prefix: SensorUnitPrefix,
-    pub raw_minimum_valid_value: [u8; 4],
-    pub raw_maximum_valid_value: [u8; 4],
-    pub raw_default_value: [u8; 4],
-    pub description: ParameterDescriptionLabel,
-}
-
-impl ParameterDescription {
-    fn convert_parameter_value(
-        parameter_data_type: ParameterDataType,
-        value: [u8; 4],
-    ) -> Result<ConvertedParameterValue, RdmError> {
-        match parameter_data_type {
+impl ParameterDataType {
+    fn convert_parameter_value(&self, value: [u8; 4]) -> Result<ConvertedParameterValue, RdmError> {
+        match self {
             ParameterDataType::BitField => {
                 Ok(ConvertedParameterValue::BitField(u32::from_be_bytes(value)))
             }
@@ -484,16 +499,72 @@ impl ParameterDescription {
         }
     }
 
-    pub fn minimum_valid_value(&self) -> Result<ConvertedParameterValue, RdmError> {
-        Self::convert_parameter_value(self.data_type, self.raw_minimum_valid_value)
+    pub fn minimum_valid_value(
+        &self,
+        raw_minimum_valid_value: [u8; 4],
+    ) -> Result<ConvertedParameterValue, RdmError> {
+        self.convert_parameter_value(raw_minimum_valid_value)
     }
-    pub fn maximum_valid_value(&self) -> Result<ConvertedParameterValue, RdmError> {
-        Self::convert_parameter_value(self.data_type, self.raw_maximum_valid_value)
+    pub fn maximum_valid_value(
+        &self,
+        raw_maximum_valid_value: [u8; 4],
+    ) -> Result<ConvertedParameterValue, RdmError> {
+        self.convert_parameter_value(raw_maximum_valid_value)
     }
-    pub fn default_value(&self) -> Result<ConvertedParameterValue, RdmError> {
-        Self::convert_parameter_value(self.data_type, self.raw_default_value)
+    pub fn default_value(
+        &self,
+        raw_default_value: [u8; 4],
+    ) -> Result<ConvertedParameterValue, RdmError> {
+        self.convert_parameter_value(raw_default_value)
     }
 }
+
+impl RdmParameterData for ParameterDataType {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        if buf.len() < 1 {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 1,
+            });
+        }
+        buf[0] = (*self).into();
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        if buf.len() < 1 {
+            return Err(ParameterCodecError::MalformedData);
+        }
+        let data_type =
+            ParameterDataType::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(data_type)
+    }
+}
+
+pub enum ConvertedParameterValue {
+    BitField(u32),
+    Ascii(String<4>),
+    UnsignedByte(u8),
+    SignedByte(i8),
+    UnsignedWord(u16),
+    SignedWord(i16),
+    UnsignedDWord(u32),
+    SignedDWord(i32),
+    Raw([u8; 4]),
+}
+
+pub const PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH: usize = 32;
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ParameterDescriptionLabel(String<PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH>);
+impl_rdm_string!(
+    ParameterDescriptionLabel,
+    PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH
+);
 
 pub const DMX_PERSONALITY_DESCRIPTION_MAX_LENGTH: usize = 32;
 
@@ -1437,6 +1508,27 @@ impl SlotInfo {
     }
 }
 
+impl RdmParameterData for SlotInfo {
+    fn size_of(&self) -> usize {
+        5
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0..2].copy_from_slice(&self.id.to_be_bytes());
+        buf[2] = self.r#type.into();
+        buf[3..5].copy_from_slice(&self.label_id.to_be_bytes());
+        Ok(5)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        Ok(SlotInfo {
+            id: u16::from_be_bytes([buf[0], buf[1]]),
+            r#type: SlotType::from(buf[2]),
+            label_id: u16::from_be_bytes([buf[3], buf[4]]),
+        })
+    }
+}
+
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SlotIdDefinition {
@@ -1612,6 +1704,25 @@ pub struct DefaultSlotValue {
 impl DefaultSlotValue {
     pub fn new(id: u16, value: u8) -> Self {
         Self { id, value }
+    }
+}
+
+impl RdmParameterData for DefaultSlotValue {
+    fn size_of(&self) -> usize {
+        3
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0..2].copy_from_slice(&self.id.to_be_bytes());
+        buf[2] = self.value;
+        Ok(3)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        Ok(DefaultSlotValue {
+            id: u16::from_be_bytes([buf[0], buf[1]]),
+            value: buf[2],
+        })
     }
 }
 
@@ -1869,6 +1980,22 @@ impl From<SensorUnit> for u8 {
     }
 }
 
+impl RdmParameterData for SensorUnit {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = (*self).into();
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let sensor_unit = Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(sensor_unit)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum SensorUnitPrefix {
     None = 0x00,
@@ -1925,6 +2052,23 @@ impl TryFrom<u8> for SensorUnitPrefix {
     }
 }
 
+impl RdmParameterData for SensorUnitPrefix {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = (*self).clone() as u8;
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let sensor_unit_prefix =
+            Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(sensor_unit_prefix)
+    }
+}
+
 pub const SENSOR_DEFINITION_DESCRIPTION_MAX_LENGTH: usize = 32;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -1934,21 +2078,6 @@ impl_rdm_string!(
     SensorDefinitionDescription,
     SENSOR_DEFINITION_DESCRIPTION_MAX_LENGTH
 );
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SensorDefinition {
-    pub id: u8,
-    pub kind: SensorType,
-    pub unit: SensorUnit,
-    pub prefix: SensorUnitPrefix,
-    pub range_minimum_value: i16,
-    pub range_maximum_value: i16,
-    pub normal_minimum_value: i16,
-    pub normal_maximum_value: i16,
-    pub is_lowest_highest_detected_value_supported: bool,
-    pub is_recorded_value_supported: bool,
-    pub description: SensorDefinitionDescription,
-}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SensorValue {
@@ -2682,16 +2811,49 @@ pub struct GetStatusIdDescriptionRequest {
     pub status_id: u16,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetStatusIdDescriptionResponse {
+    pub status_id_description: StatusIdDescription,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetSubDeviceIdStatusReportThresholdResponse {
+    pub status_type: StatusType,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
 #[repr(C, packed)]
 pub struct SetSubDeviceIdStatusReportThresholdRequest {
     pub status_type: StatusType,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetSupportedParametersResponse {
+    pub supported_parameters: Vec<u16, 115>,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
 #[repr(C)]
 pub struct GetParameterDescriptionRequest {
     pub parameter_id: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetParameterDescriptionResponse {
+    pub parameter_id: u16,
+    pub parameter_data_length: u8,
+    pub data_type: ParameterDataType,
+    pub command_class: ImplementedCommandClass,
+    pub unit_type: SensorUnit,
+    pub prefix: SensorUnitPrefix,
+    pub raw_minimum_valid_value: [u8; 4],
+    pub raw_maximum_valid_value: [u8; 4],
+    pub raw_default_value: [u8; 4],
+    pub description: ParameterDescriptionLabel,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
@@ -2711,6 +2873,24 @@ pub struct GetDeviceInfoResponse {
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
+pub struct GetProductDetailIdListResponse {
+    pub product_detail_ids: Vec<ProductDetailValue, 115>,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetDeviceModelDescriptionResponse {
+    pub device_model_description: DeviceModelDescription,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetManufacturerLabelResponse {
+    pub manufacturer_label: ManufacturerLabel,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
 pub struct GetDeviceLabelResponse {
     pub device_label: DeviceLabel,
 }
@@ -2719,6 +2899,12 @@ pub struct GetDeviceLabelResponse {
 #[repr(C)]
 pub struct SetDeviceLabelRequest {
     pub device_label: DeviceLabel,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetFactoryDefaultsResponse {
+    pub factory_reset: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
@@ -2739,15 +2925,27 @@ pub struct GetLanguageCapabilitiesResponse {
     pub supported_languages: Vec<Iso639_1, 115>,
 }
 
-// #[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
-// #[repr(C, packed)]
-// pub struct GetParameterDescriptionResponse {
-//     pub parameter_id: u16,
-// }
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetSoftwareVersionLabelResponse {
+    pub software_version_label: SoftwareVersionLabel,
+}
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
-pub struct GetDmxPersonality {
+pub struct GetBootSoftwareVersionIdResponse {
+    pub boot_software_version_id: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetBootSoftwareVersionLabelResponse {
+    pub boot_software_version_label: BootSoftwareVersionLabel,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetDmxPersonalityResponse {
     pub current_personality: u8,
     pub personality_count: u8,
 }
@@ -2766,16 +2964,28 @@ pub struct GetDmxPersonalityDescriptionRequest {
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
-pub struct GetDmxPersonalityDescription {
+pub struct GetDmxPersonalityDescriptionResponse {
     pub id: u8,
     pub dmx_slots_required: u16,
     pub description: DmxPersonalityDescription,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetDmxStartAddressResponse {
+    pub dmx_start_address: u16,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
 #[repr(C)]
 pub struct SetDmxStartAddressRequest {
     pub dmx_start_address: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetSlotInfoResponse {
+    pub slot_info: Vec<SlotInfo, 46>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
@@ -2786,9 +2996,15 @@ pub struct GetSlotDescriptionRequest {
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
-pub struct GetSlotDescription {
+pub struct GetSlotDescriptionResponse {
     pub slot_id: u16,
     pub description: SlotDescription,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetDefaultSlotValueResponse {
+    pub default_values: Vec<DefaultSlotValue, 77>
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
@@ -2797,10 +3013,36 @@ pub struct GetSensorDefinitionRequest {
     pub sensor_id: u8,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetSensorDefinitionResponse {
+    pub id: u8,
+    pub kind: SensorType,
+    pub unit: SensorUnit,
+    pub prefix: SensorUnitPrefix,
+    pub range_minimum_value: i16,
+    pub range_maximum_value: i16,
+    pub normal_minimum_value: i16,
+    pub normal_maximum_value: i16,
+    pub is_lowest_highest_detected_value_supported: bool,
+    pub is_recorded_value_supported: bool,
+    pub description: SensorDefinitionDescription,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
 #[repr(C, packed)]
 pub struct GetSensorValueRequest {
     pub sensor_id: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetSensorValueResponse {
+    pub sensor_id: u8,
+    pub current_value: i16,
+    pub lowest_detected_value: i16,
+    pub highest_detected_value: i16,
+    pub recorded_value: i16,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
@@ -2809,10 +3051,26 @@ pub struct SetSensorValueRequest {
     pub sensor_id: u8,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
+#[repr(C)]
+pub struct SetSensorValueResponse {
+    pub sensor_id: u8,
+    pub current_value: i16,
+    pub lowest_detected_value: i16,
+    pub highest_detected_value: i16,
+    pub recorded_value: i16,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
 #[repr(C, packed)]
 pub struct SetRecordSensorsRequest {
     pub sensor_id: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetDeviceHoursResponse {
+    pub device_hours: u32
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
@@ -2821,10 +3079,22 @@ pub struct SetDeviceHoursRequest {
     pub device_hours: u32,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetLampHoursResponse {
+    pub lamp_hours: u32
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
 #[repr(C)]
 pub struct SetLampHoursRequest {
     pub lamp_hours: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetLampStrikesResponse {
+    pub lamp_strikes: u32
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
@@ -2833,10 +3103,22 @@ pub struct SetLampStrikesRequest {
     pub lamp_strikes: u32,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetLampStateResponse {
+    pub lamp_state: LampState,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
 #[repr(C, packed)]
 pub struct SetLampStateRequest {
     pub lamp_state: LampState,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetLampOnModeResponse {
+    pub lamp_on_mode: LampOnMode,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
@@ -2845,10 +3127,64 @@ pub struct SetLampOnModeRequest {
     pub lamp_on_mode: LampOnMode,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetDevicePowerCyclesResponse {
+    pub device_power_cycles: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetDisplayInvertResponse {
+    pub display_invert_mode: DisplayInvertMode,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetDisplayLevelResponse {
+    pub display_level: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetPanInvertResponse {
+    pub pan_invert: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetTiltInvertResponse {
+    pub tilt_invert: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetPanTiltSwapResponse {
+    pub pan_tilt_swap: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetIdentifyDeviceResponse {
+    pub identify: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetPowerStateResponse {
+    pub power_state: PowerState,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
 #[repr(C, packed)]
 pub struct SetPowerStateRequest {
     pub power_state: PowerState,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetPerformSelfTestResponse {
+    pub perform_self_test: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
@@ -2937,7 +3273,7 @@ pub struct SetRealTimeClockRequest {
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
-pub struct GetSelfTestDescription {
+pub struct GetSelfTestDescriptionResponse {
     pub self_test_id: SelfTest,
     pub description: SelfTestDescription,
 }
@@ -2956,7 +3292,7 @@ pub struct SetResetDeviceRequest {
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
-pub struct GetPresetPlayback {
+pub struct GetPresetPlaybackResponse {
     pub mode: PresetPlaybackMode,
     pub level: u8,
 }

@@ -1,12 +1,9 @@
 use super::RdmError;
 use crate::{
     impl_rdm_string,
-    rdm::{
-        parameter::e137_2::{Ipv4Address, Ipv6Address},
-        utils::RdmPadNullStr,
-    },
+    rdm::parameter::e137_2::{Ipv4Address, Ipv6Address},
 };
-use core::{ops::Deref, str::FromStr, time::Duration};
+use core::time::Duration;
 use heapless::String;
 use rdm_parameter_derive::{
     RdmGetRequestParameter, RdmGetResponseParameter, RdmSetRequestParameter,

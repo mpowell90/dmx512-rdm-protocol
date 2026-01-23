@@ -51,24 +51,29 @@ use super::{
     header::{CommandClass, DeviceUID, SubDeviceId},
     parameter::{
         ParameterId,
-        e120::{
-            BootSoftwareVersionLabel, DefaultSlotValue, DeviceModelDescription, DisplayInvertMode,
-            DmxPersonalityDescription, LampOnMode, LampState, ManufacturerLabel,
-            ParameterDescription, ParameterDescriptionLabel, PowerState, ProductDetailValue,
-            SelfTestDescription, SensorDefinition, SensorDefinitionDescription, SensorValue,
-            SlotDescription, SlotInfo, SoftwareVersionLabel, StatusIdDescription, StatusType,
-        },
+        e120::{DefaultSlotValue, SelfTestDescription, SensorDefinitionDescription, SensorValue},
         e137_1::{MergeMode, PinCode},
     },
     utils::{RdmPadNullStr, RdmTruncateNullStr, bsd_16_crc},
 };
 use crate::rdm::parameter::{
     e120::{
-        DiscMuteResponse, DiscUnMuteResponse, GetCommsStatusResponse, GetDeviceInfoResponse,
-        GetDeviceLabelResponse, GetDmxPersonality, GetDmxPersonalityDescription,
-        GetLanguageCapabilitiesResponse, GetLanguageResponse, GetPresetPlayback,
-        GetProxiedDeviceCountResponse, GetProxiedDevicesResponse, GetRealTimeClock,
-        GetSelfTestDescription, GetSlotDescription, GetStatusMessagesResponse,
+        DiscMuteResponse, DiscUnMuteResponse, GetBootSoftwareVersionIdResponse,
+        GetBootSoftwareVersionLabelResponse, GetCommsStatusResponse, GetDefaultSlotValueResponse,
+        GetDeviceHoursResponse, GetDeviceInfoResponse, GetDeviceLabelResponse,
+        GetDeviceModelDescriptionResponse, GetDevicePowerCyclesResponse, GetDisplayInvertResponse,
+        GetDisplayLevelResponse, GetDmxPersonalityDescriptionResponse, GetDmxPersonalityResponse,
+        GetDmxStartAddressResponse, GetFactoryDefaultsResponse, GetIdentifyDeviceResponse,
+        GetLampHoursResponse, GetLampOnModeResponse, GetLampStateResponse, GetLampStrikesResponse,
+        GetLanguageCapabilitiesResponse, GetLanguageResponse, GetManufacturerLabelResponse,
+        GetPanInvertResponse, GetPanTiltSwapResponse, GetParameterDescriptionResponse,
+        GetPerformSelfTestResponse, GetPowerStateResponse, GetPresetPlaybackResponse,
+        GetProductDetailIdListResponse, GetProxiedDeviceCountResponse, GetProxiedDevicesResponse,
+        GetRealTimeClock, GetSelfTestDescriptionResponse, GetSensorDefinitionResponse,
+        GetSensorValueResponse, GetSlotDescriptionResponse, GetSlotInfoResponse,
+        GetSoftwareVersionLabelResponse, GetStatusIdDescriptionResponse, GetStatusMessagesResponse,
+        GetSubDeviceIdStatusReportThresholdResponse, GetSupportedParametersResponse,
+        GetTiltInvertResponse, SetSensorValueResponse,
     },
     e133::{
         GetBrokerStatusResponse, GetComponentScopeResponse, GetSearchDomainResponse,
@@ -288,47 +293,47 @@ pub enum ResponseParameterData {
     GetProxiedDevices(GetProxiedDevicesResponse),
     GetCommsStatus(GetCommsStatusResponse),
     GetStatusMessages(GetStatusMessagesResponse),
-    GetStatusIdDescription(StatusIdDescription),
-    GetSubDeviceIdStatusReportThreshold(StatusType),
-    GetSupportedParameters(Vec<u16, 115>),
-    GetParameterDescription(ParameterDescription),
+    GetStatusIdDescription(GetStatusIdDescriptionResponse),
+    GetSubDeviceIdStatusReportThreshold(GetSubDeviceIdStatusReportThresholdResponse),
+    GetSupportedParameters(GetSupportedParametersResponse),
+    GetParameterDescription(GetParameterDescriptionResponse),
     GetDeviceInfo(GetDeviceInfoResponse),
-    GetProductDetailIdList(Vec<ProductDetailValue, 115>),
-    GetDeviceModelDescription(DeviceModelDescription),
-    GetManufacturerLabel(ManufacturerLabel),
+    GetProductDetailIdList(GetProductDetailIdListResponse),
+    GetDeviceModelDescription(GetDeviceModelDescriptionResponse),
+    GetManufacturerLabel(GetManufacturerLabelResponse),
     GetDeviceLabel(GetDeviceLabelResponse),
-    GetFactoryDefaults(bool),
+    GetFactoryDefaults(GetFactoryDefaultsResponse),
     GetLanguageCapabilities(GetLanguageCapabilitiesResponse),
     GetLanguage(GetLanguageResponse),
-    GetSoftwareVersionLabel(SoftwareVersionLabel),
-    GetBootSoftwareVersionId(u32),
-    GetBootSoftwareVersionLabel(BootSoftwareVersionLabel),
-    GetDmxPersonality(GetDmxPersonality),
-    GetDmxPersonalityDescription(GetDmxPersonalityDescription),
-    GetDmxStartAddress(u16),
-    GetSlotInfo(Vec<SlotInfo, 46>),
-    GetSlotDescription(GetSlotDescription),
-    GetDefaultSlotValue(Vec<DefaultSlotValue, 77>),
-    GetSensorDefinition(SensorDefinition),
-    GetSensorValue(SensorValue),
-    SetSensorValue(SensorValue),
-    GetDeviceHours(u32),
-    GetLampHours(u32),
-    GetLampStrikes(u32),
-    GetLampState(LampState),
-    GetLampOnMode(LampOnMode),
-    GetDevicePowerCycles(u32),
-    GetDisplayInvert(DisplayInvertMode),
-    GetDisplayLevel(u8),
-    GetPanInvert(bool),
-    GetTiltInvert(bool),
-    GetPanTiltSwap(bool),
+    GetSoftwareVersionLabel(GetSoftwareVersionLabelResponse),
+    GetBootSoftwareVersionId(GetBootSoftwareVersionIdResponse),
+    GetBootSoftwareVersionLabel(GetBootSoftwareVersionLabelResponse),
+    GetDmxPersonality(GetDmxPersonalityResponse),
+    GetDmxPersonalityDescription(GetDmxPersonalityDescriptionResponse),
+    GetDmxStartAddress(GetDmxStartAddressResponse),
+    GetSlotInfo(GetSlotInfoResponse),
+    GetSlotDescription(GetSlotDescriptionResponse),
+    GetDefaultSlotValue(GetDefaultSlotValueResponse),
+    GetSensorDefinition(GetSensorDefinitionResponse),
+    GetSensorValue(GetSensorValueResponse),
+    SetSensorValue(SetSensorValueResponse),
+    GetDeviceHours(GetDeviceHoursResponse),
+    GetLampHours(GetLampHoursResponse),
+    GetLampStrikes(GetLampStrikesResponse),
+    GetLampState(GetLampStateResponse),
+    GetLampOnMode(GetLampOnModeResponse),
+    GetDevicePowerCycles(GetDevicePowerCyclesResponse),
+    GetDisplayInvert(GetDisplayInvertResponse),
+    GetDisplayLevel(GetDisplayLevelResponse),
+    GetPanInvert(GetPanInvertResponse),
+    GetTiltInvert(GetTiltInvertResponse),
+    GetPanTiltSwap(GetPanTiltSwapResponse),
     GetRealTimeClock(GetRealTimeClock),
-    GetIdentifyDevice(bool),
-    GetPowerState(PowerState),
-    GetPerformSelfTest(bool),
-    GetSelfTestDescription(GetSelfTestDescription),
-    GetPresetPlayback(GetPresetPlayback),
+    GetIdentifyDevice(GetIdentifyDeviceResponse),
+    GetPowerState(GetPowerStateResponse),
+    GetPerformSelfTest(GetPerformSelfTestResponse),
+    GetSelfTestDescription(GetSelfTestDescriptionResponse),
+    GetPresetPlayback(GetPresetPlaybackResponse),
     // E1.37-1
     GetDmxBlockAddress(GetDmxBlockAddress),
     GetDmxFailMode(GetDmxFailMode),
@@ -398,72 +403,52 @@ pub enum ResponseParameterData {
 impl ResponseParameterData {
     pub fn size(&self) -> usize {
         match self {
-            ResponseParameterData::DiscMute(DiscMuteResponse { binding_uid, .. })
-            | ResponseParameterData::DiscUnMute(DiscUnMuteResponse { binding_uid, .. }) => {
-                if binding_uid.is_some() {
-                    8
-                } else {
-                    2
-                }
-            }
-            ResponseParameterData::GetProxiedDeviceCount(_) => 3,
-            ResponseParameterData::GetProxiedDevices(GetProxiedDevicesResponse { device_uids }) => {
-                device_uids.len() * 6
-            }
-            ResponseParameterData::GetCommsStatus(_) => 6,
+            ResponseParameterData::DiscMute(param) => param.size_of(),
+            ResponseParameterData::DiscUnMute(param) => param.size_of(),
+            ResponseParameterData::GetProxiedDeviceCount(param) => param.size_of(),
+            ResponseParameterData::GetProxiedDevices(param) => param.size_of(),
+            ResponseParameterData::GetCommsStatus(param) => param.size_of(),
             ResponseParameterData::GetStatusMessages(param) => param.size_of(),
-            ResponseParameterData::GetStatusIdDescription(description) => description.len(),
-            ResponseParameterData::GetSubDeviceIdStatusReportThreshold(_) => 1,
-            ResponseParameterData::GetSupportedParameters(parameters) => parameters.len() * 2,
-            ResponseParameterData::GetParameterDescription(description) => {
-                20 + description.description.len()
-            }
-            ResponseParameterData::GetDeviceInfo(_) => 19,
-            ResponseParameterData::GetProductDetailIdList(details) => details.len() * 2,
-            ResponseParameterData::GetDeviceModelDescription(description) => description.len(),
-            ResponseParameterData::GetManufacturerLabel(label) => label.len(),
+            ResponseParameterData::GetStatusIdDescription(param) => param.size_of(),
+            ResponseParameterData::GetSubDeviceIdStatusReportThreshold(param) => param.size_of(),
+            ResponseParameterData::GetSupportedParameters(param) => param.size_of(),
+            ResponseParameterData::GetParameterDescription(param) => param.size_of(),
+            ResponseParameterData::GetDeviceInfo(param) => param.size_of(),
+            ResponseParameterData::GetProductDetailIdList(param) => param.size_of(),
+            ResponseParameterData::GetDeviceModelDescription(param) => param.size_of(),
+            ResponseParameterData::GetManufacturerLabel(param) => param.size_of(),
             ResponseParameterData::GetDeviceLabel(param) => param.size_of(),
-            ResponseParameterData::GetFactoryDefaults(_) => 1,
+            ResponseParameterData::GetFactoryDefaults(param) => param.size_of(),
             ResponseParameterData::GetLanguageCapabilities(param) => param.size_of(),
-            ResponseParameterData::GetLanguage(_) => 2,
-            ResponseParameterData::GetSoftwareVersionLabel(label) => label.len(),
-            ResponseParameterData::GetBootSoftwareVersionId(_) => 4,
-            ResponseParameterData::GetBootSoftwareVersionLabel(label) => label.len(),
-            ResponseParameterData::GetDmxPersonality(_) => 2,
-            ResponseParameterData::GetDmxPersonalityDescription(GetDmxPersonalityDescription {
-                description,
-                ..
-            }) => 3 + description.len(),
-            ResponseParameterData::GetDmxStartAddress(_) => 2,
-            ResponseParameterData::GetSlotInfo(slots) => slots.len() * 5,
-            ResponseParameterData::GetSlotDescription(GetSlotDescription {
-                description, ..
-            }) => 2 + description.len(),
-            ResponseParameterData::GetDefaultSlotValue(values) => values.len() * 3,
-            ResponseParameterData::GetSensorDefinition(definition) => {
-                14 + definition.description.len()
-            }
-            ResponseParameterData::GetSensorValue(_) => 9,
-            ResponseParameterData::SetSensorValue(_) => 9,
-            ResponseParameterData::GetDeviceHours(_) => 4,
-            ResponseParameterData::GetLampHours(_) => 4,
-            ResponseParameterData::GetLampStrikes(_) => 4,
-            ResponseParameterData::GetLampState(_) => 1,
-            ResponseParameterData::GetLampOnMode(_) => 1,
-            ResponseParameterData::GetDevicePowerCycles(_) => 4,
-            ResponseParameterData::GetDisplayInvert(_) => 1,
-            ResponseParameterData::GetDisplayLevel(_) => 1,
-            ResponseParameterData::GetPanInvert(_) => 1,
-            ResponseParameterData::GetTiltInvert(_) => 1,
-            ResponseParameterData::GetPanTiltSwap(_) => 1,
-            ResponseParameterData::GetRealTimeClock(_) => 7,
-            ResponseParameterData::GetIdentifyDevice(_) => 1,
-            ResponseParameterData::GetPowerState(_) => 1,
-            ResponseParameterData::GetPerformSelfTest(_) => 1,
-            ResponseParameterData::GetSelfTestDescription(GetSelfTestDescription {
-                description,
-                ..
-            }) => 1 + description.len(),
+            ResponseParameterData::GetLanguage(param) => param.size_of(),
+            ResponseParameterData::GetSoftwareVersionLabel(param) => param.size_of(),
+            ResponseParameterData::GetBootSoftwareVersionId(param) => param.size_of(),
+            ResponseParameterData::GetBootSoftwareVersionLabel(param) => param.size_of(),
+            ResponseParameterData::GetDmxPersonality(param) => param.size_of(),
+            ResponseParameterData::GetDmxPersonalityDescription(param) => param.size_of(),
+            ResponseParameterData::GetDmxStartAddress(param) => param.size_of(),
+            ResponseParameterData::GetSlotInfo(param) => param.size_of(),
+            ResponseParameterData::GetSlotDescription(param) => param.size_of(),
+            ResponseParameterData::GetDefaultSlotValue(param) => param.size_of(),
+            ResponseParameterData::GetSensorDefinition(param) => param.size_of(),
+            ResponseParameterData::GetSensorValue(param) => param.size_of(),
+            ResponseParameterData::SetSensorValue(param) => param.size_of(),
+            ResponseParameterData::GetDeviceHours(param) => param.size_of(),
+            ResponseParameterData::GetLampHours(param) => param.size_of(),
+            ResponseParameterData::GetLampStrikes(param) => param.size_of(),
+            ResponseParameterData::GetLampState(param) => param.size_of(),
+            ResponseParameterData::GetLampOnMode(param) => param.size_of(),
+            ResponseParameterData::GetDevicePowerCycles(param) => param.size_of(),
+            ResponseParameterData::GetDisplayInvert(param) => param.size_of(),
+            ResponseParameterData::GetDisplayLevel(param) => param.size_of(),
+            ResponseParameterData::GetPanInvert(param) => param.size_of(),
+            ResponseParameterData::GetTiltInvert(param) => param.size_of(),
+            ResponseParameterData::GetPanTiltSwap(param) => param.size_of(),
+            ResponseParameterData::GetRealTimeClock(param) => param.size_of(),
+            ResponseParameterData::GetIdentifyDevice(param) => param.size_of(),
+            ResponseParameterData::GetPowerState(param) => param.size_of(),
+            ResponseParameterData::GetPerformSelfTest(param) => param.size_of(),
+            ResponseParameterData::GetSelfTestDescription(param) => param.size_of(),
             ResponseParameterData::GetPresetPlayback(_) => 3,
             ResponseParameterData::GetDmxBlockAddress(_) => 4,
             ResponseParameterData::GetDmxFailMode(_) => 7,
@@ -559,50 +544,35 @@ impl ResponseParameterData {
             Self::GetStatusMessages(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetStatusIdDescription(description) => {
-                description.encode(buf)?;
+            Self::GetStatusIdDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetSubDeviceIdStatusReportThreshold(status) => {
-                buf[0] = *status as u8;
+            Self::GetSubDeviceIdStatusReportThreshold(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetSupportedParameters(parameters) => {
-                for (idx, parameter) in parameters.iter().enumerate() {
-                    buf[idx * 2..(idx + 2) * 2].copy_from_slice(&parameter.to_be_bytes());
-                }
+            Self::GetSupportedParameters(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetParameterDescription(description) => {
-                buf[0..2].copy_from_slice(&description.parameter_id.to_be_bytes());
-                buf[2] = description.parameter_data_length;
-                buf[3] = description.data_type.into();
-                buf[4] = description.command_class as u8;
-                buf[6] = description.unit_type.into();
-                buf[7] = description.prefix as u8;
-                buf[8..12].copy_from_slice(&description.raw_minimum_valid_value);
-                buf[12..16].copy_from_slice(&description.raw_maximum_valid_value);
-                buf[16..20].copy_from_slice(&description.raw_default_value);
-                description
-                    .description
-                    .encode(&mut buf[20..20 + description.description.len()])?;
+            Self::GetParameterDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetDeviceInfo(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetProductDetailIdList(details) => {
-                for (idx, detail) in details.iter().enumerate() {
-                    buf[idx * 2..(idx + 2) * 2].copy_from_slice(&detail.0.to_be_bytes());
-                }
+            Self::GetProductDetailIdList(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetDeviceModelDescription(description) => {
-                description.encode(buf)?;
+            Self::GetDeviceModelDescription(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetManufacturerLabel(label) => {
-                label.encode(buf)?;
+            Self::GetManufacturerLabel(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetDeviceLabel(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetFactoryDefaults(defaults) => {
-                buf[0] = *defaults as u8;
+            Self::GetFactoryDefaults(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetLanguageCapabilities(param) => {
                 param.get_response_encode_data(buf)?;
@@ -610,14 +580,14 @@ impl ResponseParameterData {
             Self::GetLanguage(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetSoftwareVersionLabel(label) => {
-                label.encode(buf)?;
+            Self::GetSoftwareVersionLabel(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetBootSoftwareVersionId(version_id) => {
-                buf[0..4].copy_from_slice(&version_id.to_be_bytes());
+            Self::GetBootSoftwareVersionId(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetBootSoftwareVersionLabel(label) => {
-                label.encode(buf)?;
+            Self::GetBootSoftwareVersionLabel(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetDmxPersonality(param) => {
                 param.get_response_encode_data(buf)?;
@@ -625,85 +595,59 @@ impl ResponseParameterData {
             Self::GetDmxPersonalityDescription(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetDmxStartAddress(address) => {
-                buf[0..2].copy_from_slice(&address.to_be_bytes());
+            Self::GetDmxStartAddress(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetSlotInfo(slots) => {
-                for (idx, slot) in slots.iter().enumerate() {
-                    buf[idx * 5..(idx + 2) * 5].copy_from_slice(&slot.id.to_be_bytes());
-                    buf[(idx + 2) * 5] = slot.r#type.into();
-                    buf[(idx + 3) * 5..(idx + 5) * 5].copy_from_slice(&slot.label_id.to_be_bytes());
-                }
+            Self::GetSlotInfo(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetSlotDescription(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetDefaultSlotValue(values) => {
-                for (idx, slot) in values.iter().enumerate() {
-                    buf[idx * 3..(idx + 2) * 3].copy_from_slice(&slot.id.to_be_bytes());
-                    buf[(idx + 2) * 3] = slot.value;
-                }
+            Self::GetDefaultSlotValue(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetSensorDefinition(definition) => {
-                buf[0] = definition.id;
-                buf[1] = definition.kind.into();
-                buf[2] = definition.unit.into();
-                buf[3] = definition.prefix as u8;
-                buf[4..6].copy_from_slice(&definition.range_minimum_value.to_be_bytes());
-                buf[6..8].copy_from_slice(&definition.range_maximum_value.to_be_bytes());
-                buf[8..10].copy_from_slice(&definition.normal_minimum_value.to_be_bytes());
-                buf[10..12].copy_from_slice(&definition.normal_maximum_value.to_be_bytes());
-                buf[12] = definition.is_lowest_highest_detected_value_supported as u8;
-                buf[13] = definition.is_recorded_value_supported as u8;
-                buf[14..14 + definition.description.len()]
-                    .copy_from_slice(definition.description.as_bytes());
+            Self::GetSensorDefinition(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetSensorValue(sensor_value) => {
-                buf[0] = sensor_value.sensor_id;
-                buf[1..3].copy_from_slice(&sensor_value.current_value.to_be_bytes());
-                buf[3..5].copy_from_slice(&sensor_value.lowest_detected_value.to_be_bytes());
-                buf[5..7].copy_from_slice(&sensor_value.highest_detected_value.to_be_bytes());
-                buf[7..9].copy_from_slice(&sensor_value.recorded_value.to_be_bytes());
+            Self::GetSensorValue(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::SetSensorValue(sensor_value) => {
-                buf[0] = sensor_value.sensor_id;
-                buf[1..3].copy_from_slice(&sensor_value.current_value.to_be_bytes());
-                buf[3..5].copy_from_slice(&sensor_value.lowest_detected_value.to_be_bytes());
-                buf[5..7].copy_from_slice(&sensor_value.highest_detected_value.to_be_bytes());
-                buf[7..9].copy_from_slice(&sensor_value.recorded_value.to_be_bytes());
+            Self::SetSensorValue(param) => {
+                param.set_response_encode_data(buf)?;
             }
-            Self::GetDeviceHours(hours) => {
-                buf[0..4].copy_from_slice(&hours.to_be_bytes());
+            Self::GetDeviceHours(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetLampHours(hours) => {
-                buf[0..4].copy_from_slice(&hours.to_be_bytes());
+            Self::GetLampHours(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetLampStrikes(strikes) => {
-                buf[0..4].copy_from_slice(&strikes.to_be_bytes());
+            Self::GetLampStrikes(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetLampState(state) => {
-                buf[0] = (*state).into();
+            Self::GetLampState(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetLampOnMode(mode) => {
-                buf[0] = (*mode).into();
+            Self::GetLampOnMode(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetDevicePowerCycles(cycles) => {
-                buf[0..4].copy_from_slice(&cycles.to_be_bytes());
+            Self::GetDevicePowerCycles(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetDisplayInvert(mode) => {
-                buf[0] = *mode as u8;
+            Self::GetDisplayInvert(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetDisplayLevel(level) => {
-                buf[0] = *level;
+            Self::GetDisplayLevel(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetPanInvert(invert) => {
-                buf[0] = *invert as u8;
+            Self::GetPanInvert(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetTiltInvert(invert) => {
-                buf[0] = *invert as u8;
+            Self::GetTiltInvert(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetPanTiltSwap(swap) => {
-                buf[0] = *swap as u8;
+            Self::GetPanTiltSwap(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetRealTimeClock(GetRealTimeClock {
                 year,
@@ -720,14 +664,14 @@ impl ResponseParameterData {
                 buf[5] = *minute;
                 buf[6] = *second;
             }
-            Self::GetIdentifyDevice(identifying) => {
-                buf[0] = *identifying as u8;
+            Self::GetIdentifyDevice(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetPowerState(state) => {
-                buf[0] = *state as u8;
+            Self::GetPowerState(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetPerformSelfTest(test) => {
-                buf[0] = *test as u8;
+            Self::GetPerformSelfTest(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetSelfTestDescription(param) => {
                 param.get_response_encode_data(buf)?;
@@ -952,60 +896,54 @@ impl ResponseParameterData {
                     GetStatusMessagesResponse::get_response_decode_data(bytes)?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => Ok(
-                Self::GetStatusIdDescription(StatusIdDescription::decode(bytes)?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => {
+                Ok(Self::GetStatusIdDescription(
+                    GetStatusIdDescriptionResponse::get_response_decode_data(bytes)?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::SubDeviceIdStatusReportThreshold) => {
                 Ok(Self::GetSubDeviceIdStatusReportThreshold(
-                    bytes[0].try_into()?,
+                    GetSubDeviceIdStatusReportThresholdResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::SupportedParameters) => {
-                let parameters = bytes
-                    .chunks(2)
-                    .map(|chunk| Ok(u16::from_be_bytes(chunk.try_into()?)))
-                    .filter_map(|parameter_id: Result<u16, RdmError>| parameter_id.ok());
-
                 Ok(Self::GetSupportedParameters(
-                    parameters.collect::<Vec<u16, 115>>(),
+                    GetSupportedParametersResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::ParameterDescription) => {
-                Ok(Self::GetParameterDescription(ParameterDescription {
-                    parameter_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    parameter_data_length: bytes[2],
-                    data_type: bytes[3].try_into()?,
-                    command_class: bytes[4].try_into()?,
-                    unit_type: bytes[6].try_into()?,
-                    prefix: bytes[7].try_into()?,
-                    raw_minimum_valid_value: bytes[8..=11].try_into()?,
-                    raw_maximum_valid_value: bytes[12..=15].try_into()?,
-                    raw_default_value: bytes[16..=19].try_into()?,
-                    description: ParameterDescriptionLabel::decode(&bytes[20..])?,
-                }))
+                Ok(Self::GetParameterDescription(
+                    GetParameterDescriptionResponse::get_response_decode_data(bytes)?,
+                ))
             }
+            (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => Ok(Self::GetDeviceInfo(
+                GetDeviceInfoResponse::get_response_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => Ok(Self::GetDeviceInfo(
                 GetDeviceInfoResponse::get_response_decode_data(bytes)?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::ProductDetailIdList) => {
                 Ok(Self::GetProductDetailIdList(
-                    bytes
-                        .chunks(2)
-                        .map(|chunk| Ok(ProductDetailValue(u16::from_be_bytes(chunk.try_into()?))))
-                        .collect::<Result<Vec<ProductDetailValue, 115>, RdmError>>()?,
+                    GetProductDetailIdListResponse::get_response_decode_data(bytes)?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => Ok(
-                Self::GetDeviceModelDescription(DeviceModelDescription::decode(bytes)?),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => Ok(
-                Self::GetManufacturerLabel(ManufacturerLabel::decode(bytes)?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => {
+                Ok(Self::GetDeviceModelDescription(
+                    GetDeviceModelDescriptionResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => {
+                Ok(Self::GetManufacturerLabel(
+                    GetManufacturerLabelResponse::get_response_decode_data(bytes)?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::DeviceLabel) => Ok(
                 Self::GetDeviceLabel(GetDeviceLabelResponse::get_response_decode_data(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::FactoryDefaults) => {
-                Ok(Self::GetFactoryDefaults(bytes[0] == 1))
+                Ok(Self::GetFactoryDefaults(
+                    GetFactoryDefaultsResponse::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::LanguageCapabilities) => {
                 Ok(Self::GetLanguageCapabilities(
@@ -1015,48 +953,43 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(
                 GetLanguageResponse::get_response_decode_data(bytes)?,
             )),
-            (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => Ok(
-                Self::GetSoftwareVersionLabel(SoftwareVersionLabel::decode(bytes)?),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => Ok(
-                Self::GetBootSoftwareVersionId(u32::from_be_bytes(bytes.try_into()?)),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionLabel) => Ok(
-                Self::GetBootSoftwareVersionLabel(BootSoftwareVersionLabel::decode(bytes)?),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::DmxPersonality) => {
-                Ok(Self::GetDmxPersonality(GetDmxPersonality {
-                    current_personality: bytes[0],
-                    personality_count: bytes[1],
-                }))
+            (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => {
+                Ok(Self::GetSoftwareVersionLabel(
+                    GetSoftwareVersionLabelResponse::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DmxPersonalityDescription) => Ok(
-                Self::GetDmxPersonalityDescription(GetDmxPersonalityDescription {
-                    id: bytes[0],
-                    dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into()?),
-                    description: DmxPersonalityDescription::decode(&bytes[3..])?,
-                }),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => Ok(
-                Self::GetDmxStartAddress(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => {
+                Ok(Self::GetBootSoftwareVersionId(
+                    GetBootSoftwareVersionIdResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionLabel) => {
+                Ok(Self::GetBootSoftwareVersionLabel(
+                    GetBootSoftwareVersionLabelResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DmxPersonality) => {
+                Ok(Self::GetDmxPersonality(
+                    GetDmxPersonalityResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DmxPersonalityDescription) => {
+                Ok(Self::GetDmxPersonalityDescription(
+                    GetDmxPersonalityDescriptionResponse::get_response_decode_data(bytes)?,
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => {
+                Ok(Self::GetDmxStartAddress(
+                    GetDmxStartAddressResponse::get_response_decode_data(bytes)?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::SlotInfo) => Ok(Self::GetSlotInfo(
-                bytes
-                    .chunks(5)
-                    .map(|chunk| {
-                        Ok(SlotInfo::new(
-                            u16::from_be_bytes(chunk[0..=1].try_into()?),
-                            chunk[2].into(),
-                            u16::from_be_bytes(chunk[3..=4].try_into()?),
-                        ))
-                    })
-                    .collect::<Result<Vec<SlotInfo, 46>, RdmError>>()?,
+                GetSlotInfoResponse::get_response_decode_data(bytes)?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
-                Ok(Self::GetSlotDescription(GetSlotDescription {
-                    slot_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    description: SlotDescription::decode(&bytes[2..])?,
-                }))
+                Ok(Self::GetSlotDescription(
+                    GetSlotDescriptionResponse::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::DefaultSlotValue) => {
                 Ok(Self::GetDefaultSlotValue(
