@@ -48,11 +48,8 @@ use super::{
     RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
     error::RdmError,
     header::{CommandClass, DeviceUID, SubDeviceId},
-    parameter::{
-        ParameterId,
-        e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode},
-    },
-    utils::{RdmPadNullStr, RdmTruncateNullStr, bsd_16_crc},
+    parameter::ParameterId,
+    utils::bsd_16_crc,
 };
 use crate::rdm::parameter::{
     e120::{
@@ -88,6 +85,17 @@ use crate::rdm::parameter::{
         SetDnsHostNameRequest, SetDnsIpv4NameServerRequest, SetInterfaceApplyConfigurationRequest,
         SetInterfaceReleaseDhcpRequest, SetInterfaceRenewDhcpRequest, SetIpV4DefaultRouteRequest,
         SetIpV4DhcpModeRequest, SetIpV4StaticAddressRequest, SetIpV4ZeroConfModeRequest,
+    },
+    e137_7::{
+        GetBackgroundDiscoveryRequest, GetBackgroundQueuedStatusPolicyDescriptionRequest,
+        GetBindingControlFieldsRequest, GetDiscoveryStateRequest, GetEndpointLabelRequest,
+        GetEndpointModeRequest, GetEndpointResponderListChangeRequest,
+        GetEndpointRespondersRequest, GetEndpointTimingDescriptionRequest,
+        GetEndpointTimingRequest, GetEndpointToUniverseRequest, GetIdentifyEndpointRequest,
+        GetRdmTrafficEnableRequest, SetBackgroundDiscoveryRequest,
+        SetBackgroundQueuedStatusPolicyRequest, SetDiscoveryStateRequest, SetEndpointLabelRequest,
+        SetEndpointModeRequest, SetEndpointTimingRequest, SetEndpointToUniverseRequest,
+        SetIdentifyEndpointRequest, SetRdmTrafficEnableRequest,
     },
 };
 use heapless::Vec;
@@ -235,82 +243,29 @@ pub enum RequestParameter {
     // E1.37-7
     GetEndpointList,
     GetEndpointListChange,
-    GetIdentifyEndpoint {
-        endpoint_id: EndpointId,
-    },
-    SetIdentifyEndpoint {
-        endpoint_id: EndpointId,
-        identify: bool,
-    },
-    GetEndpointToUniverse {
-        endpoint_id: EndpointId,
-    },
-    SetEndpointToUniverse {
-        endpoint_id: EndpointId,
-        universe: u16,
-    },
-    GetEndpointMode {
-        endpoint_id: EndpointId,
-    },
-    SetEndpointMode {
-        endpoint_id: EndpointId,
-        mode: EndpointMode,
-    },
-    GetEndpointLabel {
-        endpoint_id: EndpointId,
-    },
-    SetEndpointLabel {
-        endpoint_id: EndpointId,
-        label: EndpointLabel,
-    },
-    GetRdmTrafficEnable {
-        endpoint_id: EndpointId,
-    },
-    SetRdmTrafficEnable {
-        endpoint_id: EndpointId,
-        enable: bool,
-    },
-    GetDiscoveryState {
-        endpoint_id: EndpointId,
-    },
-    SetDiscoveryState {
-        endpoint_id: EndpointId,
-        state: DiscoveryState,
-    },
-    GetBackgroundDiscovery {
-        endpoint_id: EndpointId,
-    },
-    SetBackgroundDiscovery {
-        endpoint_id: EndpointId,
-        enable: bool,
-    },
-    GetEndpointTiming {
-        endpoint_id: EndpointId,
-    },
-    SetEndpointTiming {
-        endpoint_id: EndpointId,
-        setting_id: u8,
-    },
-    GetEndpointTimingDescription {
-        setting_id: u8,
-    },
-    GetEndpointResponders {
-        endpoint_id: EndpointId,
-    },
-    GetEndpointResponderListChange {
-        endpoint_id: EndpointId,
-    },
-    GetBindingControlFields {
-        endpoint_id: EndpointId,
-        uid: DeviceUID,
-    },
+    GetIdentifyEndpoint(GetIdentifyEndpointRequest),
+    SetIdentifyEndpoint(SetIdentifyEndpointRequest),
+    GetEndpointToUniverse(GetEndpointToUniverseRequest),
+    SetEndpointToUniverse(SetEndpointToUniverseRequest),
+    GetEndpointMode(GetEndpointModeRequest),
+    SetEndpointMode(SetEndpointModeRequest),
+    GetEndpointLabel(GetEndpointLabelRequest),
+    SetEndpointLabel(SetEndpointLabelRequest),
+    GetRdmTrafficEnable(GetRdmTrafficEnableRequest),
+    SetRdmTrafficEnable(SetRdmTrafficEnableRequest),
+    GetDiscoveryState(GetDiscoveryStateRequest),
+    SetDiscoveryState(SetDiscoveryStateRequest),
+    GetBackgroundDiscovery(GetBackgroundDiscoveryRequest),
+    SetBackgroundDiscovery(SetBackgroundDiscoveryRequest),
+    GetEndpointTiming(GetEndpointTimingRequest),
+    SetEndpointTiming(SetEndpointTimingRequest),
+    GetEndpointTimingDescription(GetEndpointTimingDescriptionRequest),
+    GetEndpointResponders(GetEndpointRespondersRequest),
+    GetEndpointResponderListChange(GetEndpointResponderListChangeRequest),
+    GetBindingControlFields(GetBindingControlFieldsRequest),
     GetBackgroundQueuedStatusPolicy,
-    SetBackgroundQueuedStatusPolicy {
-        policy_id: u8,
-    },
-    GetBackgroundQueuedStatusPolicyDescription {
-        policy_id: u8,
-    },
+    SetBackgroundQueuedStatusPolicy(SetBackgroundQueuedStatusPolicyRequest),
+    GetBackgroundQueuedStatusPolicyDescription(GetBackgroundQueuedStatusPolicyDescriptionRequest),
     // E1.33
     GetSearchDomain,
     SetSearchDomain(SetSearchDomainRequest),
@@ -851,7 +806,7 @@ impl RequestParameter {
             Self::SetLanguage(_) => 2,
             Self::SetDnsHostName(param) => param.size_of(),
             Self::SetDnsDomainName(param) => param.size_of(),
-            Self::SetEndpointLabel { label, .. } => 2 + label.len(),
+            Self::SetEndpointLabel(param) => param.size_of(),
             Self::SetSearchDomain(param) => param.size_of(),
             Self::SetTcpCommsStatus(param) => param.size_of(),
             Self::SetComponentScope(param) => param.size_of(),
@@ -1144,96 +1099,72 @@ impl RequestParameter {
             // E1.37-7
             Self::GetEndpointList => {}
             Self::GetEndpointListChange => {}
-            Self::GetIdentifyEndpoint { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+            Self::GetIdentifyEndpoint(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetIdentifyEndpoint {
-                endpoint_id,
-                identify,
-            } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                buf[2] = *identify as u8;
+            Self::SetIdentifyEndpoint(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetEndpointToUniverse { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+            Self::GetEndpointToUniverse(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetEndpointToUniverse {
-                endpoint_id,
-                universe,
-            } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                buf[2..4].copy_from_slice(&universe.to_be_bytes());
+            Self::SetEndpointToUniverse(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetEndpointMode { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+            Self::GetEndpointMode(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetEndpointMode { endpoint_id, mode } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                buf[2] = *mode as u8;
+            Self::SetEndpointMode(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetEndpointLabel { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+            Self::GetEndpointLabel(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetEndpointLabel { endpoint_id, label } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                label.encode(&mut buf[2..2 + label.len()])?;
+            Self::SetEndpointLabel(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetRdmTrafficEnable { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+            Self::GetRdmTrafficEnable(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetRdmTrafficEnable {
-                endpoint_id,
-                enable,
-            } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                buf[2] = *enable as u8;
+            Self::SetRdmTrafficEnable(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetDiscoveryState { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+            Self::GetDiscoveryState(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetDiscoveryState { endpoint_id, state } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                buf[2] = (*state).into();
+            Self::SetDiscoveryState(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetBackgroundDiscovery { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+            Self::GetBackgroundDiscovery(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetBackgroundDiscovery {
-                endpoint_id,
-                enable,
-            } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                buf[2] = *enable as u8;
+            Self::SetBackgroundDiscovery(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetEndpointTiming { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+            Self::GetEndpointTiming(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetEndpointTiming {
-                endpoint_id,
-                setting_id,
-            } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                buf[2] = *setting_id;
+            Self::SetEndpointTiming(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetEndpointTimingDescription { setting_id } => {
-                buf[0] = *setting_id;
+            Self::GetEndpointTimingDescription(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::GetEndpointResponders { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+            Self::GetEndpointResponders(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::GetEndpointResponderListChange { endpoint_id } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
+            Self::GetEndpointResponderListChange(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::GetBindingControlFields { endpoint_id, uid } => {
-                buf[0..2].copy_from_slice(&u16::from(*endpoint_id).to_be_bytes());
-                buf[2..6].copy_from_slice(&<[u8; 6]>::from(*uid));
+            Self::GetBindingControlFields(param) => {
+                param.get_request_encode_data(buf)?;
             }
             Self::GetBackgroundQueuedStatusPolicy => {}
-            Self::SetBackgroundQueuedStatusPolicy { policy_id } => {
-                buf[0] = *policy_id;
+            Self::SetBackgroundQueuedStatusPolicy(param) => {
+                param.set_request_encode_data(buf)?;
             }
-            Self::GetBackgroundQueuedStatusPolicyDescription { policy_id } => {
-                buf[0] = *policy_id;
+            Self::GetBackgroundQueuedStatusPolicyDescription(param) => {
+                param.get_request_encode_data(buf)?;
             }
             // E1.33
             Self::GetComponentScope(param) => {
@@ -1483,29 +1414,13 @@ impl RequestParameter {
                 ))
             }
             (CommandClass::GetCommand, ParameterId::DmxFailMode) => Ok(Self::GetDmxFailMode),
-            (CommandClass::SetCommand, ParameterId::DmxFailMode) => {
-                if bytes.len() < 7 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetDmxFailMode {
-                    scene_id: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
-                    loss_of_signal_delay_time: u16::from_be_bytes([bytes[2], bytes[3]]).into(),
-                    hold_time: u16::from_be_bytes([bytes[4], bytes[5]]).into(),
-                    level: bytes[6],
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::DmxFailMode) => Ok(Self::SetDmxFailMode(
+                SetDmxFailModeRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::DmxStartupMode) => Ok(Self::GetDmxStartupMode),
-            (CommandClass::SetCommand, ParameterId::DmxStartupMode) => {
-                if bytes.len() < 7 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetDmxStartupMode {
-                    scene_id: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
-                    startup_delay: u16::from_be_bytes([bytes[2], bytes[3]]).into(),
-                    hold_time: u16::from_be_bytes([bytes[4], bytes[5]]).into(),
-                    level: bytes[6],
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::DmxStartupMode) => Ok(Self::SetDmxStartupMode(
+                SetDmxStartupModeRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::DimmerInfo) => Ok(Self::GetDimmerInfo),
             (CommandClass::GetCommand, ParameterId::MinimumLevel) => Ok(Self::GetMinimumLevel),
             (CommandClass::SetCommand, ParameterId::MinimumLevel) => Ok(Self::SetMinimumLevel(
@@ -1554,36 +1469,21 @@ impl RequestParameter {
                 Ok(Self::GetPowerOnSelfTest)
             }
             (CommandClass::SetCommand, ParameterId::PowerOnSelfTest) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetPowerOnSelfTest {
-                    self_test_id: bytes[0].into(),
-                })
+                Ok(Self::SetPowerOnSelfTest(
+                    SetPowerOnSelfTestRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::LockState) => Ok(Self::GetLockState),
-            (CommandClass::SetCommand, ParameterId::LockState) => {
-                if bytes.len() < 5 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetLockState {
-                    pin_code: u16::from_be_bytes([bytes[0], bytes[1]]).try_into()?,
-                    lock_state: bytes[4] != 0,
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::LockState) => Ok(Self::SetLockState(
+                SetLockStateRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::LockStateDescription) => {
                 Ok(Self::GetLockStateDescription)
             }
             (CommandClass::GetCommand, ParameterId::LockPin) => Ok(Self::GetLockPin),
-            (CommandClass::SetCommand, ParameterId::LockPin) => {
-                if bytes.len() < 8 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetLockPin {
-                    new_pin_code: u16::from_be_bytes([bytes[0], bytes[1]]).try_into()?,
-                    current_pin_code: u16::from_be_bytes([bytes[2], bytes[3]]).try_into()?,
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::LockPin) => Ok(Self::SetLockPin(
+                SetLockPinRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::BurnIn) => Ok(Self::GetBurnIn),
             (CommandClass::SetCommand, ParameterId::BurnIn) => Ok(Self::SetBurnIn(
                 SetBurnInRequest::set_request_decode_data(bytes)?,
@@ -1603,12 +1503,9 @@ impl RequestParameter {
                 Ok(Self::GetPresetMergeMode)
             }
             (CommandClass::SetCommand, ParameterId::PresetMergeMode) => {
-                if bytes.is_empty() {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetPresetMergeMode {
-                    merge_mode: bytes[0].try_into()?,
-                })
+                Ok(Self::SetPresetMergeMode(
+                    SetPresetMergeModeRequest::set_request_decode_data(bytes)?,
+                ))
             }
             // E1.37-2
             (CommandClass::GetCommand, ParameterId::ListInterfaces) => Ok(Self::GetListInterfaces),
@@ -1698,121 +1595,103 @@ impl RequestParameter {
                 Ok(Self::GetEndpointListChange)
             }
             (CommandClass::GetCommand, ParameterId::IdentifyEndpoint) => {
-                Ok(Self::GetIdentifyEndpoint {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                })
+                Ok(Self::GetIdentifyEndpoint(
+                    GetIdentifyEndpointRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommand, ParameterId::IdentifyEndpoint) => {
-                Ok(Self::SetIdentifyEndpoint {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                    identify: bytes[2] != 0,
-                })
+                Ok(Self::SetIdentifyEndpoint(
+                    SetIdentifyEndpointRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::EndpointToUniverse) => {
-                Ok(Self::GetEndpointToUniverse {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                })
+                Ok(Self::GetEndpointToUniverse(
+                    GetEndpointToUniverseRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommand, ParameterId::EndpointToUniverse) => {
-                Ok(Self::SetEndpointToUniverse {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                    universe: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                })
+                Ok(Self::SetEndpointToUniverse(
+                    SetEndpointToUniverseRequest::set_request_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommand, ParameterId::EndpointMode) => Ok(Self::GetEndpointMode {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-            }),
-            (CommandClass::SetCommand, ParameterId::EndpointMode) => Ok(Self::SetEndpointMode {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                mode: bytes[2].try_into()?,
-            }),
-            (CommandClass::GetCommand, ParameterId::EndpointLabel) => Ok(Self::GetEndpointLabel {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-            }),
-            (CommandClass::SetCommand, ParameterId::EndpointLabel) => Ok(Self::SetEndpointLabel {
-                endpoint_id: u16::from_be_bytes(bytes[0..2].try_into()?).into(),
-                label: EndpointLabel::decode(&bytes[2..])?,
-            }),
+            (CommandClass::GetCommand, ParameterId::EndpointMode) => Ok(Self::GetEndpointMode(
+                GetEndpointModeRequest::get_request_decode_data(bytes)?,
+            )),
+            (CommandClass::SetCommand, ParameterId::EndpointMode) => Ok(Self::SetEndpointMode(
+                SetEndpointModeRequest::set_request_decode_data(bytes)?,
+            )),
+            (CommandClass::GetCommand, ParameterId::EndpointLabel) => Ok(Self::GetEndpointLabel(
+                GetEndpointLabelRequest::get_request_decode_data(bytes)?,
+            )),
+            (CommandClass::SetCommand, ParameterId::EndpointLabel) => Ok(Self::SetEndpointLabel(
+                SetEndpointLabelRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::RdmTrafficEnable) => {
-                Ok(Self::GetRdmTrafficEnable {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                })
+                Ok(Self::GetRdmTrafficEnable(
+                    GetRdmTrafficEnableRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommand, ParameterId::RdmTrafficEnable) => {
-                Ok(Self::SetRdmTrafficEnable {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                    enable: bytes[2] == 1,
-                })
+                Ok(Self::SetRdmTrafficEnable(
+                    SetRdmTrafficEnableRequest::set_request_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommand, ParameterId::DiscoveryState) => {
-                Ok(Self::GetDiscoveryState {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                })
-            }
-            (CommandClass::SetCommand, ParameterId::DiscoveryState) => {
-                Ok(Self::SetDiscoveryState {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                    state: bytes[2].try_into()?,
-                })
-            }
+            (CommandClass::GetCommand, ParameterId::DiscoveryState) => Ok(Self::GetDiscoveryState(
+                GetDiscoveryStateRequest::get_request_decode_data(bytes)?,
+            )),
+            (CommandClass::SetCommand, ParameterId::DiscoveryState) => Ok(Self::SetDiscoveryState(
+                SetDiscoveryStateRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::BackgroundDiscovery) => {
-                Ok(Self::GetBackgroundDiscovery {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                })
+                Ok(Self::GetBackgroundDiscovery(
+                    GetBackgroundDiscoveryRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::SetCommand, ParameterId::BackgroundDiscovery) => {
-                Ok(Self::SetBackgroundDiscovery {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                    enable: bytes[2] == 1,
-                })
+                Ok(Self::SetBackgroundDiscovery(
+                    SetBackgroundDiscoveryRequest::set_request_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommand, ParameterId::EndpointTiming) => {
-                Ok(Self::GetEndpointTiming {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                })
-            }
-            (CommandClass::SetCommand, ParameterId::EndpointTiming) => {
-                Ok(Self::SetEndpointTiming {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                    setting_id: bytes[2],
-                })
-            }
+            (CommandClass::GetCommand, ParameterId::EndpointTiming) => Ok(Self::GetEndpointTiming(
+                GetEndpointTimingRequest::get_request_decode_data(bytes)?,
+            )),
+            (CommandClass::SetCommand, ParameterId::EndpointTiming) => Ok(Self::SetEndpointTiming(
+                SetEndpointTimingRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::EndpointTimingDescription) => {
-                Ok(Self::GetEndpointTimingDescription {
-                    setting_id: bytes[0],
-                })
+                Ok(Self::GetEndpointTimingDescription(
+                    GetEndpointTimingDescriptionRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::EndpointResponders) => {
-                Ok(Self::GetEndpointResponders {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                })
+                Ok(Self::GetEndpointResponders(
+                    GetEndpointRespondersRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::EndpointResponderListChange) => {
-                Ok(Self::GetEndpointResponderListChange {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                })
+                Ok(Self::GetEndpointResponderListChange(
+                    GetEndpointResponderListChangeRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::BindingControlFields) => {
-                Ok(Self::GetBindingControlFields {
-                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                    uid: DeviceUID::new(
-                        u16::from_be_bytes(bytes[2..=3].try_into()?),
-                        u32::from_be_bytes(bytes[4..=7].try_into()?),
-                    ),
-                })
+                Ok(Self::GetBindingControlFields(
+                    GetBindingControlFieldsRequest::get_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::BackgroundQueuedStatusPolicy) => {
                 Ok(Self::GetBackgroundQueuedStatusPolicy)
             }
             (CommandClass::SetCommand, ParameterId::BackgroundQueuedStatusPolicy) => {
-                Ok(Self::SetBackgroundQueuedStatusPolicy {
-                    policy_id: bytes[0],
-                })
+                Ok(Self::SetBackgroundQueuedStatusPolicy(
+                    SetBackgroundQueuedStatusPolicyRequest::set_request_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommand, ParameterId::BackgroundQueuedStatusPolicyDescription) => {
-                Ok(Self::GetBackgroundQueuedStatusPolicyDescription {
-                    policy_id: bytes[0],
-                })
+                Ok(Self::GetBackgroundQueuedStatusPolicyDescription(
+                    GetBackgroundQueuedStatusPolicyDescriptionRequest::get_request_decode_data(
+                        bytes,
+                    )?,
+                ))
             }
             // E1.33
             (CommandClass::GetCommand, ParameterId::ComponentScope) => Ok(Self::GetComponentScope(

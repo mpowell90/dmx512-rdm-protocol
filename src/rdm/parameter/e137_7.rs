@@ -1,7 +1,10 @@
 use super::RdmError;
 use crate::{impl_rdm_string, rdm::DeviceUID};
 use heapless::{String, Vec};
-use rdm_parameter_derive::{RdmGetResponseParameter, RdmSetResponseParameter};
+use rdm_parameter_derive::{
+    RdmGetRequestParameter, RdmGetResponseParameter, RdmSetRequestParameter,
+    RdmSetResponseParameter,
+};
 use rdm_parameter_traits::RdmParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -219,6 +222,28 @@ impl From<EndpointId> for EndpointIdValue {
     }
 }
 
+impl RdmParameterData for EndpointId {
+    fn size_of(&self) -> usize {
+        2
+    }
+
+    fn encode_rdm_parameter_data(
+        &self,
+        buf: &mut [u8],
+    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+        let value: u16 = (*self).into();
+        buf[0..2].copy_from_slice(&value.to_be_bytes());
+        Ok(2)
+    }
+
+    fn decode_rdm_parameter_data(
+        buf: &[u8],
+    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+        let value = u16::from_be_bytes([buf[0], buf[1]]);
+        Ok(EndpointId::from(value))
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum EndpointType {
     Virtual = 0x00,
@@ -298,9 +323,20 @@ pub struct GetEndpointListChangeResponse {
     pub list_change_number: u32,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetIdentifyEndpointRequest {
+    pub endpoint_id: EndpointId,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetIdentifyEndpointResponse {
     pub endpoint_id: EndpointIdValue,
+    pub identify: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetIdentifyEndpointRequest {
+    pub endpoint_id: EndpointId,
     pub identify: bool,
 }
 
@@ -309,9 +345,20 @@ pub struct SetIdentifyEndpointResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetEndpointToUniverseRequest {
+    pub endpoint_id: EndpointId,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetEndpointToUniverseResponse {
     pub endpoint_id: EndpointIdValue,
+    pub universe: u16,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetEndpointToUniverseRequest {
+    pub endpoint_id: EndpointId,
     pub universe: u16,
 }
 
@@ -320,9 +367,20 @@ pub struct SetEndpointToUniverseResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetEndpointModeRequest {
+    pub endpoint_id: EndpointId,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetEndpointModeResponse {
     pub endpoint_id: EndpointIdValue,
+    pub mode: EndpointMode,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetEndpointModeRequest {
+    pub endpoint_id: EndpointId,
     pub mode: EndpointMode,
 }
 
@@ -331,9 +389,20 @@ pub struct SetEndpointModeResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetEndpointLabelRequest {
+    pub endpoint_id: EndpointId,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetEndpointLabelResponse {
     pub endpoint_id: EndpointIdValue,
+    pub label: EndpointLabel,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetEndpointLabelRequest {
+    pub endpoint_id: EndpointId,
     pub label: EndpointLabel,
 }
 
@@ -342,15 +411,31 @@ pub struct SetEndpointLabelResponse {
     pub endpoint_id: EndpointIdValue,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetRdmTrafficEnableRequest {
+    pub endpoint_id: EndpointId,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetRdmTrafficEnableResponse {
     pub endpoint_id: EndpointIdValue,
     pub enable: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetRdmTrafficEnableRequest {
+    pub endpoint_id: EndpointId,
+    pub enable: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
 pub struct SetRdmTrafficEnableResponse {
     pub endpoint_id: EndpointIdValue,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetDiscoveryStateRequest {
+    pub endpoint_id: EndpointId,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
@@ -360,9 +445,20 @@ pub struct GetDiscoveryStateResponse {
     pub discovery_state: DiscoveryState,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDiscoveryStateRequest {
+    pub endpoint_id: EndpointId,
+    pub discovery_state: DiscoveryState,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
 pub struct SetDiscoveryStateResponse {
     pub endpoint_id: EndpointIdValue,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetBackgroundDiscoveryRequest {
+    pub endpoint_id: EndpointId,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
@@ -371,9 +467,20 @@ pub struct GetBackgroundDiscoveryResponse {
     pub enabled: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetBackgroundDiscoveryRequest {
+    pub endpoint_id: EndpointId,
+    pub enable: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
 pub struct SetBackgroundDiscoveryResponse {
     pub endpoint_id: EndpointIdValue,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetEndpointTimingRequest {
+    pub endpoint_id: EndpointId,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
@@ -383,15 +490,31 @@ pub struct GetEndpointTimingResponse {
     pub setting_count: u8,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetEndpointTimingRequest {
+    pub endpoint_id: EndpointId,
+    pub setting_id: u8,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmSetResponseParameter)]
 pub struct SetEndpointTimingResponse {
     pub endpoint_id: EndpointIdValue,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetEndpointTimingDescriptionRequest {
+    pub setting_id: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetEndpointTimingDescriptionResponse {
     pub setting_id: u8,
     pub description: EndpointTimingDescription,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetEndpointRespondersRequest {
+    pub endpoint_id: EndpointId,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
@@ -401,10 +524,21 @@ pub struct GetEndpointRespondersResponse {
     pub responders: Vec<DeviceUID, 37>,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetEndpointResponderListChangeRequest {
+    pub endpoint_id: EndpointId,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetEndpointResponderListChangeResponse {
     pub endpoint_id: EndpointIdValue,
     pub list_change_number: u32,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetBindingControlFieldsRequest {
+    pub endpoint_id: EndpointId,
+    pub uid: DeviceUID,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
@@ -415,10 +549,25 @@ pub struct GetBindingControlFieldsResponse {
     pub binding_uid: DeviceUID,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetBackgroundQueuedStatusPolicyRequest {
+    pub policy_id: u8,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetBackgroundQueuedStatusPolicyResponse {
     pub current_policy_id: u8,
     pub policy_count: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetBackgroundQueuedStatusPolicyRequest {
+    pub policy_id: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetBackgroundQueuedStatusPolicyDescriptionRequest {
+    pub policy_id: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
