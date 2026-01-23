@@ -8,7 +8,9 @@ use crate::{
 };
 use core::{ops::Deref, str::FromStr, time::Duration};
 use heapless::String;
-use rdm_parameter_derive::RdmGetResponseParameter;
+use rdm_parameter_derive::{
+    RdmGetRequestParameter, RdmGetResponseParameter, RdmSetRequestParameter,
+};
 use rdm_parameter_traits::{ParameterCodecError, RdmParameterData};
 
 pub const E133_TCP_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
@@ -108,6 +110,11 @@ pub struct Scope(String<{ Scope::MAX_LENGTH }>);
 
 impl_rdm_string!(Scope, 63);
 
+#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
+pub struct GetComponentScopeRequest {
+    pub scope_slot: u16,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetComponentScopeResponse {
     pub scope_slot: u16,
@@ -118,8 +125,23 @@ pub struct GetComponentScopeResponse {
     pub static_port: u16,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetComponentScopeRequest {
+    pub scope_slot: u16,
+    pub scope_string: Scope,
+    pub static_config_type: StaticConfigType,
+    pub static_broker_ipv4_address: Ipv4Address,
+    pub static_broker_ipv6_address: Ipv6Address,
+    pub static_broker_port: u16,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetSearchDomainResponse {
+    pub search_domain: SearchDomain,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetSearchDomainRequest {
     pub search_domain: SearchDomain,
 }
 
@@ -132,9 +154,19 @@ pub struct GetTcpCommsStatusResponse {
     pub unhealthy_tcp_events: u16,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetTcpCommsStatusRequest {
+    pub scope: Scope,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetBrokerStatusResponse {
     pub is_allowing_set_commands: bool,
+    pub broker_state: BrokerState,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetBrokerStatusRequest {
     pub broker_state: BrokerState,
 }
 

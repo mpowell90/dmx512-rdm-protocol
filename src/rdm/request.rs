@@ -50,10 +50,6 @@ use super::{
     header::{CommandClass, DeviceUID, SubDeviceId},
     parameter::{
         ParameterId,
-        e120::{PresetPlaybackMode, SelfTest},
-        e133::{BrokerState, Scope, SearchDomain, StaticConfigType},
-        e137_1::{MergeMode, PinCode, TimeMode},
-        e137_2::{Ipv4Address, Ipv6Address},
         e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode},
     },
     utils::{RdmPadNullStr, RdmTruncateNullStr, bsd_16_crc},
@@ -72,12 +68,17 @@ use crate::rdm::parameter::{
         SetRealTimeClockRequest, SetRecordSensorsRequest, SetResetDeviceRequest,
         SetSensorValueRequest, SetSubDeviceIdStatusReportThresholdRequest, SetTiltInvertRequest,
     },
-    e133::SCOPE_MAX_LENGTH,
+    e133::{
+        GetComponentScopeRequest, SetBrokerStatusRequest, SetComponentScopeRequest,
+        SetSearchDomainRequest, SetTcpCommsStatusRequest,
+    },
     e137_1::{
         GetCurveDescriptionRequest, GetModulationFrequencyDescriptionRequest,
         GetOutputResponseTimeDescriptionRequest, GetPresetStatusRequest, SetBurnInRequest,
-        SetCurveRequest, SetDmxBlockAddressRequest, SetIdentifyModeRequest, SetMaximumLevelRequest,
-        SetMinimumLevelRequest, SetModulationFrequencyRequest, SetOutputResponseTimeRequest,
+        SetCurveRequest, SetDmxBlockAddressRequest, SetDmxFailModeRequest,
+        SetDmxStartupModeRequest, SetIdentifyModeRequest, SetLockPinRequest, SetLockStateRequest,
+        SetMaximumLevelRequest, SetMinimumLevelRequest, SetModulationFrequencyRequest,
+        SetOutputResponseTimeRequest, SetPowerOnSelfTestRequest, SetPresetMergeModeRequest,
         SetPresetStatusRequest,
     },
     e137_2::{
@@ -176,19 +177,9 @@ pub enum RequestParameter {
     GetDmxBlockAddress,
     SetDmxBlockAddress(SetDmxBlockAddressRequest),
     GetDmxFailMode,
-    SetDmxFailMode {
-        scene_id: PresetPlaybackMode,
-        loss_of_signal_delay_time: TimeMode,
-        hold_time: TimeMode,
-        level: u8,
-    },
+    SetDmxFailMode(SetDmxFailModeRequest),
     GetDmxStartupMode,
-    SetDmxStartupMode {
-        scene_id: PresetPlaybackMode,
-        startup_delay: TimeMode,
-        hold_time: TimeMode,
-        level: u8,
-    },
+    SetDmxStartupMode(SetDmxStartupModeRequest),
     GetDimmerInfo,
     GetMinimumLevel,
     SetMinimumLevel(SetMinimumLevelRequest),
@@ -204,20 +195,12 @@ pub enum RequestParameter {
     SetModulationFrequency(SetModulationFrequencyRequest),
     GetModulationFrequencyDescription(GetModulationFrequencyDescriptionRequest),
     GetPowerOnSelfTest,
-    SetPowerOnSelfTest {
-        self_test_id: SelfTest,
-    },
+    SetPowerOnSelfTest(SetPowerOnSelfTestRequest),
     GetLockState,
-    SetLockState {
-        pin_code: PinCode,
-        lock_state: bool,
-    },
+    SetLockState(SetLockStateRequest),
     GetLockStateDescription,
     GetLockPin,
-    SetLockPin {
-        new_pin_code: PinCode,
-        current_pin_code: PinCode,
-    },
+    SetLockPin(SetLockPinRequest),
     GetBurnIn,
     SetBurnIn(SetBurnInRequest),
     GetIdentifyMode,
@@ -225,9 +208,7 @@ pub enum RequestParameter {
     GetPresetInfo,
     GetPresetStatus(GetPresetStatusRequest),
     GetPresetMergeMode,
-    SetPresetMergeMode {
-        merge_mode: MergeMode,
-    },
+    SetPresetMergeMode(SetPresetMergeModeRequest),
     SetPresetStatus(SetPresetStatusRequest),
     // E1.37-2
     GetListInterfaces,
@@ -332,24 +313,13 @@ pub enum RequestParameter {
     },
     // E1.33
     GetSearchDomain,
-    SetSearchDomain(SearchDomain),
-    GetComponentScope {
-        scope_slot: u16,
-    },
-    SetComponentScope {
-        scope_slot: u16,
-        scope_string: Scope,
-        static_config_type: StaticConfigType,
-        static_broker_ipv4_address: Ipv4Address,
-        static_broker_ipv6_address: Ipv6Address,
-        static_broker_port: u16,
-    },
+    SetSearchDomain(SetSearchDomainRequest),
+    GetComponentScope(GetComponentScopeRequest),
+    SetComponentScope(SetComponentScopeRequest),
     GetTcpCommsStatus,
-    SetTcpCommsStatus(Scope),
+    SetTcpCommsStatus(SetTcpCommsStatusRequest),
     GetBrokerStatus,
-    SetBrokerStatus {
-        broker_state: BrokerState,
-    },
+    SetBrokerStatus(SetBrokerStatusRequest),
     // use for unsupported standard and manufacturer specific parameters
     RawParameter {
         command_class: CommandClass,
@@ -882,9 +852,9 @@ impl RequestParameter {
             Self::SetDnsHostName(param) => param.size_of(),
             Self::SetDnsDomainName(param) => param.size_of(),
             Self::SetEndpointLabel { label, .. } => 2 + label.len(),
-            Self::SetSearchDomain(search_domain) => search_domain.len(),
-            Self::SetTcpCommsStatus(_) => SCOPE_MAX_LENGTH,
-            Self::SetComponentScope { .. } => 25 + SCOPE_MAX_LENGTH,
+            Self::SetSearchDomain(param) => param.size_of(),
+            Self::SetTcpCommsStatus(param) => param.size_of(),
+            Self::SetComponentScope(param) => param.size_of(),
             Self::RawParameter { parameter_data, .. } => parameter_data.len(),
         }
     }
@@ -1046,28 +1016,12 @@ impl RequestParameter {
                 param.set_request_encode_data(buf)?;
             }
             Self::GetDmxFailMode => {}
-            Self::SetDmxFailMode {
-                scene_id,
-                loss_of_signal_delay_time,
-                hold_time,
-                level,
-            } => {
-                buf[0..2].copy_from_slice(&u16::from(*scene_id).to_be_bytes());
-                buf[2..4].copy_from_slice(&u16::from(*loss_of_signal_delay_time).to_be_bytes());
-                buf[4..6].copy_from_slice(&u16::from(*hold_time).to_be_bytes());
-                buf[6] = *level;
+            Self::SetDmxFailMode(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetDmxStartupMode => {}
-            Self::SetDmxStartupMode {
-                scene_id,
-                startup_delay,
-                hold_time,
-                level,
-            } => {
-                buf[0..2].copy_from_slice(&u16::from(*scene_id).to_be_bytes());
-                buf[2..4].copy_from_slice(&u16::from(*startup_delay).to_be_bytes());
-                buf[4..6].copy_from_slice(&u16::from(*hold_time).to_be_bytes());
-                buf[6] = *level;
+            Self::SetDmxStartupMode(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetDimmerInfo => {}
             Self::GetMinimumLevel => {}
@@ -1100,25 +1054,17 @@ impl RequestParameter {
                 param.get_request_encode_data(buf)?;
             }
             Self::GetPowerOnSelfTest => {}
-            Self::SetPowerOnSelfTest { self_test_id } => {
-                buf[0] = (*self_test_id).into();
+            Self::SetPowerOnSelfTest(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetLockState => {}
-            Self::SetLockState {
-                pin_code,
-                lock_state,
-            } => {
-                buf[0..2].copy_from_slice(&pin_code.0.to_be_bytes());
-                buf[2] = *lock_state as u8;
+            Self::SetLockState(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetLockStateDescription => {}
             Self::GetLockPin => {}
-            Self::SetLockPin {
-                new_pin_code,
-                current_pin_code,
-            } => {
-                buf[0..2].copy_from_slice(&new_pin_code.0.to_be_bytes());
-                buf[2..4].copy_from_slice(&current_pin_code.0.to_be_bytes());
+            Self::SetLockPin(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetBurnIn => {}
             Self::SetBurnIn(param) => {
@@ -1136,8 +1082,8 @@ impl RequestParameter {
                 param.set_request_encode_data(buf)?;
             }
             Self::GetPresetMergeMode => {}
-            Self::SetPresetMergeMode { merge_mode } => {
-                buf[0] = *merge_mode as u8;
+            Self::SetPresetMergeMode(param) => {
+                param.set_request_encode_data(buf)?;
             }
             // E1.37-2
             Self::GetListInterfaces => {}
@@ -1290,38 +1236,23 @@ impl RequestParameter {
                 buf[0] = *policy_id;
             }
             // E1.33
-            Self::GetComponentScope { scope_slot } => {
-                buf[0..2].copy_from_slice(&scope_slot.to_be_bytes());
+            Self::GetComponentScope(param) => {
+                param.get_request_encode_data(buf)?;
             }
-            Self::SetComponentScope {
-                scope_slot,
-                scope_string,
-                static_config_type,
-                static_broker_ipv4_address,
-                static_broker_ipv6_address,
-                static_broker_port,
-            } => {
-                buf[0..2].copy_from_slice(&scope_slot.to_be_bytes());
-                scope_string.encode(&mut buf[2..2 + SCOPE_MAX_LENGTH])?;
-                buf[2 + SCOPE_MAX_LENGTH] = *static_config_type as u8;
-                buf[3 + SCOPE_MAX_LENGTH..7 + SCOPE_MAX_LENGTH]
-                    .copy_from_slice(&<[u8; 4]>::from(*static_broker_ipv4_address));
-                buf[7 + SCOPE_MAX_LENGTH..23 + SCOPE_MAX_LENGTH]
-                    .copy_from_slice(&<[u8; 16]>::from(*static_broker_ipv6_address));
-                buf[23 + SCOPE_MAX_LENGTH..25 + SCOPE_MAX_LENGTH]
-                    .copy_from_slice(&(*static_broker_port).to_be_bytes());
+            Self::SetComponentScope(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetSearchDomain => {}
-            Self::SetSearchDomain(search_domain) => {
-                search_domain.encode(buf)?;
+            Self::SetSearchDomain(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetTcpCommsStatus => {}
-            Self::SetTcpCommsStatus(scope_string) => {
-                scope_string.encode(buf)?;
+            Self::SetTcpCommsStatus(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::GetBrokerStatus => {}
-            Self::SetBrokerStatus { broker_state } => {
-                buf[0] = *broker_state as u8;
+            Self::SetBrokerStatus(param) => {
+                param.set_request_encode_data(buf)?;
             }
             Self::RawParameter { parameter_data, .. } => {
                 buf[0..parameter_data.len()].copy_from_slice(parameter_data);
@@ -1884,44 +1815,24 @@ impl RequestParameter {
                 })
             }
             // E1.33
-            (CommandClass::GetCommand, ParameterId::ComponentScope) => {
-                Ok(Self::GetComponentScope {
-                    scope_slot: u16::from_be_bytes([bytes[0], bytes[1]]),
-                })
-            }
-            (CommandClass::SetCommand, ParameterId::ComponentScope) => {
-                Ok(Self::SetComponentScope {
-                    scope_slot: u16::from_be_bytes([bytes[0], bytes[1]]),
-                    scope_string: Scope::decode(&bytes[2..66])?,
-                    static_config_type: bytes[66].try_into()?,
-                    static_broker_ipv4_address: Ipv4Address::from([
-                        bytes[67], bytes[68], bytes[69], bytes[70],
-                    ]),
-                    static_broker_ipv6_address: Ipv6Address::from([
-                        bytes[71], bytes[72], bytes[73], bytes[74], bytes[75], bytes[76],
-                        bytes[77], bytes[78], bytes[79], bytes[80], bytes[81], bytes[82],
-                        bytes[83], bytes[84], bytes[85], bytes[86],
-                    ]),
-                    static_broker_port: u16::from_be_bytes([bytes[87], bytes[88]]),
-                })
-            }
+            (CommandClass::GetCommand, ParameterId::ComponentScope) => Ok(Self::GetComponentScope(
+                GetComponentScopeRequest::get_request_decode_data(bytes)?,
+            )),
+            (CommandClass::SetCommand, ParameterId::ComponentScope) => Ok(Self::SetComponentScope(
+                SetComponentScopeRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::SearchDomain) => Ok(Self::GetSearchDomain),
-            (CommandClass::SetCommand, ParameterId::SearchDomain) => {
-                Ok(Self::SetSearchDomain(SearchDomain::decode(bytes)?))
-            }
+            (CommandClass::SetCommand, ParameterId::SearchDomain) => Ok(Self::SetSearchDomain(
+                SetSearchDomainRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::TcpCommsStatus) => Ok(Self::GetTcpCommsStatus),
-            (CommandClass::SetCommand, ParameterId::TcpCommsStatus) => {
-                Ok(Self::SetTcpCommsStatus(Scope::decode(bytes)?))
-            }
+            (CommandClass::SetCommand, ParameterId::TcpCommsStatus) => Ok(Self::SetTcpCommsStatus(
+                SetTcpCommsStatusRequest::set_request_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommand, ParameterId::BrokerStatus) => Ok(Self::GetBrokerStatus),
-            (CommandClass::SetCommand, ParameterId::BrokerStatus) => {
-                if bytes.len() < 2 {
-                    return Err(RdmError::InvalidMessageLength(bytes.len() as u8));
-                }
-                Ok(Self::SetBrokerStatus {
-                    broker_state: bytes[0].try_into()?,
-                })
-            }
+            (CommandClass::SetCommand, ParameterId::BrokerStatus) => Ok(Self::SetBrokerStatus(
+                SetBrokerStatusRequest::set_request_decode_data(bytes)?,
+            )),
             (command_class, parameter_id) => Ok(Self::RawParameter {
                 command_class,
                 parameter_id: parameter_id.into(),

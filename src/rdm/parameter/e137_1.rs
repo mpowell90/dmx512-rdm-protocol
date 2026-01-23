@@ -1,7 +1,7 @@
 use super::RdmError;
 use crate::rdm::parameter::e120::{
     CurveDescription, LockStateDescription, ModulationFrequencyDescription,
-    OutputResponseTimeDescription, PresetPlaybackMode,
+    OutputResponseTimeDescription, PresetPlaybackMode, SelfTest,
 };
 use rdm_parameter_derive::{
     RdmGetRequestParameter, RdmGetResponseParameter, RdmSetRequestParameter,
@@ -87,6 +87,23 @@ impl TryFrom<u8> for MergeMode {
     }
 }
 
+impl RdmParameterData for MergeMode {
+    fn size_of(&self) -> usize {
+        1
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0] = *self as u8;
+        Ok(1)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let merge_mode =
+            MergeMode::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+        Ok(merge_mode)
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct PinCode(pub u16);
 
@@ -99,6 +116,22 @@ impl TryFrom<u16> for PinCode {
         } else {
             Ok(Self(value))
         }
+    }
+}
+
+impl RdmParameterData for PinCode {
+    fn size_of(&self) -> usize {
+        2
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0..2].copy_from_slice(&self.0.to_be_bytes());
+        Ok(2)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let value = u16::from_be_bytes([buf[0], buf[1]]);
+        PinCode::try_from(value).map_err(|_| ParameterCodecError::MalformedData)
     }
 }
 
@@ -203,8 +236,24 @@ pub struct GetDmxFailMode {
     pub level: u8,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDmxFailModeRequest {
+    pub scene_id: PresetPlaybackMode,
+    pub loss_of_signal_delay: TimeMode,
+    pub hold_time: TimeMode,
+    pub level: u8,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 pub struct GetDmxStartupMode {
+    pub scene_id: PresetPlaybackMode,
+    pub startup_delay: TimeMode,
+    pub hold_time: TimeMode,
+    pub level: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetDmxStartupModeRequest {
     pub scene_id: PresetPlaybackMode,
     pub startup_delay: TimeMode,
     pub hold_time: TimeMode,
@@ -321,6 +370,23 @@ pub struct GetModulationFrequencyDescription {
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetPowerOnSelfTestRequest {
+    pub self_test_id: SelfTest,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetLockStateRequest {
+    pub pin_code: PinCode,
+    pub lock_state: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetLockPinRequest {
+    pub new_pin_code: PinCode,
+    pub current_pin_code: PinCode,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
 pub struct SetBurnInRequest {
     pub hours: u8,
 }
@@ -365,6 +431,11 @@ pub struct GetPresetStatus {
     pub down_fade_time: u16,
     pub wait_time: u16,
     pub programmed: PresetProgrammed,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+pub struct SetPresetMergeModeRequest {
+    pub merge_mode: MergeMode,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
