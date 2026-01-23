@@ -53,6 +53,7 @@ impl From<CommandClass> for u8 {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(C)]
 pub struct DeviceUID {
     pub manufacturer_id: u16,
     pub device_id: u32,
@@ -163,11 +164,10 @@ impl RdmParameterData for DeviceUID {
             });
         }
 
-        let mut bytes = [0u8; 6];
-
-        bytes.copy_from_slice(&buf[0..6]);
-
-        Ok(DeviceUID::from(bytes))
+        Ok(DeviceUID {
+            manufacturer_id: u16::from_be_bytes([buf[0], buf[1]]),
+            device_id: u32::from_be_bytes([buf[2], buf[3], buf[4], buf[5]]),
+        })
     }
 }
 

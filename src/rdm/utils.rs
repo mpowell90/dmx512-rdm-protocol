@@ -121,13 +121,15 @@ macro_rules! impl_rdm_string {
             type Err = rdm_parameter_traits::ParameterCodecError;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
-                Ok(Self(String::<{ Self::MAX_LENGTH }>::from_str(s)?))
+                Ok(Self(String::<{ Self::MAX_LENGTH }>::from_str(s.trim_end_matches('\0'))?))
             }
         }
 
         impl RdmParameterData for $t {
             fn size_of(&self) -> usize {
-                self.0.len()
+                $crate::rdm::utils::truncate_at_null(
+                    self.0.as_bytes()
+                ).len()
             }
 
             fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
@@ -140,7 +142,7 @@ macro_rules! impl_rdm_string {
                     });
                 }
 
-                buf[..size].copy_from_slice(self.0.as_bytes());
+                buf[..size].copy_from_slice($crate::rdm::utils::truncate_at_null(self.0.as_bytes()));
 
                 Ok(size)
             }

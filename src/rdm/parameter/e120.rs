@@ -1,5 +1,8 @@
 use super::{RdmError, SubDeviceId};
-use crate::{impl_rdm_string, rdm::DeviceUID};
+use crate::{
+    impl_rdm_string,
+    rdm::{DeviceUID, parameter::ParameterId},
+};
 use core::{fmt, str::FromStr};
 use heapless::{String, Vec};
 use rdm_parameter_derive::{
@@ -1031,7 +1034,7 @@ impl TryFrom<u8> for PowerState {
             0x00 => Ok(Self::FullOff),
             0x01 => Ok(Self::Shutdown),
             0x02 => Ok(Self::Standby),
-            0x03 => Ok(Self::Normal),
+            0xff => Ok(Self::Normal),
             _ => Err(RdmError::InvalidPowerState(value)),
         }
     }
@@ -1418,23 +1421,31 @@ impl StatusMessage {
 
 impl RdmParameterData for StatusMessage {
     fn size_of(&self) -> usize {
-        8
+        9
     }
 
     fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        self.sub_device_id
-            .encode_rdm_parameter_data(&mut buf[0..2])?;
+        if buf.len() < 9 {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 9,
+            });
+        }
+
+        buf[0..2].copy_from_slice(&u16::from(self.sub_device_id).to_be_bytes());
         buf[2] = self.status_type as u8;
         buf[3..5].copy_from_slice(&self.status_message_id.to_be_bytes());
         buf[5..7].copy_from_slice(&self.data_value1.to_be_bytes());
         buf[7..9].copy_from_slice(&self.data_value2.to_be_bytes());
-        Ok(8)
+        Ok(9)
     }
 
     fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         Ok(StatusMessage {
-            sub_device_id: SubDeviceId::decode_rdm_parameter_data(buf)?,
-            status_type: StatusType::decode_rdm_parameter_data(buf)?,
+            sub_device_id: u16::from_be_bytes([buf[0], buf[1]]).into(),
+            status_type: buf[2]
+                .try_into()
+                .map_err(|_| ParameterCodecError::MalformedData)?,
             status_message_id: u16::from_be_bytes([buf[3], buf[4]]),
             data_value1: u16::from_be_bytes([buf[5], buf[6]]),
             data_value2: u16::from_be_bytes([buf[7], buf[8]]),
@@ -1494,15 +1505,15 @@ impl From<SlotType> for u8 {
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct SlotInfo {
     pub id: u16,
-    pub r#type: SlotType,
+    pub kind: SlotType,
     pub label_id: u16,
 }
 
 impl SlotInfo {
-    pub fn new(id: u16, r#type: SlotType, label_id: u16) -> Self {
+    pub fn new(id: u16, kind: SlotType, label_id: u16) -> Self {
         Self {
             id,
-            r#type,
+            kind,
             label_id,
         }
     }
@@ -1515,7 +1526,7 @@ impl RdmParameterData for SlotInfo {
 
     fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..2].copy_from_slice(&self.id.to_be_bytes());
-        buf[2] = self.r#type.into();
+        buf[2] = self.kind.into();
         buf[3..5].copy_from_slice(&self.label_id.to_be_bytes());
         Ok(5)
     }
@@ -1523,7 +1534,7 @@ impl RdmParameterData for SlotInfo {
     fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         Ok(SlotInfo {
             id: u16::from_be_bytes([buf[0], buf[1]]),
-            r#type: SlotType::from(buf[2]),
+            kind: SlotType::from(buf[2]),
             label_id: u16::from_be_bytes([buf[3], buf[4]]),
         })
     }
@@ -2832,19 +2843,19 @@ pub struct SetSubDeviceIdStatusReportThresholdRequest {
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetSupportedParametersResponse {
-    pub supported_parameters: Vec<u16, 115>,
+    pub supported_parameters: Vec<ParameterId, 115>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
 #[repr(C)]
 pub struct GetParameterDescriptionRequest {
-    pub parameter_id: u16,
+    pub parameter_id: ParameterId,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetParameterDescriptionResponse {
-    pub parameter_id: u16,
+    pub parameter_id: ParameterId,
     pub parameter_data_length: u8,
     pub data_type: ParameterDataType,
     pub command_class: ImplementedCommandClass,
@@ -2922,7 +2933,7 @@ pub struct SetLanguageRequest {
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetLanguageCapabilitiesResponse {
-    pub supported_languages: Vec<Iso639_1, 115>,
+    pub language_capabilities: Vec<Iso639_1, 115>,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
@@ -3004,7 +3015,7 @@ pub struct GetSlotDescriptionResponse {
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetDefaultSlotValueResponse {
-    pub default_values: Vec<DefaultSlotValue, 77>,
+    pub default_slot_values: Vec<DefaultSlotValue, 77>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
@@ -3133,9 +3144,21 @@ pub struct GetDevicePowerCyclesResponse {
     pub device_power_cycles: u32,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
+pub struct SetDevicePowerCyclesRequest {
+    pub device_power_cycles: u32,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetDisplayInvertResponse {
+    pub display_invert_mode: DisplayInvertMode,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
+pub struct SetDisplayInvertModeRequest {
     pub display_invert_mode: DisplayInvertMode,
 }
 
@@ -3145,9 +3168,21 @@ pub struct GetDisplayLevelResponse {
     pub display_level: u8,
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
+pub struct SetDisplayLevelRequest {
+    pub display_level: u8,
+}
+
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetPanInvertResponse {
+    pub pan_invert: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
+pub struct SetPanInvertRequest {
     pub pan_invert: bool,
 }
 
@@ -3157,90 +3192,16 @@ pub struct GetTiltInvertResponse {
     pub tilt_invert: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-#[repr(C)]
-pub struct GetPanTiltSwapResponse {
-    pub pan_tilt_swap: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-#[repr(C)]
-pub struct GetIdentifyDeviceResponse {
-    pub identify: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-#[repr(C)]
-pub struct GetPowerStateResponse {
-    pub power_state: PowerState,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
-#[repr(C, packed)]
-pub struct SetPowerStateRequest {
-    pub power_state: PowerState,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-#[repr(C)]
-pub struct GetPerformSelfTestResponse {
-    pub perform_self_test: bool,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
-#[repr(C, packed)]
-pub struct SetPerformSelfTestRequest {
-    pub self_test_id: SelfTest,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
-#[repr(C)]
-pub struct SetCapturePresetRequest {
-    pub scene_id: u16,
-    pub fade_times: Option<FadeTimes>,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
-#[repr(C, packed)]
-pub struct GetSelfTestDescriptionRequest {
-    pub self_test_id: SelfTest,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
-#[repr(C)]
-pub struct SetPresetPlaybackRequest {
-    pub mode: PresetPlaybackMode,
-    pub level: u8,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
-#[repr(C)]
-pub struct SetDevicePowerCyclesRequest {
-    pub device_power_cycles: u32,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
-#[repr(C)]
-pub struct SetDisplayInvertModeRequest {
-    pub display_invert_mode: DisplayInvertMode,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
-#[repr(C, packed)]
-pub struct SetDisplayLevelRequest {
-    pub display_level: u8,
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
-#[repr(C, packed)]
-pub struct SetPanInvertRequest {
-    pub pan_invert: bool,
-}
-
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
 #[repr(C, packed)]
 pub struct SetTiltInvertRequest {
     pub tilt_invert: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetPanTiltSwapResponse {
+    pub pan_tilt_swap: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
@@ -3273,9 +3234,8 @@ pub struct SetRealTimeClockRequest {
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
-pub struct GetSelfTestDescriptionResponse {
-    pub self_test_id: SelfTest,
-    pub description: SelfTestDescription,
+pub struct GetIdentifyDeviceResponse {
+    pub identify: bool,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
@@ -3292,7 +3252,58 @@ pub struct SetResetDeviceRequest {
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
+pub struct GetPowerStateResponse {
+    pub power_state: PowerState,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
+pub struct SetPowerStateRequest {
+    pub power_state: PowerState,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetPerformSelfTestResponse {
+    pub perform_self_test: bool,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C, packed)]
+pub struct SetPerformSelfTestRequest {
+    pub self_test_id: SelfTest,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
+#[repr(C, packed)]
+pub struct GetSelfTestDescriptionRequest {
+    pub self_test_id: SelfTest,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
+pub struct GetSelfTestDescriptionResponse {
+    pub self_test_id: SelfTest,
+    pub description: SelfTestDescription,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
+pub struct SetCapturePresetRequest {
+    pub scene_id: u16,
+    pub fade_times: Option<FadeTimes>,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[repr(C)]
 pub struct GetPresetPlaybackResponse {
+    pub mode: PresetPlaybackMode,
+    pub level: u8,
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
+#[repr(C)]
+pub struct SetPresetPlaybackRequest {
     pub mode: PresetPlaybackMode,
     pub level: u8,
 }
@@ -3301,90 +3312,835 @@ pub struct GetPresetPlaybackResponse {
 mod tests {
     use core::str::FromStr;
     use rdm_parameter_traits::{
-        RdmDiscoveryResponseParameterCodec, RdmGetResponseParameterCodec,
-        RdmSetRequestParameterCodec,
+        RdmDiscoveryRequestParameterCodec, RdmDiscoveryResponseParameterCodec,
+        RdmGetRequestParameterCodec, RdmGetResponseParameterCodec, RdmSetRequestParameterCodec,
+        RdmSetResponseParameterCodec,
     };
+    use std::vec;
+
+    fn discovery_encode_decode_request<T>(param: T)
+    where
+        T: RdmDiscoveryRequestParameterCodec + PartialEq + core::fmt::Debug,
+    {
+        let size = param.size_of();
+        let mut buf = vec![0u8; size];
+
+        let encoded = param.discovery_request_encode_data(&mut buf).unwrap();
+        assert_eq!(encoded, size);
+
+        let decoded = T::discovery_request_decode_data(&buf[..encoded]).unwrap();
+        assert_eq!(param, decoded);
+    }
+
+    fn discovery_encode_decode_response<T>(param: T)
+    where
+        T: RdmDiscoveryResponseParameterCodec + PartialEq + core::fmt::Debug,
+    {
+        let size = param.size_of();
+        let mut buf = vec![0u8; size];
+
+        let encoded = param.discovery_response_encode_data(&mut buf).unwrap();
+        assert_eq!(encoded, size);
+
+        let decoded = T::discovery_response_decode_data(&buf[..encoded]).unwrap();
+        assert_eq!(param, decoded);
+    }
+
+    fn get_encode_decode_request<T>(param: T)
+    where
+        T: RdmGetRequestParameterCodec + PartialEq + core::fmt::Debug,
+    {
+        let size = param.size_of();
+        let mut buf = vec![0u8; size];
+
+        let encoded = param.get_request_encode_data(&mut buf).unwrap();
+        assert_eq!(encoded, size);
+
+        let decoded = T::get_request_decode_data(&buf[..encoded]).unwrap();
+        assert_eq!(param, decoded);
+    }
+
+    fn get_encode_decode_response<T>(param: T)
+    where
+        T: RdmGetResponseParameterCodec + PartialEq + core::fmt::Debug,
+    {
+        let size = param.size_of();
+        let mut buf = vec![0u8; size];
+
+        let encoded = param.get_response_encode_data(&mut buf).unwrap();
+        assert_eq!(encoded, size);
+
+        let decoded = T::get_response_decode_data(&buf[..encoded]).unwrap();
+        assert_eq!(param, decoded);
+    }
+
+    fn set_encode_decode_request<T>(param: T)
+    where
+        T: RdmSetRequestParameterCodec + PartialEq + core::fmt::Debug,
+    {
+        let size = param.size_of();
+        let mut buf = vec![0u8; size];
+
+        let encoded = param.set_request_encode_data(&mut buf).unwrap();
+        assert_eq!(encoded, size);
+
+        let decoded = T::set_request_decode_data(&buf[..encoded]).unwrap();
+        assert_eq!(param, decoded);
+    }
+
+    fn set_encode_decode_response<T>(param: T)
+    where
+        T: RdmSetResponseParameterCodec + PartialEq + core::fmt::Debug,
+    {
+        let size = param.size_of();
+        let mut buf = vec![0u8; size];
+
+        let encoded = param.set_response_encode_data(&mut buf).unwrap();
+        assert_eq!(encoded, size);
+
+        let decoded = T::set_response_decode_data(&buf[..encoded]).unwrap();
+        assert_eq!(param, decoded);
+    }
 
     #[test]
-    fn disc_mute_response() {
+    fn discovery_mute_response() {
         use crate::rdm::DeviceUID;
 
-        let param = super::DiscMuteResponse {
+        discovery_encode_decode_response(super::DiscMuteResponse {
             control_field: 0x1234,
             binding_uid: None,
-        };
-
-        let mut buf = [0u8; 0x02];
-
-        let encoded = param.discovery_response_encode_data(&mut buf).unwrap();
-        assert_eq!(encoded, 2);
-        assert_eq!(buf, [0x12, 0x34]);
-
-        let decoded =
-            super::DiscMuteResponse::discovery_response_decode_data(&buf[..encoded]).unwrap();
-        assert_eq!(param, decoded);
-
-        let param = super::DiscMuteResponse {
+        });
+        discovery_encode_decode_response(super::DiscMuteResponse {
             control_field: 0x1234,
             binding_uid: Some(DeviceUID::from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06])),
+        });
+    }
+
+    #[test]
+    fn discovery_unmute_response() {
+        use crate::rdm::DeviceUID;
+
+        discovery_encode_decode_response(super::DiscUnMuteResponse {
+            control_field: 0x1234,
+            binding_uid: None,
+        });
+        discovery_encode_decode_response(super::DiscUnMuteResponse {
+            control_field: 0x1234,
+            binding_uid: Some(DeviceUID::from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06])),
+        });
+    }
+
+    #[test]
+    fn get_queued_message_request() {
+        use crate::rdm::parameter::e120::StatusType;
+
+        get_encode_decode_request(super::GetQueuedMessageRequest {
+            status_type: StatusType::Error,
+        });
+    }
+
+    #[test]
+    fn get_proxied_device_count_response() {
+        get_encode_decode_response(super::GetProxiedDeviceCountResponse {
+            device_count: 42,
+            list_change: true,
+        });
+    }
+
+    #[test]
+    fn get_proxied_devices_response() {
+        use crate::rdm::DeviceUID;
+
+        get_encode_decode_response(super::GetProxiedDevicesResponse {
+            device_uids: heapless::Vec::from_slice(&[
+                DeviceUID::from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]),
+                DeviceUID::from([0x11, 0x12, 0x13, 0x14, 0x15, 0x16]),
+            ])
+            .unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_comms_status_response() {
+        get_encode_decode_response(super::GetCommsStatusResponse {
+            short_message: 0x0001,
+            length_mismatch: 0x0002,
+            checksum_fail: 0x0003,
+        });
+    }
+
+    #[test]
+    fn get_status_messages_request() {
+        use crate::rdm::parameter::e120::StatusType;
+
+        get_encode_decode_request(super::GetStatusMessagesRequest {
+            status_type: StatusType::Warning,
+        });
+    }
+
+    #[test]
+    fn get_status_messages_response() {
+        use crate::rdm::parameter::e120::{StatusMessage, StatusType, SubDeviceId};
+
+        get_encode_decode_response(super::GetStatusMessagesResponse {
+            messages: heapless::Vec::from_slice(&[
+                StatusMessage {
+                    sub_device_id: SubDeviceId::RootDevice,
+                    status_type: StatusType::None,
+                    status_message_id: 0x0001,
+                    data_value1: 0x0000,
+                    data_value2: 0x0001,
+                },
+                StatusMessage {
+                    sub_device_id: SubDeviceId::Id(0x0001),
+                    status_type: StatusType::Warning,
+                    status_message_id: 0x0002,
+                    data_value1: 0x0002,
+                    data_value2: 0x0003,
+                },
+            ])
+            .unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_status_id_description_request() {
+        get_encode_decode_request(super::GetStatusIdDescriptionRequest { status_id: 0x0001 });
+    }
+
+    #[test]
+    fn get_status_id_description_response() {
+        use crate::rdm::parameter::e120::StatusIdDescription;
+
+        get_encode_decode_response(super::GetStatusIdDescriptionResponse {
+            status_id_description: StatusIdDescription::from_str("Test Status ID\0\0\0\0").unwrap(),
+        });
+        get_encode_decode_response(super::GetStatusIdDescriptionResponse {
+            status_id_description: StatusIdDescription::from_str("Test Status ID").unwrap(),
+        });
+        assert!(
+            StatusIdDescription::from_str("This is a really long status id description").is_err()
+        );
+    }
+
+    #[test]
+    fn get_sub_device_id_status_report_threshold_response() {
+        use crate::rdm::parameter::e120::StatusType;
+
+        get_encode_decode_response(super::GetSubDeviceIdStatusReportThresholdResponse {
+            status_type: StatusType::Warning,
+        });
+    }
+
+    #[test]
+    fn set_sub_device_id_status_report_threshold_request() {
+        use crate::rdm::parameter::e120::StatusType;
+
+        set_encode_decode_request(super::SetSubDeviceIdStatusReportThresholdRequest {
+            status_type: StatusType::Error,
+        });
+    }
+
+    #[test]
+    fn get_supported_parameters_response() {
+        use crate::rdm::parameter::ParameterId;
+
+        get_encode_decode_response(super::GetSupportedParametersResponse {
+            supported_parameters: heapless::Vec::from_slice(&[
+                ParameterId::MinimumLevel,
+                ParameterId::EndpointList,
+                ParameterId::RawParameterId(0x8888),
+            ])
+            .unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_parameter_description_request() {
+        use crate::rdm::parameter::ParameterId;
+
+        get_encode_decode_request(super::GetParameterDescriptionRequest {
+            parameter_id: ParameterId::DeviceInfo,
+        });
+    }
+
+    #[test]
+    fn get_parameter_description_response() {
+        use crate::rdm::parameter::ParameterId;
+        use crate::rdm::parameter::e120::{
+            ImplementedCommandClass, ParameterDataType, ParameterDescriptionLabel, SensorUnit,
+            SensorUnitPrefix,
         };
 
-        let mut buf = [0u8; 0x08];
-
-        let encoded = param.discovery_response_encode_data(&mut buf).unwrap();
-        assert_eq!(encoded, 8);
-        assert_eq!(buf, [0x12, 0x34, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06]);
-
-        let decoded =
-            super::DiscMuteResponse::discovery_response_decode_data(&buf[..encoded]).unwrap();
-        assert_eq!(param, decoded);
+        get_encode_decode_response(super::GetParameterDescriptionResponse {
+            parameter_id: ParameterId::DeviceInfo,
+            parameter_data_length: 19,
+            data_type: ParameterDataType::NotDefined,
+            command_class: ImplementedCommandClass::Get,
+            unit_type: SensorUnit::None,
+            prefix: SensorUnitPrefix::None,
+            raw_minimum_valid_value: [0, 0, 0, 0],
+            raw_maximum_valid_value: [0, 0, 0, 0],
+            raw_default_value: [0, 0, 0, 0],
+            description: ParameterDescriptionLabel::from_str("Device Info").unwrap(),
+        });
     }
 
     #[test]
     fn get_device_info_response() {
         use crate::rdm::parameter::e120::{ProductCategory, ProtocolVersion};
 
-        let param = super::GetDeviceInfoResponse {
+        get_encode_decode_response(super::GetDeviceInfoResponse {
             protocol_version: ProtocolVersion::V1,
-            device_model_id: 0x0002,
-            product_category: ProductCategory::Dimmer,
-            software_version_id: 0x00000004,
-            dmx512_footprint: 0x0005,
-            current_personality: 0x06,
-            personality_count: 0x07,
-            dmx512_start_address: 0x0008,
-            sub_device_count: 0x0009,
-            sensor_count: 0x0a,
-        };
+            device_model_id: 0x1234,
+            product_category: ProductCategory::Fixture,
+            software_version_id: 0x01020304,
+            dmx512_footprint: 512,
+            current_personality: 1,
+            personality_count: 3,
+            dmx512_start_address: 1,
+            sub_device_count: 0,
+            sensor_count: 2,
+        });
+    }
 
-        let mut buf = [0u8; 0x13];
+    #[test]
+    fn get_product_detail_id_list_response() {
+        use crate::rdm::parameter::e120::ProductDetail;
 
-        let encoded = param.get_response_encode_data(&mut buf).unwrap();
-        assert_eq!(encoded, 19);
-        assert_eq!(
-            buf,
-            [1, 0, 0, 2, 5, 0, 0, 0, 0, 4, 0, 5, 6, 7, 0, 8, 0, 9, 0x0a]
-        );
+        get_encode_decode_response(super::GetProductDetailIdListResponse {
+            product_detail_ids: heapless::Vec::from_slice(&[
+                ProductDetail::NotDeclared.into(),
+                ProductDetail::Arc.into(),
+            ])
+            .unwrap(),
+        });
+    }
 
-        let decoded = super::GetDeviceInfoResponse::get_response_decode_data(&buf).unwrap();
-        assert_eq!(param, decoded);
+    #[test]
+    fn get_device_model_description_response() {
+        use crate::rdm::parameter::e120::DeviceModelDescription;
+
+        get_encode_decode_response(super::GetDeviceModelDescriptionResponse {
+            device_model_description: DeviceModelDescription::from_str("Test Device Model")
+                .unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_manufacturer_label_response() {
+        use crate::rdm::parameter::e120::ManufacturerLabel;
+
+        get_encode_decode_response(super::GetManufacturerLabelResponse {
+            manufacturer_label: ManufacturerLabel::from_str("Test Manufacturer").unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_device_label_response() {
+        use crate::rdm::parameter::e120::DeviceLabel;
+
+        get_encode_decode_response(super::GetDeviceLabelResponse {
+            device_label: DeviceLabel::from_str("My Device").unwrap(),
+        });
     }
 
     #[test]
     fn set_device_label_request() {
         use crate::rdm::parameter::e120::DeviceLabel;
 
-        let param = super::SetDeviceLabelRequest {
-            device_label: DeviceLabel::from_str("Test").unwrap(),
+        set_encode_decode_request(super::SetDeviceLabelRequest {
+            device_label: DeviceLabel::from_str("New Label").unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_factory_defaults_response() {
+        get_encode_decode_response(super::GetFactoryDefaultsResponse {
+            factory_reset: true,
+        });
+    }
+
+    #[test]
+    fn get_language_response() {
+        use crate::rdm::parameter::e120::Iso639_1;
+
+        get_encode_decode_response(super::GetLanguageResponse {
+            language: Iso639_1::from_str("en"),
+        });
+    }
+
+    #[test]
+    fn set_language_request() {
+        use crate::rdm::parameter::e120::Iso639_1;
+
+        set_encode_decode_request(super::SetLanguageRequest {
+            language: Iso639_1::from_str("fr"),
+        });
+    }
+
+    #[test]
+    fn get_language_capabilities_response() {
+        use crate::rdm::parameter::e120::Iso639_1;
+
+        get_encode_decode_response(super::GetLanguageCapabilitiesResponse {
+            language_capabilities: heapless::Vec::from_slice(&[
+                Iso639_1::from_str("en"),
+                Iso639_1::from_str("fr"),
+            ])
+            .unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_software_version_label_response() {
+        use crate::rdm::parameter::e120::SoftwareVersionLabel;
+
+        get_encode_decode_response(super::GetSoftwareVersionLabelResponse {
+            software_version_label: SoftwareVersionLabel::from_str("v1.2.3").unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_boot_software_version_id_response() {
+        get_encode_decode_response(super::GetBootSoftwareVersionIdResponse {
+            boot_software_version_id: 0x01020304,
+        });
+    }
+
+    #[test]
+    fn get_boot_software_version_label_response() {
+        use crate::rdm::parameter::e120::BootSoftwareVersionLabel;
+
+        get_encode_decode_response(super::GetBootSoftwareVersionLabelResponse {
+            boot_software_version_label: BootSoftwareVersionLabel::from_str("Boot v1.0").unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_dmx_personality_response() {
+        get_encode_decode_response(super::GetDmxPersonalityResponse {
+            current_personality: 1,
+            personality_count: 3,
+        });
+    }
+
+    #[test]
+    fn set_dmx_personality_request() {
+        set_encode_decode_request(super::SetDmxPersonalityRequest {
+            personality_id: 0x01,
+        });
+    }
+
+    #[test]
+    fn get_dmx_personality_description_request() {
+        get_encode_decode_request(super::GetDmxPersonalityDescriptionRequest {
+            personality_id: 0x01,
+        });
+    }
+
+    #[test]
+    fn get_dmx_personality_description_response() {
+        use crate::rdm::parameter::e120::DmxPersonalityDescription;
+
+        get_encode_decode_response(super::GetDmxPersonalityDescriptionResponse {
+            id: 0x01,
+            dmx_slots_required: 0x0001,
+            description: DmxPersonalityDescription::from_str("RGB Mode").unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_dmx_start_address_response() {
+        get_encode_decode_response(super::GetDmxStartAddressResponse {
+            dmx_start_address: 0x0001,
+        });
+    }
+
+    #[test]
+    fn set_dmx_start_address_request() {
+        set_encode_decode_request(super::SetDmxStartAddressRequest {
+            dmx_start_address: 0x0100,
+        });
+    }
+
+    #[test]
+    fn get_slot_info_response() {
+        use crate::rdm::parameter::e120::{SlotInfo, SlotType};
+
+        get_encode_decode_response(super::GetSlotInfoResponse {
+            slot_info: heapless::Vec::from_slice(&[
+                SlotInfo {
+                    id: 0x0001,
+                    kind: SlotType::Primary,
+                    label_id: 0x0001,
+                },
+                SlotInfo {
+                    id: 0x0002,
+                    kind: SlotType::SecondaryControl,
+                    label_id: 0x0002,
+                },
+            ])
+            .unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_slot_description_request() {
+        get_encode_decode_request(super::GetSlotDescriptionRequest { slot_id: 0x0001 });
+    }
+
+    #[test]
+    fn get_slot_description_response() {
+        use crate::rdm::parameter::e120::SlotDescription;
+
+        get_encode_decode_response(super::GetSlotDescriptionResponse {
+            slot_id: 0x0001,
+            description: SlotDescription::from_str("Intensity").unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_default_slot_value_response() {
+        use crate::rdm::parameter::e120::DefaultSlotValue;
+
+        get_encode_decode_response(super::GetDefaultSlotValueResponse {
+            default_slot_values: heapless::Vec::from_slice(&[
+                DefaultSlotValue {
+                    id: 0x0001,
+                    value: 0x01,
+                },
+                DefaultSlotValue {
+                    id: 0x0002,
+                    value: 0xff,
+                },
+            ])
+            .unwrap(),
+        });
+    }
+
+    #[test]
+    fn get_sensor_definition_request() {
+        get_encode_decode_request(super::GetSensorDefinitionRequest { sensor_id: 0x01 });
+    }
+
+    #[test]
+    fn get_sensor_definition_response() {
+        use crate::rdm::parameter::e120::{
+            SensorDefinitionDescription, SensorType, SensorUnit, SensorUnitPrefix,
         };
 
-        let mut buf = [0u8; 4];
+        get_encode_decode_response(super::GetSensorDefinitionResponse {
+            id: 0x01,
+            kind: SensorType::Temperature,
+            unit: SensorUnit::Centigrade,
+            prefix: SensorUnitPrefix::None,
+            range_minimum_value: -40,
+            range_maximum_value: 125,
+            normal_minimum_value: 0,
+            normal_maximum_value: 40,
+            is_lowest_highest_detected_value_supported: true,
+            is_recorded_value_supported: false,
+            description: SensorDefinitionDescription::from_str("CPU Temp").unwrap(),
+        });
+    }
 
-        let encoded = param.set_request_encode_data(&mut buf).unwrap();
-        assert_eq!(encoded, 4);
-        assert_eq!(buf, [b'T', b'e', b's', b't']);
+    #[test]
+    fn get_sensor_value_request() {
+        get_encode_decode_request(super::GetSensorValueRequest { sensor_id: 0x01 });
+    }
 
-        let decoded = super::SetDeviceLabelRequest::set_request_decode_data(&buf).unwrap();
-        assert_eq!(param, decoded);
+    #[test]
+    fn get_sensor_value_response() {
+        get_encode_decode_response(super::GetSensorValueResponse {
+            sensor_id: 0,
+            current_value: 25,
+            lowest_detected_value: 10,
+            highest_detected_value: 45,
+            recorded_value: 30,
+        });
+    }
+
+    #[test]
+    fn set_sensor_value_request() {
+        set_encode_decode_request(super::SetSensorValueRequest { sensor_id: 0 });
+    }
+
+    #[test]
+    fn set_sensor_value_response() {
+        set_encode_decode_response(super::SetSensorValueResponse {
+            sensor_id: 0,
+            current_value: 25,
+            lowest_detected_value: 10,
+            highest_detected_value: 45,
+            recorded_value: 30,
+        });
+    }
+
+    #[test]
+    fn set_record_sensors_request() {
+        set_encode_decode_request(super::SetRecordSensorsRequest { sensor_id: 0 });
+    }
+
+    #[test]
+    fn get_device_hours_response() {
+        get_encode_decode_response(super::GetDeviceHoursResponse { device_hours: 1234 });
+    }
+
+    #[test]
+    fn set_device_hours_request() {
+        set_encode_decode_request(super::SetDeviceHoursRequest { device_hours: 5678 });
+    }
+
+    #[test]
+    fn get_lamp_hours_response() {
+        get_encode_decode_response(super::GetLampHoursResponse { lamp_hours: 500 });
+    }
+
+    #[test]
+    fn set_lamp_hours_request() {
+        set_encode_decode_request(super::SetLampHoursRequest { lamp_hours: 0 });
+    }
+
+    #[test]
+    fn get_lamp_strikes_response() {
+        get_encode_decode_response(super::GetLampStrikesResponse { lamp_strikes: 100 });
+    }
+
+    #[test]
+    fn set_lamp_strikes_request() {
+        set_encode_decode_request(super::SetLampStrikesRequest { lamp_strikes: 0 });
+    }
+
+    #[test]
+    fn get_lamp_state_response() {
+        use crate::rdm::parameter::e120::LampState;
+
+        get_encode_decode_response(super::GetLampStateResponse {
+            lamp_state: LampState::LampOff,
+        });
+    }
+
+    #[test]
+    fn set_lamp_state_request() {
+        use crate::rdm::parameter::e120::LampState;
+
+        set_encode_decode_request(super::SetLampStateRequest {
+            lamp_state: LampState::LampOn,
+        });
+    }
+
+    #[test]
+    fn get_lamp_on_mode_response() {
+        use crate::rdm::parameter::e120::LampOnMode;
+
+        get_encode_decode_response(super::GetLampOnModeResponse {
+            lamp_on_mode: LampOnMode::OffMode,
+        });
+    }
+
+    #[test]
+    fn set_lamp_on_mode_request() {
+        use crate::rdm::parameter::e120::LampOnMode;
+
+        set_encode_decode_request(super::SetLampOnModeRequest {
+            lamp_on_mode: LampOnMode::DmxMode,
+        });
+    }
+
+    #[test]
+    fn get_device_power_cycles_response() {
+        get_encode_decode_response(super::GetDevicePowerCyclesResponse { device_power_cycles: 0x00000001 });
+    }
+
+    #[test]
+    fn set_device_power_cycles_request() {
+        set_encode_decode_request(super::SetDevicePowerCyclesRequest { device_power_cycles: 0x00000002 });
+    }
+
+    #[test]
+    fn get_display_invert_response() {
+        use crate::rdm::parameter::e120::DisplayInvertMode;
+
+        get_encode_decode_response(super::GetDisplayInvertResponse {
+            display_invert_mode: DisplayInvertMode::Off,
+        });
+    }
+
+    #[test]
+    fn set_display_invert_mode_request() {
+        use crate::rdm::parameter::e120::DisplayInvertMode;
+
+        set_encode_decode_request(super::SetDisplayInvertModeRequest {
+            display_invert_mode: DisplayInvertMode::On,
+        });
+    }
+
+    #[test]
+    fn get_display_level_response() {
+        get_encode_decode_response(super::GetDisplayLevelResponse { display_level: 0x00 });
+    }
+
+    #[test]
+    fn set_display_level_request() {
+        set_encode_decode_request(super::SetDisplayLevelRequest { display_level: 0xff });
+    }
+
+    #[test]
+    fn get_pan_invert_response() {
+        get_encode_decode_response(super::GetPanInvertResponse { pan_invert: true });
+    }
+
+    #[test]
+    fn set_pan_invert_request() {
+        set_encode_decode_request(super::SetPanInvertRequest { pan_invert: false });
+    }
+
+    #[test]
+    fn get_tilt_invert_response() {
+        get_encode_decode_response(super::GetTiltInvertResponse { tilt_invert: false });
+    }
+
+    #[test]
+    fn set_tilt_invert_request() {
+        set_encode_decode_request(super::SetTiltInvertRequest { tilt_invert: true });
+    }
+
+    #[test]
+    fn get_pan_tilt_swap_response() {
+        get_encode_decode_response(super::GetPanTiltSwapResponse {
+            pan_tilt_swap: false,
+        });
+    }
+
+    #[test]
+    fn set_pan_tilt_swap_request() {
+        set_encode_decode_request(super::SetPanTiltSwapRequest {
+            pan_tilt_swap: true,
+        });
+    }
+
+    #[test]
+    fn get_real_time_clock() {
+        get_encode_decode_response(super::GetRealTimeClock {
+            year: 1999,
+            month: 12,
+            day: 31,
+            hour: 23,
+            minute: 59,
+            second: 59,
+        });
+    }
+
+    #[test]
+    fn set_real_time_clock_request() {
+        set_encode_decode_request(super::SetRealTimeClockRequest {
+            year: 2000,
+            month: 1,
+            day: 1,
+            hour: 0,
+            minute: 0,
+            second: 0,
+        });
+    }
+
+    #[test]
+    fn get_identify_device_response() {
+        get_encode_decode_response(super::GetIdentifyDeviceResponse { identify: true });
+    }
+
+    #[test]
+    fn set_identify_device_request() {
+        set_encode_decode_request(super::SetIdentifyDeviceRequest { identify: false });
+    }
+
+    #[test]
+    fn set_reset_device_request() {
+        use crate::rdm::parameter::e120::ResetDeviceMode;
+
+        set_encode_decode_request(super::SetResetDeviceRequest {
+            reset_device: ResetDeviceMode::Cold,
+        });
+    }
+
+    #[test]
+    fn get_power_state_response() {
+        use crate::rdm::parameter::e120::PowerState;
+
+        get_encode_decode_response(super::GetPowerStateResponse {
+            power_state: PowerState::Normal,
+        });
+    }
+
+    #[test]
+    fn set_power_state_request() {
+        use crate::rdm::parameter::e120::PowerState;
+
+        set_encode_decode_request(super::SetPowerStateRequest {
+            power_state: PowerState::Standby,
+        });
+    }
+
+    #[test]
+    fn get_perform_self_test_response() {
+        get_encode_decode_response(super::GetPerformSelfTestResponse {
+            perform_self_test: true,
+        });
+    }
+
+    #[test]
+    fn set_perform_self_test_request() {
+        set_encode_decode_request(super::SetPerformSelfTestRequest { self_test_id: super::SelfTest::All });
+    }
+
+    #[test]
+    fn get_self_test_description_request() {
+        get_encode_decode_request(super::GetSelfTestDescriptionRequest { self_test_id: super::SelfTest::ManufacturerId(1) });
+    }
+
+    #[test]
+    fn get_self_test_description_response() {
+        use crate::rdm::parameter::e120::SelfTestDescription;
+
+        get_encode_decode_response(super::GetSelfTestDescriptionResponse {
+            self_test_id: super::SelfTest::All,
+            description: SelfTestDescription::from_str("RAM Test").unwrap(),
+        });
+    }
+
+    #[test]
+    fn set_capture_preset_request() {
+        set_encode_decode_request(super::SetCapturePresetRequest {
+            scene_id: 0x0001,
+            fade_times: None,
+        });
+        set_encode_decode_request(super::SetCapturePresetRequest {
+            scene_id: 0x0002,
+            fade_times: Some(super::FadeTimes {
+                up_fade_time: 500,
+                down_fade_time: 1000,
+                wait_time: 500
+            }),
+        });
+    }
+
+    #[test]
+    fn set_preset_playback_request() {
+        use crate::rdm::parameter::e120::PresetPlaybackMode;
+
+        set_encode_decode_request(super::SetPresetPlaybackRequest {
+            mode: PresetPlaybackMode::Off,
+            level: 0,
+        });
+    }
+
+    #[test]
+    fn get_preset_playback_response() {
+        use crate::rdm::parameter::e120::PresetPlaybackMode;
+
+        get_encode_decode_response(super::GetPresetPlaybackResponse {
+            mode: PresetPlaybackMode::Scene(5),
+            level: 255,
+        });
     }
 }

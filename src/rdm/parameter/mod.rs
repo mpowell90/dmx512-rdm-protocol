@@ -5,6 +5,7 @@ pub mod e137_2;
 pub mod e137_7;
 
 use super::{RdmError, header::SubDeviceId};
+use rdm_parameter_traits::{ParameterCodecError, RdmParameterData};
 
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -363,5 +364,35 @@ impl From<ParameterId> for u16 {
             // Use for unsupported standard or manufacturer specific PID's
             ParameterId::RawParameterId(pid) => pid,
         }
+    }
+}
+
+impl RdmParameterData for ParameterId {
+    fn size_of(&self) -> usize {
+        2
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        if buf.len() < 2 {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 2,
+            });
+        }
+
+        buf[0..2].copy_from_slice(&u16::from(*self).to_be_bytes());
+
+        Ok(2)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        if buf.len() < 2 {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 2,
+            });
+        }
+
+        Ok(u16::from_be_bytes([buf[0], buf[1]]).into())
     }
 }

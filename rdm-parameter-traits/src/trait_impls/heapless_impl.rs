@@ -3,10 +3,10 @@ use core::str::FromStr;
 
 impl<T, const N: usize> RdmParameterData for heapless::Vec<T, N>
 where
-    T: RdmParameterData,
+    T: RdmParameterData + core::fmt::Debug,
 {
     fn size_of(&self) -> usize {
-        self.iter().map(|v| v.size_of()).sum::<usize>()
+        self.iter().map(|v| v.size_of()).sum()
     }
 
     fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
@@ -29,20 +29,18 @@ where
     }
 
     fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-        let size = core::mem::size_of::<T>();
-
-        let count = buf.len() / size;
-
         let mut out = heapless::Vec::<T, N>::new();
+
         let mut offset = 0;
 
-        for _ in 0..count {
-            let val = T::decode_rdm_parameter_data(&buf[offset..])?;
-            offset += size;
-            out.push(val)
-                .map_err(|_| ParameterCodecError::MalformedData)?;
-        }
+        while offset < buf.len() {
+            let t = T::decode_rdm_parameter_data(&buf[offset..])?;
 
+            offset += t.size_of();
+
+            out.push(t).map_err(|_| ParameterCodecError::MalformedData)?;
+        }
+        
         Ok(out)
     }
 }

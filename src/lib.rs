@@ -23,8 +23,10 @@
 //!
 //! See module documentation or test suite for examples.
 
-// TODO use `no_std` after testing
-// #![no_std]
+#![no_std]
+
+#[cfg(test)]
+extern crate std;
 
 pub mod dmx;
 
