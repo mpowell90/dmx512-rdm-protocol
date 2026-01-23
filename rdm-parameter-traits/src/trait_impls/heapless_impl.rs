@@ -99,7 +99,13 @@ mod tests {
 
     #[test]
     fn test_heapless_string() {
-        encode_decode(heapless::String::<4>::from_str("Test").unwrap(), &mut [0u8; 4]);
-        encode_decode(heapless::String::<32>::from_str("Test\0\0\0\0").unwrap(), &mut [0u8; 32]);
+        encode_decode(
+            heapless::String::<4>::from_str("Test").unwrap(),
+            &mut [0u8; 4],
+        );
+        encode_decode(
+            heapless::String::<32>::from_str("Test\0\0\0\0").unwrap(),
+            &mut [0u8; 32],
+        );
     }
 }

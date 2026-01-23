@@ -166,7 +166,7 @@ impl RdmParameterData for DeviceUID {
         let mut bytes = [0u8; 6];
 
         bytes.copy_from_slice(&buf[0..6]);
-        
+
         Ok(DeviceUID::from(bytes))
     }
 }

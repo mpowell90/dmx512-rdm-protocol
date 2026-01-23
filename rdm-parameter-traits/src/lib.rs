@@ -11,10 +11,7 @@ pub mod trait_impls;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterCodecError {
-    BufferTooSmall {
-        provided: usize,
-        required: usize,
-    },
+    BufferTooSmall { provided: usize, required: usize },
     MalformedData,
     Utf8Error(core::str::Utf8Error),
     CapacityError,
@@ -23,10 +20,11 @@ pub enum ParameterCodecError {
 impl core::fmt::Display for ParameterCodecError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ParameterCodecError::BufferTooSmall {
-                provided,
-                required,
-            } => write!(f, "Buffer too small, provided: {}, required: {}", provided, required),
+            ParameterCodecError::BufferTooSmall { provided, required } => write!(
+                f,
+                "Buffer too small, provided: {}, required: {}",
+                provided, required
+            ),
             ParameterCodecError::MalformedData => write!(f, "Malformed data"),
             ParameterCodecError::Utf8Error(e) => write!(f, "UTF-8 error: {}", e),
             ParameterCodecError::CapacityError => write!(f, "Insufficient capacity"),

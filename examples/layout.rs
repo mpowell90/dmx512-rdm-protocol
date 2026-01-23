@@ -1,4 +1,5 @@
 use dmx512_rdm_protocol::rdm::{
+    DeviceUID,
     parameter::{
         e120::{DefaultSlotValue, Iso639_1, ProductDetail, ProductDetailValue, StatusMessage},
         e137_2::NetworkInterface,
@@ -6,7 +7,6 @@ use dmx512_rdm_protocol::rdm::{
     },
     request::RequestParameter,
     response::ResponseParameterData,
-    DeviceUID,
 };
 use heapless::Vec;
 

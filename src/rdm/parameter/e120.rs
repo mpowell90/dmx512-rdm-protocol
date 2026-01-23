@@ -3004,7 +3004,7 @@ pub struct GetSlotDescriptionResponse {
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetDefaultSlotValueResponse {
-    pub default_values: Vec<DefaultSlotValue, 77>
+    pub default_values: Vec<DefaultSlotValue, 77>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmGetRequestParameter)]
@@ -3070,7 +3070,7 @@ pub struct SetRecordSensorsRequest {
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetDeviceHoursResponse {
-    pub device_hours: u32
+    pub device_hours: u32,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
@@ -3082,7 +3082,7 @@ pub struct SetDeviceHoursRequest {
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetLampHoursResponse {
-    pub lamp_hours: u32
+    pub lamp_hours: u32,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
@@ -3094,7 +3094,7 @@ pub struct SetLampHoursRequest {
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetLampStrikesResponse {
-    pub lamp_strikes: u32
+    pub lamp_strikes: u32,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
