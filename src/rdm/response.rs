@@ -4,7 +4,10 @@
 //!
 //! ```rust
 //! use dmx512_rdm_protocol::rdm::{
-//!     parameter::ParameterId,
+//!     parameter::{
+//!         ParameterId,
+//!         e120::GetIdentifyDeviceResponse,
+//!     },
 //!     response::{
 //!         RdmFrameResponse, RdmResponse, ResponseData, ResponseParameterData, ResponseType,
 //!     },
@@ -38,7 +41,9 @@
 //!     command_class: CommandClass::GetCommandResponse,
 //!     parameter_id: ParameterId::IdentifyDevice,
 //!     parameter_data: ResponseData::ParameterData(Some(
-//!         ResponseParameterData::GetIdentifyDevice(true),
+//!         ResponseParameterData::GetIdentifyDevice(
+//!            GetIdentifyDeviceResponse { identify: true }
+//!         ),
 //!     )),
 //! }));
 //!
@@ -49,12 +54,8 @@ use super::{
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
     RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE, RdmError,
     header::{CommandClass, DeviceUID, SubDeviceId},
-    parameter::{
-        ParameterId,
-        e120::{DefaultSlotValue, SelfTestDescription, SensorDefinitionDescription, SensorValue},
-        e137_1::{MergeMode, PinCode},
-    },
-    utils::{RdmPadNullStr, RdmTruncateNullStr, bsd_16_crc},
+    parameter::ParameterId,
+    utils::bsd_16_crc,
 };
 use crate::rdm::parameter::{
     e120::{
@@ -80,10 +81,14 @@ use crate::rdm::parameter::{
         GetTcpCommsStatusResponse,
     },
     e137_1::{
-        GetCurve, GetCurveDescription, GetDimmerInfo, GetDmxBlockAddress, GetDmxFailMode,
-        GetDmxStartupMode, GetLockState, GetLockStateDescription, GetMinimumLevel,
-        GetModulationFrequency, GetModulationFrequencyDescription, GetOutputResponseTime,
-        GetOutputResponseTimeDescription, GetPresetInfo, GetPresetStatus,
+        GetBurnInResponse, GetCurveDescriptionResponse, GetCurveResponse, GetDimmerInfoResponse,
+        GetDmxBlockAddressResponse, GetDmxFailModeResponse, GetDmxStartupModeResponse,
+        GetLockPinResponse, GetLockStateDescriptionResponse, GetLockStateResponse,
+        GetMaximumLevelResponse, GetMinimumLevelResponse,
+        GetModulationFrequencyDescriptionResponse, GetModulationFrequencyResponse,
+        GetOutputResponseTimeDescriptionResponse, GetOutputResponseTimeResponse,
+        GetPowerOnSelfTestResponse, GetPresetInfoResponse, GetPresetMergeModeResponse,
+        GetPresetStatusResponse,
     },
     e137_2::{
         GetDnsDomainNameResponse, GetDnsHostNameResponse, GetDnsIpV4NameServerResponse,
@@ -335,26 +340,26 @@ pub enum ResponseParameterData {
     GetSelfTestDescription(GetSelfTestDescriptionResponse),
     GetPresetPlayback(GetPresetPlaybackResponse),
     // E1.37-1
-    GetDmxBlockAddress(GetDmxBlockAddress),
-    GetDmxFailMode(GetDmxFailMode),
-    GetDmxStartupMode(GetDmxStartupMode),
-    GetPowerOnSelfTest(bool),
-    GetLockState(GetLockState),
-    GetLockStateDescription(GetLockStateDescription),
-    GetLockPin(PinCode),
-    GetBurnIn(u8),
-    GetDimmerInfo(GetDimmerInfo),
-    GetMinimumLevel(GetMinimumLevel),
-    GetMaximumLevel(u16),
-    GetCurve(GetCurve),
-    GetCurveDescription(GetCurveDescription),
-    GetOutputResponseTime(GetOutputResponseTime),
-    GetOutputResponseTimeDescription(GetOutputResponseTimeDescription),
-    GetModulationFrequency(GetModulationFrequency),
-    GetModulationFrequencyDescription(GetModulationFrequencyDescription),
-    GetPresetInfo(GetPresetInfo),
-    GetPresetStatus(GetPresetStatus),
-    GetPresetMergeMode(MergeMode),
+    GetDmxBlockAddress(GetDmxBlockAddressResponse),
+    GetDmxFailMode(GetDmxFailModeResponse),
+    GetDmxStartupMode(GetDmxStartupModeResponse),
+    GetPowerOnSelfTest(GetPowerOnSelfTestResponse),
+    GetLockState(GetLockStateResponse),
+    GetLockStateDescription(GetLockStateDescriptionResponse),
+    GetLockPin(GetLockPinResponse),
+    GetBurnIn(GetBurnInResponse),
+    GetDimmerInfo(GetDimmerInfoResponse),
+    GetMinimumLevel(GetMinimumLevelResponse),
+    GetMaximumLevel(GetMaximumLevelResponse),
+    GetCurve(GetCurveResponse),
+    GetCurveDescription(GetCurveDescriptionResponse),
+    GetOutputResponseTime(GetOutputResponseTimeResponse),
+    GetOutputResponseTimeDescription(GetOutputResponseTimeDescriptionResponse),
+    GetModulationFrequency(GetModulationFrequencyResponse),
+    GetModulationFrequencyDescription(GetModulationFrequencyDescriptionResponse),
+    GetPresetInfo(GetPresetInfoResponse),
+    GetPresetStatus(GetPresetStatusResponse),
+    GetPresetMergeMode(GetPresetMergeModeResponse),
     // E1.37-2
     GetListInterfaces(GetListInterfacesResponse),
     GetInterfaceLabel(GetInterfaceLabelResponse),
@@ -449,33 +454,24 @@ impl ResponseParameterData {
             ResponseParameterData::GetPowerState(param) => param.size_of(),
             ResponseParameterData::GetPerformSelfTest(param) => param.size_of(),
             ResponseParameterData::GetSelfTestDescription(param) => param.size_of(),
-            ResponseParameterData::GetPresetPlayback(_) => 3,
-            ResponseParameterData::GetDmxBlockAddress(_) => 4,
-            ResponseParameterData::GetDmxFailMode(_) => 7,
-            ResponseParameterData::GetDmxStartupMode(_) => 7,
-            ResponseParameterData::GetPowerOnSelfTest(_) => 1,
-            ResponseParameterData::GetLockState(_) => 2,
-            ResponseParameterData::GetLockStateDescription(GetLockStateDescription {
-                description,
-                ..
-            }) => 1 + description.len(),
-            ResponseParameterData::GetLockPin(_) => 2,
-            ResponseParameterData::GetBurnIn(_) => 1,
-            ResponseParameterData::GetDimmerInfo(_) => 11,
-            ResponseParameterData::GetMinimumLevel(_) => 5,
-            ResponseParameterData::GetMaximumLevel(_) => 2,
-            ResponseParameterData::GetCurve(_) => 2,
-            ResponseParameterData::GetCurveDescription(GetCurveDescription {
-                description, ..
-            }) => 1 + description.len(),
-            ResponseParameterData::GetOutputResponseTime(_) => 2,
-            ResponseParameterData::GetOutputResponseTimeDescription(
-                GetOutputResponseTimeDescription { description, .. },
-            ) => 1 + description.len(),
-            ResponseParameterData::GetModulationFrequency(_) => 2,
-            ResponseParameterData::GetModulationFrequencyDescription(
-                GetModulationFrequencyDescription { description, .. },
-            ) => 5 + description.len(),
+            ResponseParameterData::GetPresetPlayback(param) => param.size_of(),
+            ResponseParameterData::GetDmxBlockAddress(param) => param.size_of(),
+            ResponseParameterData::GetDmxFailMode(param) => param.size_of(),
+            ResponseParameterData::GetDmxStartupMode(param) => param.size_of(),
+            ResponseParameterData::GetPowerOnSelfTest(param) => param.size_of(),
+            ResponseParameterData::GetLockState(param) => param.size_of(),
+            ResponseParameterData::GetLockStateDescription(param) => param.size_of(),
+            ResponseParameterData::GetLockPin(param) => param.size_of(),
+            ResponseParameterData::GetBurnIn(param) => param.size_of(),
+            ResponseParameterData::GetDimmerInfo(param) => param.size_of(),
+            ResponseParameterData::GetMinimumLevel(param) => param.size_of(),
+            ResponseParameterData::GetMaximumLevel(param) => param.size_of(),
+            ResponseParameterData::GetCurve(param) => param.size_of(),
+            ResponseParameterData::GetCurveDescription(param) => param.size_of(),
+            ResponseParameterData::GetOutputResponseTime(param) => param.size_of(),
+            ResponseParameterData::GetOutputResponseTimeDescription(param) => param.size_of(),
+            ResponseParameterData::GetModulationFrequency(param) => param.size_of(),
+            ResponseParameterData::GetModulationFrequencyDescription(param) => param.size_of(),
             ResponseParameterData::GetPresetInfo(_) => 32,
             ResponseParameterData::GetPresetStatus(_) => 9,
             ResponseParameterData::GetPresetMergeMode(_) => 1,
@@ -688,8 +684,8 @@ impl ResponseParameterData {
             Self::GetDmxStartupMode(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetPowerOnSelfTest(test) => {
-                buf[0] = *test as u8;
+            Self::GetPowerOnSelfTest(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetLockState(param) => {
                 param.get_response_encode_data(buf)?;
@@ -697,11 +693,11 @@ impl ResponseParameterData {
             Self::GetLockStateDescription(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetLockPin(pin) => {
-                buf[0..2].copy_from_slice(&pin.0.to_be_bytes());
+            Self::GetLockPin(param) => {
+                param.get_response_encode_data(buf)?;
             }
-            Self::GetBurnIn(hours) => {
-                buf[0] = *hours;
+            Self::GetBurnIn(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetDimmerInfo(param) => {
                 param.get_response_encode_data(buf)?;
@@ -709,8 +705,8 @@ impl ResponseParameterData {
             Self::GetMinimumLevel(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetMaximumLevel(level) => {
-                buf[0..2].copy_from_slice(&level.to_be_bytes());
+            Self::GetMaximumLevel(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetCurve(param) => {
                 param.get_response_encode_data(buf)?;
@@ -736,8 +732,8 @@ impl ResponseParameterData {
             Self::GetPresetStatus(param) => {
                 param.get_response_encode_data(buf)?;
             }
-            Self::GetPresetMergeMode(mode) => {
-                buf[0] = *mode as u8;
+            Self::GetPresetMergeMode(param) => {
+                param.get_response_encode_data(buf)?;
             }
             Self::GetListInterfaces(param) => {
                 param.get_response_encode_data(buf)?;
@@ -919,9 +915,6 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => Ok(Self::GetDeviceInfo(
                 GetDeviceInfoResponse::get_response_decode_data(bytes)?,
             )),
-            (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => Ok(Self::GetDeviceInfo(
-                GetDeviceInfoResponse::get_response_decode_data(bytes)?,
-            )),
             (CommandClass::GetCommandResponse, ParameterId::ProductDetailIdList) => {
                 Ok(Self::GetProductDetailIdList(
                     GetProductDetailIdListResponse::get_response_decode_data(bytes)?,
@@ -993,197 +986,161 @@ impl ResponseParameterData {
             }
             (CommandClass::GetCommandResponse, ParameterId::DefaultSlotValue) => {
                 Ok(Self::GetDefaultSlotValue(
-                    bytes
-                        .chunks(3)
-                        .map(|chunk| {
-                            Ok(DefaultSlotValue::new(
-                                u16::from_be_bytes(chunk[0..=1].try_into()?),
-                                chunk[2],
-                            ))
-                        })
-                        .collect::<Result<Vec<DefaultSlotValue, 77>, RdmError>>()?,
+                    GetDefaultSlotValueResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorDefinition) => {
-                Ok(Self::GetSensorDefinition(SensorDefinition {
-                    id: bytes[0],
-                    kind: bytes[1].try_into()?,
-                    unit: bytes[2].try_into()?,
-                    prefix: bytes[3].try_into()?,
-                    range_minimum_value: i16::from_be_bytes(bytes[4..=5].try_into()?),
-                    range_maximum_value: i16::from_be_bytes(bytes[6..=7].try_into()?),
-                    normal_minimum_value: i16::from_be_bytes(bytes[8..=9].try_into()?),
-                    normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
-                    is_lowest_highest_detected_value_supported: bytes[12] >> 1 & 1 == 1,
-                    is_recorded_value_supported: bytes[12] & 1 == 1,
-                    description: SensorDefinitionDescription::decode(&bytes[13..])?,
-                }))
+                Ok(Self::GetSensorDefinition(
+                    GetSensorDefinitionResponse::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::SensorValue) => {
-                Ok(Self::GetSensorValue(SensorValue::new(
-                    bytes[0],
-                    i16::from_be_bytes(bytes[1..=2].try_into()?),
-                    i16::from_be_bytes(bytes[3..=4].try_into()?),
-                    i16::from_be_bytes(bytes[5..=6].try_into()?),
-                    i16::from_be_bytes(bytes[7..=8].try_into()?),
-                )))
-            }
-            (CommandClass::SetCommandResponse, ParameterId::SensorValue) => {
-                Ok(Self::SetSensorValue(SensorValue::new(
-                    bytes[0],
-                    i16::from_be_bytes(bytes[1..=2].try_into()?),
-                    i16::from_be_bytes(bytes[3..=4].try_into()?),
-                    i16::from_be_bytes(bytes[5..=6].try_into()?),
-                    i16::from_be_bytes(bytes[7..=8].try_into()?),
-                )))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::SensorValue) => Ok(
+                Self::GetSensorValue(GetSensorValueResponse::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::SetCommandResponse, ParameterId::SensorValue) => Ok(
+                Self::SetSensorValue(SetSensorValueResponse::set_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::DeviceHours) => Ok(
-                Self::GetDeviceHours(u32::from_be_bytes(bytes[0..=3].try_into()?)),
+                Self::GetDeviceHours(GetDeviceHoursResponse::get_response_decode_data(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::LampHours) => Ok(Self::GetLampHours(
-                u32::from_be_bytes(bytes[0..=3].try_into()?),
+                GetLampHoursResponse::get_response_decode_data(bytes)?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::LampStrikes) => Ok(
-                Self::GetLampStrikes(u32::from_be_bytes(bytes[0..=3].try_into()?)),
+                Self::GetLampStrikes(GetLampStrikesResponse::get_response_decode_data(bytes)?),
             ),
-            (CommandClass::GetCommandResponse, ParameterId::LampState) => {
-                Ok(Self::GetLampState(bytes[0].try_into()?))
+            (CommandClass::GetCommandResponse, ParameterId::LampState) => Ok(Self::GetLampState(
+                GetLampStateResponse::get_response_decode_data(bytes)?,
+            )),
+            (CommandClass::GetCommandResponse, ParameterId::LampOnMode) => Ok(Self::GetLampOnMode(
+                GetLampOnModeResponse::get_response_decode_data(bytes)?,
+            )),
+            (CommandClass::GetCommandResponse, ParameterId::DevicePowerCycles) => {
+                Ok(Self::GetDevicePowerCycles(
+                    GetDevicePowerCyclesResponse::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::LampOnMode) => {
-                Ok(Self::GetLampOnMode(bytes[0].try_into()?))
-            }
-            (CommandClass::GetCommandResponse, ParameterId::DevicePowerCycles) => Ok(
-                Self::GetDevicePowerCycles(u32::from_be_bytes(bytes[0..=3].try_into()?)),
+            (CommandClass::GetCommandResponse, ParameterId::DisplayInvert) => Ok(
+                Self::GetDisplayInvert(GetDisplayInvertResponse::get_response_decode_data(bytes)?),
             ),
-            (CommandClass::GetCommandResponse, ParameterId::DisplayInvert) => {
-                Ok(Self::GetDisplayInvert(bytes[0].try_into()?))
-            }
-            (CommandClass::GetCommandResponse, ParameterId::DisplayLevel) => {
-                Ok(Self::GetDisplayLevel(bytes[0]))
-            }
-            (CommandClass::GetCommandResponse, ParameterId::PanInvert) => {
-                Ok(Self::GetPanInvert(bytes[0] == 1))
-            }
-            (CommandClass::GetCommandResponse, ParameterId::TiltInvert) => {
-                Ok(Self::GetTiltInvert(bytes[0] == 1))
-            }
-            (CommandClass::GetCommandResponse, ParameterId::PanTiltSwap) => {
-                Ok(Self::GetPanTiltSwap(bytes[0] == 1))
-            }
-            (CommandClass::GetCommandResponse, ParameterId::RealTimeClock) => {
-                Ok(Self::GetRealTimeClock(GetRealTimeClock {
-                    year: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    month: bytes[2],
-                    day: bytes[3],
-                    hour: bytes[4],
-                    minute: bytes[5],
-                    second: bytes[6],
-                }))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::DisplayLevel) => Ok(
+                Self::GetDisplayLevel(GetDisplayLevelResponse::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::PanInvert) => Ok(Self::GetPanInvert(
+                GetPanInvertResponse::get_response_decode_data(bytes)?,
+            )),
+            (CommandClass::GetCommandResponse, ParameterId::TiltInvert) => Ok(Self::GetTiltInvert(
+                GetTiltInvertResponse::get_response_decode_data(bytes)?,
+            )),
+            (CommandClass::GetCommandResponse, ParameterId::PanTiltSwap) => Ok(
+                Self::GetPanTiltSwap(GetPanTiltSwapResponse::get_response_decode_data(bytes)?),
+            ),
+            (CommandClass::GetCommandResponse, ParameterId::RealTimeClock) => Ok(
+                Self::GetRealTimeClock(GetRealTimeClock::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::IdentifyDevice) => {
-                Ok(Self::GetIdentifyDevice(bytes[0] == 1))
+                Ok(Self::GetIdentifyDevice(
+                    GetIdentifyDeviceResponse::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::PowerState) => {
-                Ok(Self::GetPowerState(bytes[0].try_into()?))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::PowerState) => Ok(Self::GetPowerState(
+                GetPowerStateResponse::get_response_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommandResponse, ParameterId::PerformSelfTest) => {
-                Ok(Self::GetPerformSelfTest(bytes[0] == 1))
+                Ok(Self::GetPerformSelfTest(
+                    GetPerformSelfTestResponse::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::SelfTestDescription) => {
-                Ok(Self::GetSelfTestDescription(GetSelfTestDescription {
-                    self_test_id: bytes[0].into(),
-                    description: SelfTestDescription::decode(&bytes[1..])?,
-                }))
+                Ok(Self::GetSelfTestDescription(
+                    GetSelfTestDescriptionResponse::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetPlayback) => {
-                Ok(Self::GetPresetPlayback(GetPresetPlayback {
-                    mode: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                    level: bytes[2],
-                }))
+                Ok(Self::GetPresetPlayback(
+                    GetPresetPlaybackResponse::get_response_decode_data(bytes)?,
+                ))
             }
             // E1.37-1
             (CommandClass::GetCommandResponse, ParameterId::DmxBlockAddress) => {
-                Ok(Self::GetDmxBlockAddress(GetDmxBlockAddress {
-                    total_sub_device_footprint: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    base_dmx_address: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                }))
+                Ok(Self::GetDmxBlockAddress(
+                    GetDmxBlockAddressResponse::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DmxFailMode) => {
-                Ok(Self::GetDmxFailMode(GetDmxFailMode {
-                    scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                    loss_of_signal_delay: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
-                    hold_time: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
-                    level: bytes[6],
-                }))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::DmxFailMode) => Ok(
+                Self::GetDmxFailMode(GetDmxFailModeResponse::get_response_decode_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::DmxStartupMode) => {
-                Ok(Self::GetDmxStartupMode(GetDmxStartupMode {
-                    scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                    startup_delay: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
-                    hold_time: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
-                    level: bytes[6],
-                }))
+                Ok(Self::GetDmxStartupMode(
+                    GetDmxStartupModeResponse::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::PowerOnSelfTest) => {
-                Ok(Self::GetPowerOnSelfTest(bytes[0] == 1))
+                Ok(Self::GetPowerOnSelfTest(
+                    GetPowerOnSelfTestResponse::get_response_decode_data(bytes)?,
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::LockState) => Ok(Self::GetLockState(
-                GetLockState::get_response_decode_data(bytes)?,
+                GetLockStateResponse::get_response_decode_data(bytes)?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::LockStateDescription) => {
                 Ok(Self::GetLockStateDescription(
-                    GetLockStateDescription::get_response_decode_data(bytes)?,
+                    GetLockStateDescriptionResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::LockPin) => Ok(Self::GetLockPin(
-                PinCode::try_from(u16::from_be_bytes(bytes[0..=1].try_into()?))?,
+                GetLockPinResponse::get_response_decode_data(bytes)?,
             )),
-            (CommandClass::GetCommandResponse, ParameterId::BurnIn) => {
-                Ok(Self::GetBurnIn(bytes[0]))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::BurnIn) => Ok(Self::GetBurnIn(
+                GetBurnInResponse::get_response_decode_data(bytes)?,
+            )),
             (CommandClass::GetCommandResponse, ParameterId::DimmerInfo) => Ok(Self::GetDimmerInfo(
-                GetDimmerInfo::get_response_decode_data(bytes)?,
+                GetDimmerInfoResponse::get_response_decode_data(bytes)?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::MinimumLevel) => Ok(
-                Self::GetMinimumLevel(GetMinimumLevel::get_response_decode_data(bytes)?),
+                Self::GetMinimumLevel(GetMinimumLevelResponse::get_response_decode_data(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::MaximumLevel) => Ok(
-                Self::GetMaximumLevel(u16::from_be_bytes(bytes[0..=1].try_into()?)),
+                Self::GetMaximumLevel(GetMaximumLevelResponse::get_response_decode_data(bytes)?),
             ),
-            (CommandClass::GetCommandResponse, ParameterId::Curve) => {
-                Ok(Self::GetCurve(GetCurve::get_response_decode_data(bytes)?))
+            (CommandClass::GetCommandResponse, ParameterId::Curve) => Ok(Self::GetCurve(
+                GetCurveResponse::get_response_decode_data(bytes)?,
+            )),
+            (CommandClass::GetCommandResponse, ParameterId::CurveDescription) => {
+                Ok(Self::GetCurveDescription(
+                    GetCurveDescriptionResponse::get_response_decode_data(bytes)?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::CurveDescription) => Ok(
-                Self::GetCurveDescription(GetCurveDescription::get_response_decode_data(bytes)?),
-            ),
             (CommandClass::GetCommandResponse, ParameterId::OutputResponseTime) => {
                 Ok(Self::GetOutputResponseTime(
-                    GetOutputResponseTime::get_response_decode_data(bytes)?,
+                    GetOutputResponseTimeResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::OutputResponseTimeDescription) => {
                 Ok(Self::GetOutputResponseTimeDescription(
-                    GetOutputResponseTimeDescription::get_response_decode_data(bytes)?,
+                    GetOutputResponseTimeDescriptionResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::ModulationFrequency) => {
                 Ok(Self::GetModulationFrequency(
-                    GetModulationFrequency::get_response_decode_data(bytes)?,
+                    GetModulationFrequencyResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::ModulationFrequencyDescription) => {
                 Ok(Self::GetModulationFrequencyDescription(
-                    GetModulationFrequencyDescription::get_response_decode_data(bytes)?,
+                    GetModulationFrequencyDescriptionResponse::get_response_decode_data(bytes)?,
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetInfo) => Ok(Self::GetPresetInfo(
-                GetPresetInfo::get_response_decode_data(bytes)?,
+                GetPresetInfoResponse::get_response_decode_data(bytes)?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::PresetStatus) => Ok(
-                Self::GetPresetStatus(GetPresetStatus::get_response_decode_data(bytes)?),
+                Self::GetPresetStatus(GetPresetStatusResponse::get_response_decode_data(bytes)?),
             ),
             (CommandClass::GetCommandResponse, ParameterId::PresetMergeMode) => {
-                Ok(Self::GetPresetMergeMode(MergeMode::try_from(bytes[0])?))
+                Ok(Self::GetPresetMergeMode(
+                    GetPresetMergeModeResponse::get_response_decode_data(bytes)?,
+                ))
             }
             // E1.37-2
             (CommandClass::GetCommandResponse, ParameterId::ListInterfaces) => {
@@ -1675,7 +1632,9 @@ mod tests {
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::ParameterData(Some(
-                ResponseParameterData::GetIdentifyDevice(true),
+                ResponseParameterData::GetIdentifyDevice(GetIdentifyDeviceResponse {
+                    identify: true,
+                }),
             )),
         }));
 
@@ -1696,7 +1655,9 @@ mod tests {
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::ParameterData(Some(
-                ResponseParameterData::GetIdentifyDevice(true),
+                ResponseParameterData::GetIdentifyDevice(GetIdentifyDeviceResponse {
+                    identify: true,
+                }),
             )),
         })
         .encode(&mut encoded)
@@ -1971,7 +1932,9 @@ mod tests {
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::ParameterData(Some(
-                ResponseParameterData::GetIdentifyDevice(true),
+                ResponseParameterData::GetIdentifyDevice(GetIdentifyDeviceResponse {
+                    identify: true,
+                }),
             )),
         }));
 
@@ -1992,7 +1955,9 @@ mod tests {
             command_class: CommandClass::GetCommandResponse,
             parameter_id: ParameterId::IdentifyDevice,
             parameter_data: ResponseData::ParameterData(Some(
-                ResponseParameterData::GetIdentifyDevice(true),
+                ResponseParameterData::GetIdentifyDevice(GetIdentifyDeviceResponse {
+                    identify: true,
+                }),
             )),
         })
         .encode(&mut encoded)

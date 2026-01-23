@@ -218,7 +218,7 @@ impl RdmParameterData for TimeMode {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetDmxBlockAddress {
+pub struct GetDmxBlockAddressResponse {
     pub total_sub_device_footprint: u16,
     pub base_dmx_address: u16,
 }
@@ -229,7 +229,7 @@ pub struct SetDmxBlockAddressRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetDmxFailMode {
+pub struct GetDmxFailModeResponse {
     pub scene_id: PresetPlaybackMode,
     pub loss_of_signal_delay: TimeMode,
     pub hold_time: TimeMode,
@@ -245,7 +245,7 @@ pub struct SetDmxFailModeRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetDmxStartupMode {
+pub struct GetDmxStartupModeResponse {
     pub scene_id: PresetPlaybackMode,
     pub startup_delay: TimeMode,
     pub hold_time: TimeMode,
@@ -261,19 +261,34 @@ pub struct SetDmxStartupModeRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetLockState {
+pub struct GetPowerOnSelfTestResponse {
+    pub power_on_self_test: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetLockStateResponse {
     pub lock_state_id: u8,
     pub lock_state_count: u8,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetLockStateDescription {
+pub struct GetLockStateDescriptionResponse {
     pub lock_state_id: u8,
     pub description: LockStateDescription,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetDimmerInfo {
+pub struct GetLockPinResponse {
+    pub current_pin_code: PinCode,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetBurnInResponse {
+    pub hours_remaining: u8,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetDimmerInfoResponse {
     pub minimum_level_lower_limit: u16,
     pub minimum_level_upper_limit: u16,
     pub maximum_level_lower_limit: u16,
@@ -284,7 +299,7 @@ pub struct GetDimmerInfo {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetMinimumLevel {
+pub struct GetMinimumLevelResponse {
     pub minimum_level_increasing: u16,
     pub minimum_level_decreasing: u16,
     pub on_below_minimum: bool,
@@ -297,13 +312,18 @@ pub struct SetMinimumLevelRequest {
     pub on_below_minimum: bool,
 }
 
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetMaximumLevelResponse {
+    pub maximum_level: u16,
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]
 pub struct SetMaximumLevelRequest {
     pub maximum_level: u16,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetCurve {
+pub struct GetCurveResponse {
     pub curve_id: u8,
     pub curve_count: u8,
 }
@@ -319,13 +339,13 @@ pub struct GetCurveDescriptionRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetCurveDescription {
+pub struct GetCurveDescriptionResponse {
     pub curve_id: u8,
     pub description: CurveDescription,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetOutputResponseTime {
+pub struct GetOutputResponseTimeResponse {
     pub response_time_id: u8,
     pub response_time_count: u8,
 }
@@ -341,13 +361,13 @@ pub struct GetOutputResponseTimeDescriptionRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetOutputResponseTimeDescription {
+pub struct GetOutputResponseTimeDescriptionResponse {
     pub response_time_id: u8,
     pub description: OutputResponseTimeDescription,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetModulationFrequency {
+pub struct GetModulationFrequencyResponse {
     pub modulation_frequency_id: u8,
     pub modulation_frequency_count: u8,
 }
@@ -363,7 +383,7 @@ pub struct GetModulationFrequencyDescriptionRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetModulationFrequencyDescription {
+pub struct GetModulationFrequencyDescriptionResponse {
     pub modulation_frequency_id: u8,
     pub frequency: u32,
     pub description: ModulationFrequencyDescription,
@@ -397,7 +417,7 @@ pub struct SetIdentifyModeRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetPresetInfo {
+pub struct GetPresetInfoResponse {
     pub level_field_supported: bool,
     pub preset_sequence_supported: bool,
     pub split_times_supported: bool,
@@ -425,12 +445,17 @@ pub struct GetPresetStatusRequest {
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetPresetStatus {
+pub struct GetPresetStatusResponse {
     pub scene_id: u16,
     pub up_fade_time: u16,
     pub down_fade_time: u16,
     pub wait_time: u16,
     pub programmed: PresetProgrammed,
+}
+
+#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+pub struct GetPresetMergeModeResponse {
+    pub merge_mode: MergeMode,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, RdmSetRequestParameter)]

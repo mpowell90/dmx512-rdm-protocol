@@ -393,7 +393,7 @@ impl RdmParameterData for ImplementedCommandClass {
     }
 
     fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        if buf.len() < 1 {
+        if buf.is_empty() {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
                 required: 1,
@@ -404,7 +404,7 @@ impl RdmParameterData for ImplementedCommandClass {
     }
 
     fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-        if buf.len() < 1 {
+        if buf.is_empty() {
             return Err(ParameterCodecError::MalformedData);
         }
         let command_class = ImplementedCommandClass::try_from(buf[0])
@@ -525,7 +525,7 @@ impl RdmParameterData for ParameterDataType {
     }
 
     fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        if buf.len() < 1 {
+        if buf.is_empty() {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
                 required: 1,
@@ -536,7 +536,7 @@ impl RdmParameterData for ParameterDataType {
     }
 
     fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-        if buf.len() < 1 {
+        if buf.is_empty() {
             return Err(ParameterCodecError::MalformedData);
         }
         let data_type =
@@ -2058,7 +2058,7 @@ impl RdmParameterData for SensorUnitPrefix {
     }
 
     fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        buf[0] = (*self).clone() as u8;
+        buf[0] = (*self) as u8;
         Ok(1)
     }
 

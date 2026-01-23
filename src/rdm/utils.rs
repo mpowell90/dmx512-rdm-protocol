@@ -97,6 +97,7 @@ macro_rules! impl_rdm_string {
         impl $t {
             pub const MAX_LENGTH: usize = {$e};
 
+            #[allow(clippy::new_without_default)]
             pub const fn new() -> Self {
                 Self(String::new())
             }
