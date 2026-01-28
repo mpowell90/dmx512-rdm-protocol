@@ -7,6 +7,13 @@ pub mod e137_7;
 use super::{RdmError, header::SubDeviceId};
 use rdm_parameter_traits::{ParameterCodecError, RdmParameterData};
 
+pub const DISCOVERY_COMMAND: u8 = 0x10;
+pub const DISCOVERY_RESPONSE_COMMAND: u8 = 0x11;
+pub const GET_COMMAND: u8 = 0x20;
+pub const GET_RESPONSE_COMMAND: u8 = 0x21;
+pub const SET_COMMAND: u8 = 0x30;
+pub const SET_RESPONSE_COMMAND: u8 = 0x31;
+
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterId {

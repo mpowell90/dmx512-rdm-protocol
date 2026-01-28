@@ -18,10 +18,13 @@ pub const RDM_SUB_START_CODE_BYTE: u8 = 0x01;
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE: u8 = 0xfe;
 pub const DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE: u8 = 0xaa;
 
+pub const MIN_DISC_FRAME_LENGTH: usize = 17;
+pub const MIN_RDM_FRAME_LENGTH: usize = 25;
 pub const MAX_RDM_FRAME_LENGTH: usize = 257;
 pub const MAX_RDM_PARAMETER_DATA_LENGTH: usize = 231;
 
 #[derive(Clone, Debug)]
+#[allow(clippy::large_enum_variant)]
 pub enum RdmFrame {
     Request(RdmRequest),
     Response(RdmResponse),

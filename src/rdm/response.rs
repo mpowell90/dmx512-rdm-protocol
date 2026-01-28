@@ -57,61 +57,68 @@ use super::{
     parameter::ParameterId,
     utils::bsd_16_crc,
 };
-use crate::rdm::parameter::{
-    e120::{
-        DiscMuteResponse, DiscUnMuteResponse, GetBootSoftwareVersionIdResponse,
-        GetBootSoftwareVersionLabelResponse, GetCommsStatusResponse, GetDefaultSlotValueResponse,
-        GetDeviceHoursResponse, GetDeviceInfoResponse, GetDeviceLabelResponse,
-        GetDeviceModelDescriptionResponse, GetDevicePowerCyclesResponse, GetDisplayInvertResponse,
-        GetDisplayLevelResponse, GetDmxPersonalityDescriptionResponse, GetDmxPersonalityResponse,
-        GetDmxStartAddressResponse, GetFactoryDefaultsResponse, GetIdentifyDeviceResponse,
-        GetLampHoursResponse, GetLampOnModeResponse, GetLampStateResponse, GetLampStrikesResponse,
-        GetLanguageCapabilitiesResponse, GetLanguageResponse, GetManufacturerLabelResponse,
-        GetPanInvertResponse, GetPanTiltSwapResponse, GetParameterDescriptionResponse,
-        GetPerformSelfTestResponse, GetPowerStateResponse, GetPresetPlaybackResponse,
-        GetProductDetailIdListResponse, GetProxiedDeviceCountResponse, GetProxiedDevicesResponse,
-        GetRealTimeClock, GetSelfTestDescriptionResponse, GetSensorDefinitionResponse,
-        GetSensorValueResponse, GetSlotDescriptionResponse, GetSlotInfoResponse,
-        GetSoftwareVersionLabelResponse, GetStatusIdDescriptionResponse, GetStatusMessagesResponse,
-        GetSubDeviceIdStatusReportThresholdResponse, GetSupportedParametersResponse,
-        GetTiltInvertResponse, SetSensorValueResponse,
-    },
-    e133::{
-        GetBrokerStatusResponse, GetComponentScopeResponse, GetSearchDomainResponse,
-        GetTcpCommsStatusResponse,
-    },
-    e137_1::{
-        GetBurnInResponse, GetCurveDescriptionResponse, GetCurveResponse, GetDimmerInfoResponse,
-        GetDmxBlockAddressResponse, GetDmxFailModeResponse, GetDmxStartupModeResponse,
-        GetLockPinResponse, GetLockStateDescriptionResponse, GetLockStateResponse,
-        GetMaximumLevelResponse, GetMinimumLevelResponse,
-        GetModulationFrequencyDescriptionResponse, GetModulationFrequencyResponse,
-        GetOutputResponseTimeDescriptionResponse, GetOutputResponseTimeResponse,
-        GetPowerOnSelfTestResponse, GetPresetInfoResponse, GetPresetMergeModeResponse,
-        GetPresetStatusResponse,
-    },
-    e137_2::{
-        GetDnsDomainNameResponse, GetDnsHostNameResponse, GetDnsIpV4NameServerResponse,
-        GetInterfaceHardwareAddressType1Response, GetInterfaceLabelResponse,
-        GetIpV4CurrentAddressResponse, GetIpV4DefaultRouteResponse, GetIpV4DhcpModeResponse,
-        GetIpV4StaticAddressResponse, GetIpV4ZeroConfModeResponse, GetListInterfacesResponse,
-    },
-    e137_7::{
-        GetBackgroundDiscoveryResponse, GetBackgroundQueuedStatusPolicyDescriptionResponse,
-        GetBackgroundQueuedStatusPolicyResponse, GetBindingControlFieldsResponse,
-        GetDiscoveryStateResponse, GetEndpointLabelResponse, GetEndpointListChangeResponse,
-        GetEndpointListResponse, GetEndpointModeResponse, GetEndpointResponderListChangeResponse,
-        GetEndpointRespondersResponse, GetEndpointTimingDescriptionResponse,
-        GetEndpointTimingResponse, GetEndpointToUniverseResponse, GetIdentifyEndpointResponse,
-        GetRdmTrafficEnableResponse, SetBackgroundDiscoveryResponse, SetDiscoveryStateResponse,
-        SetEndpointLabelResponse, SetEndpointModeResponse, SetEndpointTimingResponse,
-        SetEndpointToUniverseResponse, SetIdentifyEndpointResponse, SetRdmTrafficEnableResponse,
+use crate::rdm::{
+    MIN_DISC_FRAME_LENGTH, MIN_RDM_FRAME_LENGTH,
+    parameter::{
+        e120::{
+            DiscMuteResponse, DiscUnMuteResponse, DiscoveryUniqueBranchFrameResponse,
+            GetBootSoftwareVersionIdResponse, GetBootSoftwareVersionLabelResponse,
+            GetCommsStatusResponse, GetDefaultSlotValueResponse, GetDeviceHoursResponse,
+            GetDeviceInfoResponse, GetDeviceLabelResponse, GetDeviceModelDescriptionResponse,
+            GetDevicePowerCyclesResponse, GetDisplayInvertResponse, GetDisplayLevelResponse,
+            GetDmxPersonalityDescriptionResponse, GetDmxPersonalityResponse,
+            GetDmxStartAddressResponse, GetFactoryDefaultsResponse, GetIdentifyDeviceResponse,
+            GetLampHoursResponse, GetLampOnModeResponse, GetLampStateResponse,
+            GetLampStrikesResponse, GetLanguageCapabilitiesResponse, GetLanguageResponse,
+            GetManufacturerLabelResponse, GetPanInvertResponse, GetPanTiltSwapResponse,
+            GetParameterDescriptionResponse, GetPerformSelfTestResponse, GetPowerStateResponse,
+            GetPresetPlaybackResponse, GetProductDetailIdListResponse,
+            GetProxiedDeviceCountResponse, GetProxiedDevicesResponse, GetRealTimeClock,
+            GetSelfTestDescriptionResponse, GetSensorDefinitionResponse, GetSensorValueResponse,
+            GetSlotDescriptionResponse, GetSlotInfoResponse, GetSoftwareVersionLabelResponse,
+            GetStatusIdDescriptionResponse, GetStatusMessagesResponse,
+            GetSubDeviceIdStatusReportThresholdResponse, GetSupportedParametersResponse,
+            GetTiltInvertResponse, SetSensorValueResponse,
+        },
+        e133::{
+            GetBrokerStatusResponse, GetComponentScopeResponse, GetSearchDomainResponse,
+            GetTcpCommsStatusResponse,
+        },
+        e137_1::{
+            GetBurnInResponse, GetCurveDescriptionResponse, GetCurveResponse,
+            GetDimmerInfoResponse, GetDmxBlockAddressResponse, GetDmxFailModeResponse,
+            GetDmxStartupModeResponse, GetLockPinResponse, GetLockStateDescriptionResponse,
+            GetLockStateResponse, GetMaximumLevelResponse, GetMinimumLevelResponse,
+            GetModulationFrequencyDescriptionResponse, GetModulationFrequencyResponse,
+            GetOutputResponseTimeDescriptionResponse, GetOutputResponseTimeResponse,
+            GetPowerOnSelfTestResponse, GetPresetInfoResponse, GetPresetMergeModeResponse,
+            GetPresetStatusResponse,
+        },
+        e137_2::{
+            GetDnsDomainNameResponse, GetDnsHostNameResponse, GetDnsIpV4NameServerResponse,
+            GetInterfaceHardwareAddressType1Response, GetInterfaceLabelResponse,
+            GetIpV4CurrentAddressResponse, GetIpV4DefaultRouteResponse, GetIpV4DhcpModeResponse,
+            GetIpV4StaticAddressResponse, GetIpV4ZeroConfModeResponse, GetListInterfacesResponse,
+        },
+        e137_7::{
+            GetBackgroundDiscoveryResponse, GetBackgroundQueuedStatusPolicyDescriptionResponse,
+            GetBackgroundQueuedStatusPolicyResponse, GetBindingControlFieldsResponse,
+            GetDiscoveryStateResponse, GetEndpointLabelResponse, GetEndpointListChangeResponse,
+            GetEndpointListResponse, GetEndpointModeResponse,
+            GetEndpointResponderListChangeResponse, GetEndpointRespondersResponse,
+            GetEndpointTimingDescriptionResponse, GetEndpointTimingResponse,
+            GetEndpointToUniverseResponse, GetIdentifyEndpointResponse,
+            GetRdmTrafficEnableResponse, SetBackgroundDiscoveryResponse, SetDiscoveryStateResponse,
+            SetEndpointLabelResponse, SetEndpointModeResponse, SetEndpointTimingResponse,
+            SetEndpointToUniverseResponse, SetIdentifyEndpointResponse,
+            SetRdmTrafficEnableResponse,
+        },
     },
 };
 use core::{convert::TryFrom, fmt::Display, result::Result};
 use heapless::Vec;
 use rdm_parameter_traits::{
-    RdmDiscoveryResponseParameterCodec, RdmGetResponseParameterCodec, RdmSetResponseParameterCodec,
+    RdmGetResponseParameterCodec, RdmParameterCodec, RdmSetResponseParameterCodec,
 };
 
 #[derive(Copy, Clone, Debug, PartialEq)]
@@ -292,8 +299,8 @@ impl ResponseData {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ResponseParameterData {
     // E1.20
-    DiscMute(DiscMuteResponse),
-    DiscUnMute(DiscUnMuteResponse),
+    // DiscMute(DiscMuteResponse),
+    // DiscUnMute(DiscUnMuteResponse),
     GetProxiedDeviceCount(GetProxiedDeviceCountResponse),
     GetProxiedDevices(GetProxiedDevicesResponse),
     GetCommsStatus(GetCommsStatusResponse),
@@ -408,10 +415,10 @@ pub enum ResponseParameterData {
 impl ResponseParameterData {
     pub fn size(&self) -> usize {
         match self {
-            ResponseParameterData::DiscMute(param) => param.size_of(),
-            ResponseParameterData::DiscUnMute(param) => param.size_of(),
+            // ResponseParameterData::DiscMute(param) => param.size_of(),
+            // ResponseParameterData::DiscUnMute(param) => param.size_of(),
             ResponseParameterData::GetProxiedDeviceCount(param) => param.size_of(),
-            ResponseParameterData::GetProxiedDevices(param) => param.size_of(),
+            ResponseParameterData::GetProxiedDevices(param) => param.size_of_parameter_data(),
             ResponseParameterData::GetCommsStatus(param) => param.size_of(),
             ResponseParameterData::GetStatusMessages(param) => param.size_of(),
             ResponseParameterData::GetStatusIdDescription(param) => param.size_of(),
@@ -522,17 +529,17 @@ impl ResponseParameterData {
 
     pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
         match self {
-            Self::DiscMute(param) => {
-                param.discovery_response_encode_data(buf)?;
-            }
-            Self::DiscUnMute(param) => {
-                param.discovery_response_encode_data(buf)?;
-            }
+            // Self::DiscMute(param) => {
+            //     param.discovery_response_encode_data(buf)?;
+            // }
+            // Self::DiscUnMute(param) => {
+            //     param.discovery_response_encode_data(buf)?;
+            // }
             Self::GetProxiedDeviceCount(param) => {
                 param.get_response_encode_data(buf)?;
             }
             Self::GetProxiedDevices(param) => {
-                param.get_response_encode_data(buf)?;
+                param.encode_parameter_data(buf)?;
             }
             Self::GetCommsStatus(param) => {
                 param.get_response_encode_data(buf)?;
@@ -868,22 +875,20 @@ impl ResponseParameterData {
         bytes: &[u8],
     ) -> Result<Self, RdmError> {
         match (command_class, parameter_id) {
-            (CommandClass::DiscoveryCommandResponse, ParameterId::DiscMute) => Ok(Self::DiscMute(
-                DiscMuteResponse::discovery_response_decode_data(bytes)?,
-            )),
-            (CommandClass::DiscoveryCommandResponse, ParameterId::DiscUnMute) => Ok(
-                Self::DiscUnMute(DiscUnMuteResponse::discovery_response_decode_data(bytes)?),
-            ),
+            // (CommandClass::DiscoveryCommandResponse, ParameterId::DiscMute) => Ok(Self::DiscMute(
+            //     DiscMuteResponse::discovery_response_decode_data(bytes)?,
+            // )),
+            // (CommandClass::DiscoveryCommandResponse, ParameterId::DiscUnMute) => Ok(
+            //     Self::DiscUnMute(DiscUnMuteResponse::discovery_response_decode_data(bytes)?),
+            // ),
             (CommandClass::GetCommandResponse, ParameterId::ProxiedDeviceCount) => {
                 Ok(Self::GetProxiedDeviceCount(
                     GetProxiedDeviceCountResponse::get_response_decode_data(bytes)?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::ProxiedDevices) => {
-                Ok(Self::GetProxiedDevices(
-                    GetProxiedDevicesResponse::get_response_decode_data(bytes)?,
-                ))
-            }
+            (CommandClass::GetCommandResponse, ParameterId::ProxiedDevices) => Ok(
+                Self::GetProxiedDevices(GetProxiedDevicesResponse::decode_parameter_data(bytes)?),
+            ),
             (CommandClass::GetCommandResponse, ParameterId::CommsStatus) => Ok(
                 Self::GetCommsStatus(GetCommsStatusResponse::get_response_decode_data(bytes)?),
             ),
@@ -1328,6 +1333,111 @@ impl ResponseParameterData {
     }
 }
 
+// #[derive(Clone, Debug, PartialEq)]
+// pub enum ResponseParameter {
+//     GetProxiedDevices(ResponseResult<GetProxiedDevicesResponse>),
+// }
+
+// #[derive(Clone, Debug, PartialEq)]
+// pub struct ResponseParameter<T> {
+//     pub command_class: CommandClass,
+//     pub parameter_id: ParameterId,
+//     pub parameter_data: Response<T>,
+// }
+
+#[derive(Clone, Debug, PartialEq)]
+pub enum ResponseResult<T> {
+    Ack(T),
+    AckOverflow(T),
+    AckTimer { estimated_response_time: u16 },
+    NackReason(ResponseNackReasonCode),
+}
+
+impl<T> ResponseResult<T> {
+    pub fn response_type(&self) -> ResponseType {
+        match self {
+            ResponseResult::Ack(_) => ResponseType::Ack,
+            ResponseResult::AckOverflow(_) => ResponseType::AckOverflow,
+            ResponseResult::AckTimer { .. } => ResponseType::AckTimer,
+            ResponseResult::NackReason(_) => ResponseType::NackReason,
+        }
+    }
+
+    // pub fn decode(
+    //     response_type: ResponseType,
+    //     command_class: CommandClass,
+    //     parameter_id: ParameterId,
+    //     parameter_data_length: u8,
+    //     bytes: &[u8],
+    // ) -> Result<Self, RdmError> {
+    //     match response_type {
+    //         ResponseType::Ack => {
+    //             let parameter_data = if parameter_data_length > 0 {
+    //                 Some(ResponseParameterData::decode(
+    //                     command_class,
+    //                     parameter_id,
+    //                     bytes,
+    //                 )?)
+    //             } else {
+    //                 None
+    //             };
+
+    //             Ok(Self::Ack(parameter_data))
+    //         }
+    //         ResponseType::AckOverflow => {
+    //             let parameter_data = if parameter_data_length > 0 {
+    //                 Some(ResponseParameterData::decode(
+    //                     command_class,
+    //                     parameter_id,
+    //                     bytes,
+    //                 )?)
+    //             } else {
+    //                 None
+    //             };
+
+    //             Ok(Self::AckOverflow(parameter_data))
+    //         }
+    //         ResponseType::AckTimer => {
+    //             let estimated_response_time = u16::from_be_bytes(bytes[0..=1].try_into()?);
+
+    //             Ok(Self::AckTimer(estimated_response_time))
+    //         }
+    //         ResponseType::NackReason => {
+    //             let nack_reason = u16::from_be_bytes(bytes[0..=1].try_into()?).try_into()?;
+
+    //             Ok(Self::NackReason(nack_reason))
+    //         }
+    //     }
+    // }
+}
+
+// Ok(RdmResponse::RdmFrame(RdmFrameResponse {
+//     destination_uid: DeviceUID::new(0x0102, 0x03040506),
+//     source_uid: DeviceUID::new(0x0605, 0x04030201),
+//     transaction_number: 0x00,
+//     response: ResponseResult::Ack()
+//     response_type: ResponseType::Ack,
+//     message_count: 0x00,
+//     sub_device_id: SubDeviceId::RootDevice,
+//     command_class: CommandClass::GetCommandResponse,
+//     parameter_id: ParameterId::IdentifyDevice,
+//     parameter_data: ResponseData::ParameterData(Some(
+//         ResponseParameterData::GetIdentifyDevice(GetIdentifyDeviceResponse {
+//             identify: true,
+//         }),
+//     )),
+// }));
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RdmFrameResponse2 {
+    pub destination_uid: DeviceUID,
+    pub source_uid: DeviceUID,
+    pub transaction_number: u8,
+    pub message_count: u8,
+    pub sub_device_id: SubDeviceId,
+    pub parameter: ResponseParameter,
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct RdmFrameResponse {
     pub destination_uid: DeviceUID,
@@ -1347,10 +1457,6 @@ impl RdmFrameResponse {
     }
 
     pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        // let parameter_data = self.parameter_data.encode();
-
-        // let message_length = 24 + parameter_data.len();
-
         buf[0] = RDM_START_CODE_BYTE;
         buf[1] = RDM_SUB_START_CODE_BYTE;
 
@@ -1400,9 +1506,9 @@ impl RdmFrameResponse {
             return Err(RdmError::InvalidChecksum(decoded_checksum, packet_checksum));
         }
 
-        let destination_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[3..=8])?);
+        let destination_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[3..9])?);
 
-        let source_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[9..=14])?);
+        let source_uid = DeviceUID::from(<[u8; 6]>::try_from(&bytes[9..15])?);
 
         let transaction_number = bytes[15];
 
@@ -1410,11 +1516,11 @@ impl RdmFrameResponse {
 
         let message_count = bytes[17];
 
-        let sub_device_id = u16::from_be_bytes(bytes[18..=19].try_into()?).into();
+        let sub_device_id = u16::from_be_bytes(bytes[18..20].try_into()?).into();
 
         let command_class = CommandClass::try_from(bytes[20])?;
 
-        let parameter_id = u16::from_be_bytes(bytes[21..=22].try_into()?).into();
+        let parameter_id = u16::from_be_bytes(bytes[21..23].try_into()?).into();
 
         let parameter_data_length = bytes[23];
 
@@ -1452,97 +1558,11 @@ impl TryFrom<&[u8]> for RdmFrameResponse {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct DiscoveryUniqueBranchFrameResponse(pub DeviceUID);
-
-impl DiscoveryUniqueBranchFrameResponse {
-    pub fn size(&self) -> usize {
-        24 // Fixed size for Discovery Unique Branch Frame
-    }
-
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
-        buf[0..7].copy_from_slice(&[
-            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
-        ]);
-
-        buf[7] = DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE;
-
-        let [manufacturer_id1, manufacturer_id0] = self.0.manufacturer_id.to_be_bytes();
-
-        buf[8..12].copy_from_slice(&[
-            manufacturer_id1 | 0xaa,
-            manufacturer_id1 | 0x55,
-            manufacturer_id0 | 0xaa,
-            manufacturer_id0 | 0x55,
-        ]);
-
-        let [device_id3, device_id2, device_id1, device_id0] = self.0.device_id.to_be_bytes();
-
-        buf[12..20].copy_from_slice(&[
-            device_id3 | 0xaa,
-            device_id3 | 0x55,
-            device_id2 | 0xaa,
-            device_id2 | 0x55,
-            device_id1 | 0xaa,
-            device_id1 | 0x55,
-            device_id0 | 0xaa,
-            device_id0 | 0x55,
-        ]);
-
-        let [checksum1, checksum0] = bsd_16_crc(&buf[8..]).to_be_bytes();
-
-        buf[20..24].copy_from_slice(&[
-            checksum1 | 0xaa,
-            checksum1 | 0x55,
-            checksum0 | 0xaa,
-            checksum0 | 0x55,
-        ]);
-
-        Ok(24)
-    }
-
-    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        let Some(frame_start_index) = bytes.iter().position(|&x| x == 0xaa) else {
-            return Err(RdmError::InvalidDiscoveryUniqueBranchPreamble);
-        };
-
-        let euid = &bytes[(frame_start_index + 1)..=(frame_start_index + 12)];
-
-        let ecs = &bytes[(frame_start_index + 13)..=(frame_start_index + 16)];
-
-        let decoded_checksum = bsd_16_crc(euid);
-
-        let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
-
-        if checksum != decoded_checksum {
-            return Err(RdmError::InvalidChecksum(decoded_checksum, checksum));
-        }
-
-        let manufacturer_id = u16::from_be_bytes([euid[0] & euid[1], euid[2] & euid[3]]);
-
-        let device_id = u32::from_be_bytes([
-            euid[4] & euid[5],
-            euid[6] & euid[7],
-            euid[8] & euid[9],
-            euid[10] & euid[11],
-        ]);
-
-        Ok(Self(DeviceUID::new(manufacturer_id, device_id)))
-    }
-}
-
-impl TryFrom<&[u8]> for DiscoveryUniqueBranchFrameResponse {
-    type Error = RdmError;
-
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        DiscoveryUniqueBranchFrameResponse::decode(bytes)
-    }
+#[allow(clippy::large_enum_variant)]
+#[derive(Clone, Debug, PartialEq)]
+pub enum RdmResponse2 {
+    DiscoveryUniqueBranchFrame(DiscoveryUniqueBranchFrameResponse),
+    RdmFrame(RdmFrameResponse2),
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -1568,26 +1588,26 @@ impl RdmResponse {
     }
 
     pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
-        if bytes[0] == RDM_START_CODE_BYTE && bytes[1] == RDM_SUB_START_CODE_BYTE {
-            if bytes.len() < 25 {
-                return Err(RdmError::InvalidFrameLength(bytes.len() as u8));
+        match bytes {
+            [RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE, ..] => {
+                if bytes.len() < MIN_RDM_FRAME_LENGTH {
+                    return Err(RdmError::InvalidFrameLength(bytes.len() as u8));
+                }
+                RdmFrameResponse::decode(bytes).map(RdmResponse::RdmFrame)
             }
-
-            return RdmFrameResponse::decode(bytes).map(RdmResponse::RdmFrame);
-        }
-
-        if bytes[0] == DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE
-            || bytes[0] == DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE
-        {
-            if bytes.len() < 17 {
-                return Err(RdmError::InvalidFrameLength(bytes.len() as u8));
+            [
+                DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE
+                | DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
+                ..,
+            ] => {
+                if bytes.len() < MIN_DISC_FRAME_LENGTH {
+                    return Err(RdmError::InvalidFrameLength(bytes.len() as u8));
+                }
+                DiscoveryUniqueBranchFrameResponse::decode(bytes)
+                    .map(RdmResponse::DiscoveryUniqueBranchFrame)
             }
-
-            return DiscoveryUniqueBranchFrameResponse::decode(bytes)
-                .map(RdmResponse::DiscoveryUniqueBranchFrame);
+            _ => Err(RdmError::InvalidStartCode),
         }
-
-        Err(RdmError::InvalidStartCode)
     }
 }
 
@@ -2014,7 +2034,9 @@ mod tests {
         ]);
 
         let expected = Ok(RdmResponse::DiscoveryUniqueBranchFrame(
-            DiscoveryUniqueBranchFrameResponse(DeviceUID::new(0x0102, 0x03040506)),
+            DiscoveryUniqueBranchFrameResponse {
+                device_uid: DeviceUID::new(0x0102, 0x03040506),
+            },
         ));
 
         assert_eq!(decoded, expected);
@@ -2041,7 +2063,9 @@ mod tests {
         ]);
 
         let expected = Ok(RdmResponse::DiscoveryUniqueBranchFrame(
-            DiscoveryUniqueBranchFrameResponse(DeviceUID::new(0x0102, 0x03040506)),
+            DiscoveryUniqueBranchFrameResponse {
+                device_uid: DeviceUID::new(0x0102, 0x03040506),
+            },
         ));
 
         assert_eq!(decoded, expected);
@@ -2051,11 +2075,12 @@ mod tests {
     fn should_encode_valid_discovery_unique_branch_response() {
         let mut encoded = [0u8; 256];
 
-        let bytes_encoded = RdmResponse::DiscoveryUniqueBranchFrame(
-            DiscoveryUniqueBranchFrameResponse(DeviceUID::new(0x0102, 0x03040506)),
-        )
-        .encode(&mut encoded)
-        .unwrap();
+        let bytes_encoded =
+            RdmResponse::DiscoveryUniqueBranchFrame(DiscoveryUniqueBranchFrameResponse {
+                device_uid: DeviceUID::new(0x0102, 0x03040506),
+            })
+            .encode(&mut encoded)
+            .unwrap();
 
         let expected = &[
             DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,

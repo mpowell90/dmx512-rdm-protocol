@@ -1,15 +1,62 @@
 use super::{RdmError, SubDeviceId};
 use crate::{
     impl_rdm_string,
-    rdm::{DeviceUID, parameter::ParameterId},
+    rdm::{
+        DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
+        DeviceUID,
+        parameter::{GET_RESPONSE_COMMAND, ParameterId},
+        utils::bsd_16_crc,
+    },
 };
+use bitflags::bitflags;
 use core::{fmt, str::FromStr};
 use heapless::{String, Vec};
 use rdm_parameter_derive::{
     RdmDiscoveryResponseParameter, RdmGetRequestParameter, RdmGetResponseParameter,
-    RdmSetRequestParameter, RdmSetResponseParameter,
+    RdmSetRequestParameter, RdmSetResponseParameter, rdm_parameter,
 };
 use rdm_parameter_traits::{ParameterCodecError, RdmParameterData};
+
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct ControlField(u16);
+
+bitflags! {
+    impl ControlField: u16 {
+        const MANAGED_PROXY_DEVICE = 0b00000001;
+        const SUB_DEVICES_SUPPORTED = 0b00000010;
+        const BOOTLOADER_MODE = 0b00000100;
+        const PROXIED_DEVICE = 0b00001000;
+    }
+}
+
+impl RdmParameterData for ControlField {
+    fn size_of(&self) -> usize {
+        2
+    }
+
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        if buf.len() < 2 {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 2,
+            });
+        }
+        let bytes = self.0.to_be_bytes();
+        buf[0] = bytes[0];
+        buf[1] = bytes[1];
+        Ok(2)
+    }
+
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        if buf.len() < 2 {
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 2,
+            });
+        }
+        Ok(Self(u16::from_be_bytes([buf[0], buf[1]])))
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct ProtocolVersion {
@@ -28,6 +75,31 @@ impl ProtocolVersion {
 impl From<ProtocolVersion> for u16 {
     fn from(value: ProtocolVersion) -> Self {
         u16::from_be_bytes([value.major, value.minor])
+    }
+}
+
+impl From<u16> for ProtocolVersion {
+    fn from(value: u16) -> Self {
+        let bytes = value.to_be_bytes();
+        Self {
+            major: bytes[0],
+            minor: bytes[1],
+        }
+    }
+}
+
+impl From<[u8; 2]> for ProtocolVersion {
+    fn from(bytes: [u8; 2]) -> Self {
+        Self {
+            major: bytes[0],
+            minor: bytes[1],
+        }
+    }
+}
+
+impl From<ProtocolVersion> for [u8; 2] {
+    fn from(value: ProtocolVersion) -> Self {
+        [value.major, value.minor]
     }
 }
 
@@ -56,16 +128,17 @@ impl RdmParameterData for ProtocolVersion {
 
     fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.len() < 2 {
-            return Err(ParameterCodecError::MalformedData);
+            return Err(ParameterCodecError::BufferTooSmall {
+                provided: buf.len(),
+                required: 2,
+            });
         }
-        let major = buf[0];
-        let minor = buf[1];
-        Ok(Self { major, minor })
+        Ok(Self {
+            major: buf[0],
+            minor: buf[1],
+        })
     }
 }
-
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct ProductDetailValue(pub u16);
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ProductDetail {
@@ -331,19 +404,7 @@ impl From<ProductDetail> for u16 {
     }
 }
 
-impl From<ProductDetailValue> for ProductDetail {
-    fn from(value: ProductDetailValue) -> Self {
-        value.0.into()
-    }
-}
-
-impl From<ProductDetail> for ProductDetailValue {
-    fn from(value: ProductDetail) -> Self {
-        Self(value.into())
-    }
-}
-
-impl RdmParameterData for ProductDetailValue {
+impl RdmParameterData for ProductDetail {
     fn size_of(&self) -> usize {
         2
     }
@@ -355,7 +416,7 @@ impl RdmParameterData for ProductDetailValue {
                 required: 2,
             });
         }
-        let bytes = self.0.to_be_bytes();
+        let bytes = u16::from(*self).to_be_bytes();
         buf[0] = bytes[0];
         buf[1] = bytes[1];
         Ok(2)
@@ -365,8 +426,7 @@ impl RdmParameterData for ProductDetailValue {
         if buf.len() < 2 {
             return Err(ParameterCodecError::MalformedData);
         }
-        let value = u16::from_be_bytes([buf[0], buf[1]]);
-        Ok(Self(value))
+        Ok(Self::from(u16::from_be_bytes([buf[0], buf[1]])))
     }
 }
 
@@ -1511,11 +1571,7 @@ pub struct SlotInfo {
 
 impl SlotInfo {
     pub fn new(id: u16, kind: SlotType, label_id: u16) -> Self {
-        Self {
-            id,
-            kind,
-            label_id,
-        }
+        Self { id, kind, label_id }
     }
 }
 
@@ -2763,17 +2819,115 @@ impl_rdm_string!(
     MODULATION_FREQUENCY_DESCRIPTION_MAX_LENGTH
 );
 
+#[derive(Copy, Clone, Debug, PartialEq)]
+pub struct DiscoveryUniqueBranchFrameResponse {
+    pub device_uid: DeviceUID,
+}
+
+impl DiscoveryUniqueBranchFrameResponse {
+    pub fn size(&self) -> usize {
+        24 // Fixed size for Discovery Unique Branch Frame
+    }
+
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {
+        buf[0..7].copy_from_slice(&[
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+            DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE,
+        ]);
+
+        buf[7] = DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE;
+
+        let [manufacturer_id1, manufacturer_id0] = self.device_uid.manufacturer_id.to_be_bytes();
+
+        buf[8..12].copy_from_slice(&[
+            manufacturer_id1 | 0xaa,
+            manufacturer_id1 | 0x55,
+            manufacturer_id0 | 0xaa,
+            manufacturer_id0 | 0x55,
+        ]);
+
+        let [device_id3, device_id2, device_id1, device_id0] =
+            self.device_uid.device_id.to_be_bytes();
+
+        buf[12..20].copy_from_slice(&[
+            device_id3 | 0xaa,
+            device_id3 | 0x55,
+            device_id2 | 0xaa,
+            device_id2 | 0x55,
+            device_id1 | 0xaa,
+            device_id1 | 0x55,
+            device_id0 | 0xaa,
+            device_id0 | 0x55,
+        ]);
+
+        let [checksum1, checksum0] = bsd_16_crc(&buf[8..]).to_be_bytes();
+
+        buf[20..24].copy_from_slice(&[
+            checksum1 | 0xaa,
+            checksum1 | 0x55,
+            checksum0 | 0xaa,
+            checksum0 | 0x55,
+        ]);
+
+        Ok(24)
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
+        let Some(frame_start_index) = bytes.iter().position(|&x| x == 0xaa) else {
+            return Err(RdmError::InvalidDiscoveryUniqueBranchPreamble);
+        };
+
+        let euid = &bytes[(frame_start_index + 1)..=(frame_start_index + 12)];
+
+        let ecs = &bytes[(frame_start_index + 13)..=(frame_start_index + 16)];
+
+        let decoded_checksum = bsd_16_crc(euid);
+
+        let checksum = u16::from_be_bytes([ecs[0] & ecs[1], ecs[2] & ecs[3]]);
+
+        if checksum != decoded_checksum {
+            return Err(RdmError::InvalidChecksum(decoded_checksum, checksum));
+        }
+
+        let manufacturer_id = u16::from_be_bytes([euid[0] & euid[1], euid[2] & euid[3]]);
+
+        let device_id = u32::from_be_bytes([
+            euid[4] & euid[5],
+            euid[6] & euid[7],
+            euid[8] & euid[9],
+            euid[10] & euid[11],
+        ]);
+
+        Ok(Self {
+            device_uid: DeviceUID::new(manufacturer_id, device_id),
+        })
+    }
+}
+
+impl TryFrom<&[u8]> for DiscoveryUniqueBranchFrameResponse {
+    type Error = RdmError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        DiscoveryUniqueBranchFrameResponse::decode(bytes)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, RdmDiscoveryResponseParameter)]
 #[repr(C)]
 pub struct DiscMuteResponse {
-    pub control_field: u16,
+    pub control_field: ControlField,
     pub binding_uid: Option<DeviceUID>,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmDiscoveryResponseParameter)]
 #[repr(C)]
 pub struct DiscUnMuteResponse {
-    pub control_field: u16,
+    pub control_field: ControlField,
     pub binding_uid: Option<DeviceUID>,
 }
 
@@ -2790,7 +2944,8 @@ pub struct GetProxiedDeviceCountResponse {
     pub list_change: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
+#[derive(Clone, Debug, PartialEq)]
+#[rdm_parameter(pid = 0x0010, command_class = GET_RESPONSE_COMMAND)]
 #[repr(C)]
 pub struct GetProxiedDevicesResponse {
     pub device_uids: Vec<DeviceUID, 38>,
@@ -2885,7 +3040,7 @@ pub struct GetDeviceInfoResponse {
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
 #[repr(C)]
 pub struct GetProductDetailIdListResponse {
-    pub product_detail_ids: Vec<ProductDetailValue, 115>,
+    pub product_detail_ids: Vec<ProductDetail, 6>,
 }
 
 #[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
@@ -3312,25 +3467,27 @@ pub struct SetPresetPlaybackRequest {
 mod tests {
     use core::str::FromStr;
     use rdm_parameter_traits::{
-        RdmDiscoveryRequestParameterCodec, RdmDiscoveryResponseParameterCodec,
-        RdmGetRequestParameterCodec, RdmGetResponseParameterCodec, RdmSetRequestParameterCodec,
+        RdmDiscoveryResponseParameterCodec, RdmGetRequestParameterCodec,
+        RdmGetResponseParameterCodec, RdmParameterCodec, RdmSetRequestParameterCodec,
         RdmSetResponseParameterCodec,
     };
     use std::vec;
 
-    fn discovery_encode_decode_request<T>(param: T)
-    where
-        T: RdmDiscoveryRequestParameterCodec + PartialEq + core::fmt::Debug,
-    {
-        let size = param.size_of();
-        let mut buf = vec![0u8; size];
+    use crate::rdm::parameter::e120::ControlField;
 
-        let encoded = param.discovery_request_encode_data(&mut buf).unwrap();
-        assert_eq!(encoded, size);
+    // fn discovery_encode_decode_request<T>(param: T)
+    // where
+    //     T: RdmDiscoveryRequestParameterCodec + PartialEq + core::fmt::Debug,
+    // {
+    //     let size = param.size_of();
+    //     let mut buf = vec![0u8; size];
 
-        let decoded = T::discovery_request_decode_data(&buf[..encoded]).unwrap();
-        assert_eq!(param, decoded);
-    }
+    //     let encoded = param.discovery_request_encode_data(&mut buf).unwrap();
+    //     assert_eq!(encoded, size);
+
+    //     let decoded = T::discovery_request_decode_data(&buf[..encoded]).unwrap();
+    //     assert_eq!(param, decoded);
+    // }
 
     fn discovery_encode_decode_response<T>(param: T)
     where
@@ -3357,6 +3514,20 @@ mod tests {
         assert_eq!(encoded, size);
 
         let decoded = T::get_request_decode_data(&buf[..encoded]).unwrap();
+        assert_eq!(param, decoded);
+    }
+
+    fn get_encode_decode_response2<T>(param: T)
+    where
+        T: RdmParameterCodec + PartialEq + core::fmt::Debug,
+    {
+        let size = param.size_of_parameter_data();
+        let mut buf = vec![0u8; size];
+
+        let encoded = param.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(encoded, size);
+
+        let decoded = T::decode_parameter_data(&buf[..encoded]).unwrap();
         assert_eq!(param, decoded);
     }
 
@@ -3404,14 +3575,14 @@ mod tests {
 
     #[test]
     fn discovery_mute_response() {
-        use crate::rdm::DeviceUID;
+        use crate::rdm::{DeviceUID, parameter::e120::ControlField};
 
         discovery_encode_decode_response(super::DiscMuteResponse {
-            control_field: 0x1234,
+            control_field: ControlField::empty(),
             binding_uid: None,
         });
         discovery_encode_decode_response(super::DiscMuteResponse {
-            control_field: 0x1234,
+            control_field: ControlField::SUB_DEVICES_SUPPORTED,
             binding_uid: Some(DeviceUID::from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06])),
         });
     }
@@ -3421,11 +3592,11 @@ mod tests {
         use crate::rdm::DeviceUID;
 
         discovery_encode_decode_response(super::DiscUnMuteResponse {
-            control_field: 0x1234,
+            control_field: ControlField::empty(),
             binding_uid: None,
         });
         discovery_encode_decode_response(super::DiscUnMuteResponse {
-            control_field: 0x1234,
+            control_field: ControlField::SUB_DEVICES_SUPPORTED,
             binding_uid: Some(DeviceUID::from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06])),
         });
     }
@@ -3451,7 +3622,7 @@ mod tests {
     fn get_proxied_devices_response() {
         use crate::rdm::DeviceUID;
 
-        get_encode_decode_response(super::GetProxiedDevicesResponse {
+        get_encode_decode_response2(super::GetProxiedDevicesResponse {
             device_uids: heapless::Vec::from_slice(&[
                 DeviceUID::from([0x01, 0x02, 0x03, 0x04, 0x05, 0x06]),
                 DeviceUID::from([0x11, 0x12, 0x13, 0x14, 0x15, 0x16]),
@@ -3610,8 +3781,8 @@ mod tests {
 
         get_encode_decode_response(super::GetProductDetailIdListResponse {
             product_detail_ids: heapless::Vec::from_slice(&[
-                ProductDetail::NotDeclared.into(),
-                ProductDetail::Arc.into(),
+                ProductDetail::NotDeclared,
+                ProductDetail::Arc,
             ])
             .unwrap(),
         });
@@ -3950,12 +4121,16 @@ mod tests {
 
     #[test]
     fn get_device_power_cycles_response() {
-        get_encode_decode_response(super::GetDevicePowerCyclesResponse { device_power_cycles: 0x00000001 });
+        get_encode_decode_response(super::GetDevicePowerCyclesResponse {
+            device_power_cycles: 0x00000001,
+        });
     }
 
     #[test]
     fn set_device_power_cycles_request() {
-        set_encode_decode_request(super::SetDevicePowerCyclesRequest { device_power_cycles: 0x00000002 });
+        set_encode_decode_request(super::SetDevicePowerCyclesRequest {
+            device_power_cycles: 0x00000002,
+        });
     }
 
     #[test]
@@ -3978,12 +4153,16 @@ mod tests {
 
     #[test]
     fn get_display_level_response() {
-        get_encode_decode_response(super::GetDisplayLevelResponse { display_level: 0x00 });
+        get_encode_decode_response(super::GetDisplayLevelResponse {
+            display_level: 0x00,
+        });
     }
 
     #[test]
     fn set_display_level_request() {
-        set_encode_decode_request(super::SetDisplayLevelRequest { display_level: 0xff });
+        set_encode_decode_request(super::SetDisplayLevelRequest {
+            display_level: 0xff,
+        });
     }
 
     #[test]
@@ -4090,12 +4269,16 @@ mod tests {
 
     #[test]
     fn set_perform_self_test_request() {
-        set_encode_decode_request(super::SetPerformSelfTestRequest { self_test_id: super::SelfTest::All });
+        set_encode_decode_request(super::SetPerformSelfTestRequest {
+            self_test_id: super::SelfTest::All,
+        });
     }
 
     #[test]
     fn get_self_test_description_request() {
-        get_encode_decode_request(super::GetSelfTestDescriptionRequest { self_test_id: super::SelfTest::ManufacturerId(1) });
+        get_encode_decode_request(super::GetSelfTestDescriptionRequest {
+            self_test_id: super::SelfTest::ManufacturerId(1),
+        });
     }
 
     #[test]
@@ -4119,7 +4302,7 @@ mod tests {
             fade_times: Some(super::FadeTimes {
                 up_fade_time: 500,
                 down_fade_time: 1000,
-                wait_time: 500
+                wait_time: 500,
             }),
         });
     }

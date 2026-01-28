@@ -42,3 +42,4 @@ heapless = "0.9.1"
 macaddr = { version = "1.0.1", default-features = false }
 rdm-parameter-traits = { path = "./rdm-parameter-traits" }
 rdm-parameter-derive = { path = "./rdm-parameter-derive" }
+bitflags = "2.10.0"

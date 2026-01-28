@@ -99,7 +99,7 @@ use crate::rdm::parameter::{
     },
 };
 use heapless::Vec;
-use rdm_parameter_traits::{RdmGetRequestParameterCodec, RdmSetRequestParameterCodec};
+use rdm_parameter_traits::{RdmGetRequestParameterCodec, RdmParameterCodec, RdmSetRequestParameterCodec};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter {
@@ -1747,6 +1747,32 @@ impl RdmRequest {
             port_id,
             sub_device_id,
             parameter,
+        }
+    }
+
+    pub fn new_custom_parameter(
+        destination_uid: DeviceUID,
+        source_uid: DeviceUID,
+        transaction_number: u8,
+        port_id: u8,
+        sub_device_id: SubDeviceId,
+        parameter: impl RdmParameterCodec,
+     ) -> Self {
+        let mut parameter_data = Vec::new();
+
+        parameter.encode_parameter_data(&mut parameter_data).unwrap();
+
+        RdmRequest {
+            destination_uid,
+            source_uid,
+            transaction_number,
+            port_id,
+            sub_device_id,
+            parameter: RequestParameter::RawParameter {
+                command_class: parameter.command_class().try_into().unwrap(),
+                parameter_id: parameter.parameter_id(),
+                parameter_data
+            },
         }
     }
 

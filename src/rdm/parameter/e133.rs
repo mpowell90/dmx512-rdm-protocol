@@ -33,16 +33,6 @@ impl TryFrom<u8> for StaticConfigType {
     }
 }
 
-impl StaticConfigType {
-    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
-        Self::try_from(bytes[0]).unwrap() // TODO error handling
-    }
-
-    pub fn to_be_bytes(&self) -> [u8; 1] {
-        [*self as u8]
-    }
-}
-
 impl RdmParameterData for StaticConfigType {
     fn size_of(&self) -> usize {
         1
