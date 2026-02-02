@@ -1,5 +1,5 @@
 [package]
-name = "rdm-parameter-derive"
+name = "rdm-derive"
 version = "0.1.0"
 # repository.workspace = true
 # license.workspace = true
@@ -15,7 +15,7 @@ bench = false
 syn = { version = "2.0.8", features = ["full"] }
 quote = "1.0.9"
 proc-macro2 = "1.0.69"
-rdm-parameter-traits = { path = "../rdm-parameter-traits" }
+rdm-core = { path = "../rdm-core" }
 
 [dev-dependencies]
 heapless = "0.9.1"

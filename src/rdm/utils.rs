@@ -1,9 +1,9 @@
-use crate::rdm::error::RdmError;
 use core::{
     error::Error,
     ops::Deref,
     str::{FromStr, Utf8Error},
 };
+use rdm_core::error::RdmError;
 
 pub fn bsd_16_crc(packet: &[u8]) -> u16 {
     packet
@@ -118,7 +118,7 @@ macro_rules! impl_rdm_string {
         }
 
         impl core::str::FromStr for $t {
-            type Err = rdm_parameter_traits::ParameterCodecError;
+            type Err = rdm_core::error::ParameterCodecError;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 Ok(Self(String::<{ Self::MAX_LENGTH }>::from_str(s.trim_end_matches('\0'))?))
@@ -132,11 +132,11 @@ macro_rules! impl_rdm_string {
                 ).len()
             }
 
-            fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+            fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_core::error::ParameterCodecError> {
                 let size = self.size_of();
 
                 if buf.len() < size {
-                    return Err(rdm_parameter_traits::ParameterCodecError::BufferTooSmall {
+                    return Err(rdm_core::error::ParameterCodecError::BufferTooSmall {
                         provided: buf.len(),
                         required: size,
                     });
@@ -147,7 +147,7 @@ macro_rules! impl_rdm_string {
                 Ok(size)
             }
 
-            fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+            fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
                 Ok(Self(String::decode_rdm_parameter_data($crate::rdm::utils::truncate_at_null(
                     buf,
                 ))?))

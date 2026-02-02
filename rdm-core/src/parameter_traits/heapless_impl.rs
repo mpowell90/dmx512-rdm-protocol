@@ -1,4 +1,4 @@
-use crate::{ParameterCodecError, RdmParameterData};
+use crate::parameter_traits::{ParameterCodecError, RdmParameterData};
 use core::str::FromStr;
 
 impl<T, const N: usize> RdmParameterData for heapless::Vec<T, N>
@@ -38,9 +38,10 @@ where
 
             offset += t.size_of();
 
-            out.push(t).map_err(|_| ParameterCodecError::MalformedData)?;
+            out.push(t)
+                .map_err(|_| ParameterCodecError::MalformedData)?;
         }
-        
+
         Ok(out)
     }
 }
@@ -72,9 +73,8 @@ impl<const N: usize> RdmParameterData for heapless::String<N> {
 
 #[cfg(test)]
 mod tests {
+    use crate::parameter_traits::RdmParameterData;
     use core::str::FromStr;
-
-    use crate::RdmParameterData;
     use heapless::Vec;
 
     fn encode_decode<T>(value: T, buf: &mut [u8])

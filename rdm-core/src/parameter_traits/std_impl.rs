@@ -1,4 +1,4 @@
-use crate::{ParameterCodecError, RdmParameterData};
+use crate::parameter_traits::{ParameterCodecError, RdmParameterData};
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasher, Hash};
 
@@ -104,7 +104,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::RdmParameterData;
+    use crate::parameter_traits::RdmParameterData;
     use std::collections::{HashMap, HashSet};
 
     fn encode_decode<T>(value: T, buf: &mut [u8])

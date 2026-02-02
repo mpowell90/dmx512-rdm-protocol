@@ -1,5 +1,5 @@
 [package]
-name = "rdm-parameter-traits"
+name = "rdm-core"
 version = "0.1.0"
 # repository.workspace = true
 # license.workspace = true

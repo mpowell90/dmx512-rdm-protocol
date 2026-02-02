@@ -1,16 +1,13 @@
 //! Data types and functionality for encoding and decoding RDM packets
 
-pub mod error;
-pub mod header;
 pub mod parameter;
 pub mod request;
 pub mod response;
 pub mod utils;
 
-pub use self::error::RdmError;
-pub use self::header::{CommandClass, DeviceUID, SubDeviceId};
-use crate::rdm::{header::RdmFrameKind, request::RdmRequest, response::RdmResponse};
+use crate::rdm::{request::RdmRequest, response::RdmResponse};
 pub use macaddr;
+use rdm_core::{CommandClass, RdmFrameKind, error::RdmError};
 
 pub const RDM_START_CODE_BYTE: u8 = 0xcc;
 pub const RDM_SUB_START_CODE_BYTE: u8 = 0x01;
@@ -88,7 +85,7 @@ impl<'a> RdmFrameView<'a> {
     }
 
     pub fn command_class(&self) -> Result<CommandClass, RdmError> {
-        self.0[20].try_into()
+        self.0[20].try_into().map_err(Into::into)
     }
 
     pub fn frame_kind(&self) -> Result<RdmFrameKind, RdmError> {

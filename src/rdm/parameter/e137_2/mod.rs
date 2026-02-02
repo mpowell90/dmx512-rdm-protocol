@@ -1,12 +1,14 @@
-use super::RdmError;
+pub mod request;
+pub mod response;
+
 use crate::impl_rdm_string;
 use core::net::{Ipv4Addr, Ipv6Addr};
 use heapless::String;
 use macaddr::MacAddr6;
-use rdm_parameter_derive::{
-    RdmGetRequestParameter, RdmGetResponseParameter, RdmSetRequestParameter,
+use rdm_core::{
+    error::{ParameterCodecError, RdmError},
+    parameter_traits::RdmParameterData,
 };
-use rdm_parameter_traits::RdmParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DhcpMode {
@@ -33,19 +35,14 @@ impl RdmParameterData for DhcpMode {
         1
     }
 
-    fn encode_rdm_parameter_data(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(
-        buf: &[u8],
-    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
-        let dhcp_mode = DhcpMode::try_from(buf[0])
-            .map_err(|_| rdm_parameter_traits::ParameterCodecError::MalformedData)?;
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let dhcp_mode =
+            DhcpMode::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(dhcp_mode)
     }
 }
@@ -105,18 +102,13 @@ impl RdmParameterData for Ipv4Address {
         4
     }
 
-    fn encode_rdm_parameter_data(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let bytes: [u8; 4] = (*self).into();
         buf[0..4].copy_from_slice(&bytes);
         Ok(4)
     }
 
-    fn decode_rdm_parameter_data(
-        buf: &[u8],
-    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let address = Ipv4Address::from([buf[0], buf[1], buf[2], buf[3]]);
         Ok(address)
     }
@@ -177,18 +169,13 @@ impl RdmParameterData for Ipv6Address {
         16
     }
 
-    fn encode_rdm_parameter_data(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let bytes: [u8; 16] = (*self).into();
         buf[0..16].copy_from_slice(&bytes);
         Ok(16)
     }
 
-    fn decode_rdm_parameter_data(
-        buf: &[u8],
-    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let address = Ipv6Address::from([
             buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7], buf[8], buf[9],
             buf[10], buf[11], buf[12], buf[13], buf[14], buf[15],
@@ -252,18 +239,13 @@ impl RdmParameterData for Ipv4Route {
         4
     }
 
-    fn encode_rdm_parameter_data(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let bytes: [u8; 4] = (*self).into();
         buf[0..4].copy_from_slice(&bytes);
         Ok(4)
     }
 
-    fn decode_rdm_parameter_data(
-        buf: &[u8],
-    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let route = Ipv4Route::from([buf[0], buf[1], buf[2], buf[3]]);
         Ok(route)
     }
@@ -426,18 +408,13 @@ impl RdmParameterData for NetworkInterface {
         6
     }
 
-    fn encode_rdm_parameter_data(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..4].copy_from_slice(&self.interface_id.to_be_bytes());
         buf[4..6].copy_from_slice(&u16::from(self.hardware_type).to_be_bytes());
         Ok(6)
     }
 
-    fn decode_rdm_parameter_data(
-        buf: &[u8],
-    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         Ok(Self {
             interface_id: u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]),
             hardware_type: u16::from_be_bytes([buf[4], buf[5]]).into(),
@@ -480,175 +457,13 @@ impl RdmParameterData for MacAddress {
         6
     }
 
-    fn encode_rdm_parameter_data(
-        &self,
-        buf: &mut [u8],
-    ) -> Result<usize, rdm_parameter_traits::ParameterCodecError> {
+    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..6].copy_from_slice(self.0.as_bytes());
         Ok(6)
     }
 
-    fn decode_rdm_parameter_data(
-        buf: &[u8],
-    ) -> Result<Self, rdm_parameter_traits::ParameterCodecError> {
+    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let address = MacAddress::from([buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]]);
         Ok(address)
     }
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetListInterfacesResponse {
-    pub interface_list: heapless::Vec<NetworkInterface, 38>,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
-pub struct GetInterfaceLabelRequest {
-    pub interface_id: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetInterfaceLabelResponse {
-    pub interface_id: u32,
-    pub interface_label: InterfaceLabel,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
-pub struct GetInterfaceHardwareAddressType1Request {
-    pub interface_id: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetInterfaceHardwareAddressType1Response {
-    pub interface_id: u32,
-    pub hardware_address: MacAddress,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
-pub struct GetIpV4DhcpModeRequest {
-    pub interface_id: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIpV4DhcpModeResponse {
-    pub interface_id: u32,
-    pub dhcp_mode: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetIpV4DhcpModeRequest {
-    pub interface_id: u32,
-    pub dhcp_mode: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
-pub struct GetIpV4ZeroConfModeRequest {
-    pub interface_id: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIpV4ZeroConfModeResponse {
-    pub interface_id: u32,
-    pub zero_conf_mode: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetIpV4ZeroConfModeRequest {
-    pub interface_id: u32,
-    pub zero_conf_mode: bool,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
-pub struct GetIpV4CurrentAddressRequest {
-    pub interface_id: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIpV4CurrentAddressResponse {
-    pub interface_id: u32,
-    pub address: Ipv4Address,
-    pub netmask: u8,
-    pub dhcp_status: DhcpMode,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
-pub struct GetIpV4StaticAddressRequest {
-    pub interface_id: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIpV4StaticAddressResponse {
-    pub interface_id: u32,
-    pub address: Ipv4Address,
-    pub netmask: u8,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetIpV4StaticAddressRequest {
-    pub interface_id: u32,
-    pub address: Ipv4Address,
-    pub netmask: u8,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetInterfaceApplyConfigurationRequest {
-    pub interface_id: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetInterfaceRenewDhcpRequest {
-    pub interface_id: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetInterfaceReleaseDhcpRequest {
-    pub interface_id: u32,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetIpV4DefaultRouteResponse {
-    pub interface_id: u32,
-    pub address: Ipv4Route,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetIpV4DefaultRouteRequest {
-    pub interface_id: u32,
-    pub address: Ipv4Route,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetRequestParameter)]
-pub struct GetDnsIpV4NameServerRequest {
-    pub name_server_index: u8,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetDnsIpV4NameServerResponse {
-    pub name_server_index: u8,
-    pub address: Ipv4Address,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetDnsIpv4NameServerRequest {
-    pub name_server_index: u8,
-    pub name_server_address: Ipv4Address,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetDnsHostNameResponse {
-    pub dns_host_name: DnsHostName,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetDnsHostNameRequest {
-    pub dns_host_name: DnsHostName,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmGetResponseParameter)]
-pub struct GetDnsDomainNameResponse {
-    pub dns_domain_name: DnsDomainName,
-}
-
-#[derive(Clone, Debug, PartialEq, RdmSetRequestParameter)]
-pub struct SetDnsDomainNameRequest {
-    pub dns_domain_name: DnsDomainName,
 }

@@ -1,4 +1,4 @@
-use crate::{ParameterCodecError, RdmParameterData};
+use crate::parameter_traits::{ParameterCodecError, RdmParameterData};
 use alloc::{
     collections::{BTreeMap, BTreeSet, LinkedList, VecDeque},
     vec::Vec,
@@ -242,7 +242,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::RdmParameterData;
+    use crate::parameter_traits::RdmParameterData;
     use alloc::collections::{BTreeMap, BTreeSet, LinkedList, VecDeque};
     use alloc::vec::Vec;
 

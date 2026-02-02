@@ -21,8 +21,8 @@ dependencies = [
  "bitflags",
  "heapless",
  "macaddr",
- "rdm-parameter-derive",
- "rdm-parameter-traits",
+ "rdm-core",
+ "rdm-derive",
 ]
 
 [[package]]
@@ -69,21 +69,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "rdm-parameter-derive"
+name = "rdm-core"
+version = "0.1.0"
+dependencies = [
+ "heapless",
+]
+
+[[package]]
+name = "rdm-derive"
 version = "0.1.0"
 dependencies = [
  "heapless",
  "proc-macro2",
  "quote",
- "rdm-parameter-traits",
+ "rdm-core",
  "syn",
-]
-
-[[package]]
-name = "rdm-parameter-traits"
-version = "0.1.0"
-dependencies = [
- "heapless",
 ]
 
 [[package]]

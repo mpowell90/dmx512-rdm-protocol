@@ -1,4 +1,4 @@
-use crate::{ParameterCodecError, RdmParameterData};
+use crate::parameter_traits::{ParameterCodecError, RdmParameterData};
 
 macro_rules! impl_rdm_data_primitive {
     ($($t:ty),*) => {
@@ -101,6 +101,21 @@ macro_rules! impl_rdm_data_primitive {
 }
 
 impl_rdm_data_primitive!(u8, u16, u32, u64, u128, i8, i16, i32, i64, i128, f32, f64);
+
+impl RdmParameterData for () {
+    #[inline]
+    fn size_of(&self) -> usize {
+        0
+    }
+
+    fn encode_rdm_parameter_data(&self, _buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        Ok(0)
+    }
+
+    fn decode_rdm_parameter_data(_buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        Ok(())
+    }
+}
 
 impl RdmParameterData for bool {
     #[inline]
@@ -211,7 +226,7 @@ impl<const N: usize> RdmParameterData for [bool; N] {
 
 #[cfg(test)]
 mod tests {
-    use crate::RdmParameterData;
+    use crate::parameter_traits::RdmParameterData;
 
     fn encode_decode<T>(value: T, buf: &mut [u8])
     where
