@@ -35,12 +35,12 @@ impl RdmParameterData for DhcpMode {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let dhcp_mode =
             DhcpMode::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(dhcp_mode)
@@ -102,13 +102,13 @@ impl RdmParameterData for Ipv4Address {
         4
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let bytes: [u8; 4] = (*self).into();
         buf[0..4].copy_from_slice(&bytes);
         Ok(4)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let address = Ipv4Address::from([buf[0], buf[1], buf[2], buf[3]]);
         Ok(address)
     }
@@ -169,13 +169,13 @@ impl RdmParameterData for Ipv6Address {
         16
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let bytes: [u8; 16] = (*self).into();
         buf[0..16].copy_from_slice(&bytes);
         Ok(16)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let address = Ipv6Address::from([
             buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7], buf[8], buf[9],
             buf[10], buf[11], buf[12], buf[13], buf[14], buf[15],
@@ -239,13 +239,13 @@ impl RdmParameterData for Ipv4Route {
         4
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let bytes: [u8; 4] = (*self).into();
         buf[0..4].copy_from_slice(&bytes);
         Ok(4)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let route = Ipv4Route::from([buf[0], buf[1], buf[2], buf[3]]);
         Ok(route)
     }
@@ -408,13 +408,13 @@ impl RdmParameterData for NetworkInterface {
         6
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..4].copy_from_slice(&self.interface_id.to_be_bytes());
         buf[4..6].copy_from_slice(&u16::from(self.hardware_type).to_be_bytes());
         Ok(6)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         Ok(Self {
             interface_id: u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]),
             hardware_type: u16::from_be_bytes([buf[4], buf[5]]).into(),
@@ -457,12 +457,12 @@ impl RdmParameterData for MacAddress {
         6
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..6].copy_from_slice(self.0.as_bytes());
         Ok(6)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let address = MacAddress::from([buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]]);
         Ok(address)
     }

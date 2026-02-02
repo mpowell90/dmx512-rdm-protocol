@@ -784,181 +784,181 @@ impl RequestParameter {
     pub fn encode(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         match self {
             // E1.20
-            Self::DiscUniqueBranch(param) => param.encode_rdm_parameter_data(buf),
+            Self::DiscUniqueBranch(param) => param.encode_parameter_data(buf),
             Self::DiscMute => Ok(0),
             Self::DiscUnMute => Ok(0),
             Self::GetCommsStatus => Ok(0),
             Self::SetCommsStatus => Ok(0),
-            Self::GetQueuedMessage(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetStatusMessages(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetStatusIdDescription(param) => param.encode_rdm_parameter_data(buf),
+            Self::GetQueuedMessage(param) => param.encode_parameter_data(buf),
+            Self::GetStatusMessages(param) => param.encode_parameter_data(buf),
+            Self::GetStatusIdDescription(param) => param.encode_parameter_data(buf),
             Self::SetClearStatusId => Ok(0),
             Self::GetSubDeviceIdStatusReportThreshold => Ok(0),
-            Self::SetSubDeviceIdStatusReportThreshold(param) => {
-                param.encode_rdm_parameter_data(buf)
-            }
+            Self::SetSubDeviceIdStatusReportThreshold(param) => param.encode_parameter_data(buf),
             Self::GetSupportedParameters => Ok(0),
-            Self::GetParameterDescription(param) => param.encode_rdm_parameter_data(buf),
+            Self::GetParameterDescription(param) => param.encode_parameter_data(buf),
             Self::GetDeviceInfo => Ok(0),
             Self::GetProductDetailIdList => Ok(0),
             Self::GetDeviceModelDescription => Ok(0),
             Self::GetManufacturerLabel => Ok(0),
             Self::GetDeviceLabel => Ok(0),
-            Self::SetDeviceLabel(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDeviceLabel(param) => param.encode_parameter_data(buf),
             Self::GetFactoryDefaults => Ok(0),
             Self::SetFactoryDefaults => Ok(0),
             Self::GetLanguageCapabilities => Ok(0),
             Self::GetLanguage => Ok(0),
-            Self::SetLanguage(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetLanguage(param) => param.encode_parameter_data(buf),
             Self::GetSoftwareVersionLabel => Ok(0),
             Self::GetBootSoftwareVersionId => Ok(0),
             Self::GetBootSoftwareVersionLabel => Ok(0),
             Self::GetDmxPersonality => Ok(0),
-            Self::SetDmxPersonality(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetDmxPersonalityDescription(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDmxPersonality(param) => param.encode_parameter_data(buf),
+            Self::GetDmxPersonalityDescription(param) => param.encode_parameter_data(buf),
             Self::GetDmxStartAddress => Ok(0),
-            Self::SetDmxStartAddress(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDmxStartAddress(param) => param.encode_parameter_data(buf),
             Self::GetSlotInfo => Ok(0),
-            Self::GetSlotDescription(param) => param.encode_rdm_parameter_data(buf),
+            Self::GetSlotDescription(param) => param.encode_parameter_data(buf),
             Self::GetDefaultSlotValue => Ok(0),
-            Self::GetSensorDefinition(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetSensorValue(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetSensorValue(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetRecordSensors(param) => param.encode_rdm_parameter_data(buf),
+            Self::GetSensorDefinition(param) => param.encode_parameter_data(buf),
+            Self::GetSensorValue(param) => param.encode_parameter_data(buf),
+            Self::SetSensorValue(param) => param.encode_parameter_data(buf),
+            Self::SetRecordSensors(param) => param.encode_parameter_data(buf),
             Self::GetDeviceHours => Ok(0),
-            Self::SetDeviceHours(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDeviceHours(param) => param.encode_parameter_data(buf),
             Self::GetLampHours => Ok(0),
-            Self::SetLampHours(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetLampHours(param) => param.encode_parameter_data(buf),
             Self::GetLampStrikes => Ok(0),
-            Self::SetLampStrikes(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetLampStrikes(param) => param.encode_parameter_data(buf),
             Self::GetLampState => Ok(0),
-            Self::SetLampState(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetLampState(param) => param.encode_parameter_data(buf),
             Self::GetLampOnMode => Ok(0),
-            Self::SetLampOnMode(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetLampOnMode(param) => param.encode_parameter_data(buf),
             Self::GetDevicePowerCycles => Ok(0),
-            Self::SetDevicePowerCycles(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDevicePowerCycles(param) => param.encode_parameter_data(buf),
             Self::GetDisplayInvert => Ok(0),
-            Self::SetDisplayInvert(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDisplayInvert(param) => param.encode_parameter_data(buf),
             Self::GetDisplayLevel => Ok(0),
-            Self::SetDisplayLevel(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDisplayLevel(param) => param.encode_parameter_data(buf),
             Self::GetPanInvert => Ok(0),
-            Self::SetPanInvert(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetPanInvert(param) => param.encode_parameter_data(buf),
             Self::GetTiltInvert => Ok(0),
-            Self::SetTiltInvert(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetTiltInvert(param) => param.encode_parameter_data(buf),
             Self::GetPanTiltSwap => Ok(0),
-            Self::SetPanTiltSwap(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetPanTiltSwap(param) => param.encode_parameter_data(buf),
             Self::GetRealTimeClock => Ok(0),
-            Self::SetRealTimeClock(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetRealTimeClock(param) => param.encode_parameter_data(buf),
             Self::GetIdentifyDevice => Ok(0),
-            Self::SetIdentifyDevice(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetResetDevice(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetIdentifyDevice(param) => param.encode_parameter_data(buf),
+            Self::SetResetDevice(param) => param.encode_parameter_data(buf),
             Self::GetPowerState => Ok(0),
-            Self::SetPowerState(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetPowerState(param) => param.encode_parameter_data(buf),
             Self::GetPerformSelfTest => Ok(0),
-            Self::SetPerformSelfTest(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetCapturePreset(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetSelfTestDescription(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetPerformSelfTest(param) => param.encode_parameter_data(buf),
+            Self::SetCapturePreset(param) => param.encode_parameter_data(buf),
+            Self::GetSelfTestDescription(param) => param.encode_parameter_data(buf),
             Self::GetPresetPlayback => Ok(0),
-            Self::SetPresetPlayback(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetPresetPlayback(param) => param.encode_parameter_data(buf),
             // E1.37-1
             Self::GetDmxBlockAddress => Ok(0),
-            Self::SetDmxBlockAddress(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDmxBlockAddress(param) => param.encode_parameter_data(buf),
             Self::GetDmxFailMode => Ok(0),
-            Self::SetDmxFailMode(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDmxFailMode(param) => param.encode_parameter_data(buf),
             Self::GetDmxStartupMode => Ok(0),
-            Self::SetDmxStartupMode(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDmxStartupMode(param) => param.encode_parameter_data(buf),
             Self::GetDimmerInfo => Ok(0),
             Self::GetMinimumLevel => Ok(0),
-            Self::SetMinimumLevel(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetMinimumLevel(param) => param.encode_parameter_data(buf),
             Self::GetMaximumLevel => Ok(0),
-            Self::SetMaximumLevel(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetMaximumLevel(param) => param.encode_parameter_data(buf),
             Self::GetCurve => Ok(0),
-            Self::SetCurve(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetCurveDescription(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetCurve(param) => param.encode_parameter_data(buf),
+            Self::GetCurveDescription(param) => param.encode_parameter_data(buf),
             Self::GetOutputResponseTime => Ok(0),
-            Self::SetOutputResponseTime(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetOutputResponseTimeDescription(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetOutputResponseTime(param) => param.encode_parameter_data(buf),
+            Self::GetOutputResponseTimeDescription(param) => param.encode_parameter_data(buf),
             Self::GetModulationFrequency => Ok(0),
-            Self::SetModulationFrequency(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetModulationFrequencyDescription(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetModulationFrequency(param) => param.encode_parameter_data(buf),
+            Self::GetModulationFrequencyDescription(param) => param.encode_parameter_data(buf),
             Self::GetPowerOnSelfTest => Ok(0),
-            Self::SetPowerOnSelfTest(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetPowerOnSelfTest(param) => param.encode_parameter_data(buf),
             Self::GetLockState => Ok(0),
-            Self::SetLockState(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetLockState(param) => param.encode_parameter_data(buf),
             Self::GetLockStateDescription => Ok(0),
             Self::GetLockPin => Ok(0),
-            Self::SetLockPin(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetLockPin(param) => param.encode_parameter_data(buf),
             Self::GetBurnIn => Ok(0),
-            Self::SetBurnIn(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetBurnIn(param) => param.encode_parameter_data(buf),
             Self::GetIdentifyMode => Ok(0),
-            Self::SetIdentifyMode(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetIdentifyMode(param) => param.encode_parameter_data(buf),
             Self::GetPresetInfo => Ok(0),
-            Self::GetPresetStatus(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetPresetStatus(param) => param.encode_rdm_parameter_data(buf),
+            Self::GetPresetStatus(param) => param.encode_parameter_data(buf),
+            Self::SetPresetStatus(param) => param.encode_parameter_data(buf),
             Self::GetPresetMergeMode => Ok(0),
-            Self::SetPresetMergeMode(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetPresetMergeMode(param) => param.encode_parameter_data(buf),
             // E1.37-2
             Self::GetListInterfaces => Ok(0),
-            Self::GetInterfaceLabel(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetInterfaceHardwareAddressType1(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetIpV4DhcpMode(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetIpV4DhcpMode(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetIpV4ZeroConfMode(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetIpV4ZeroConfMode(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetIpV4CurrentAddress(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetIpV4StaticAddress(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetIpV4StaticAddress(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetInterfaceApplyConfiguration(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetInterfaceRenewDhcp(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetInterfaceReleaseDhcp(param) => param.encode_rdm_parameter_data(buf),
+            Self::GetInterfaceLabel(param) => param.encode_parameter_data(buf),
+            Self::GetInterfaceHardwareAddressType1(param) => param.encode_parameter_data(buf),
+            Self::GetIpV4DhcpMode(param) => param.encode_parameter_data(buf),
+            Self::SetIpV4DhcpMode(param) => param.encode_parameter_data(buf),
+            Self::GetIpV4ZeroConfMode(param) => param.encode_parameter_data(buf),
+            Self::SetIpV4ZeroConfMode(param) => param.encode_parameter_data(buf),
+            Self::GetIpV4CurrentAddress(param) => param.encode_parameter_data(buf),
+            Self::GetIpV4StaticAddress(param) => param.encode_parameter_data(buf),
+            Self::SetIpV4StaticAddress(param) => param.encode_parameter_data(buf),
+            Self::SetInterfaceApplyConfiguration(param) => param.encode_parameter_data(buf),
+            Self::SetInterfaceRenewDhcp(param) => param.encode_parameter_data(buf),
+            Self::SetInterfaceReleaseDhcp(param) => param.encode_parameter_data(buf),
             Self::GetIpV4DefaultRoute => Ok(0),
-            Self::SetIpV4DefaultRoute(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetDnsIpV4NameServer(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetDnsIpV4NameServer(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetIpV4DefaultRoute(param) => param.encode_parameter_data(buf),
+            Self::GetDnsIpV4NameServer(param) => param.encode_parameter_data(buf),
+            Self::SetDnsIpV4NameServer(param) => param.encode_parameter_data(buf),
             Self::GetDnsHostName => Ok(0),
-            Self::SetDnsHostName(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDnsHostName(param) => param.encode_parameter_data(buf),
             Self::GetDnsDomainName => Ok(0),
-            Self::SetDnsDomainName(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetDnsDomainName(param) => param.encode_parameter_data(buf),
             // E1.37-7
             Self::GetEndpointList => Ok(0),
             Self::GetEndpointListChange => Ok(0),
-            Self::GetIdentifyEndpoint(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetIdentifyEndpoint(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetEndpointToUniverse(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetEndpointToUniverse(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetEndpointMode(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetEndpointMode(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetEndpointLabel(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetEndpointLabel(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetRdmTrafficEnable(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetRdmTrafficEnable(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetDiscoveryState(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetDiscoveryState(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetBackgroundDiscovery(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetBackgroundDiscovery(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetEndpointTiming(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetEndpointTiming(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetEndpointTimingDescription(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetEndpointResponders(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetEndpointResponderListChange(param) => param.encode_rdm_parameter_data(buf),
-            Self::GetBindingControlFields(param) => param.encode_rdm_parameter_data(buf),
+            Self::GetIdentifyEndpoint(param) => param.encode_parameter_data(buf),
+            Self::SetIdentifyEndpoint(param) => param.encode_parameter_data(buf),
+            Self::GetEndpointToUniverse(param) => param.encode_parameter_data(buf),
+            Self::SetEndpointToUniverse(param) => param.encode_parameter_data(buf),
+            Self::GetEndpointMode(param) => param.encode_parameter_data(buf),
+            Self::SetEndpointMode(param) => param.encode_parameter_data(buf),
+            Self::GetEndpointLabel(param) => param.encode_parameter_data(buf),
+            Self::SetEndpointLabel(param) => param.encode_parameter_data(buf),
+            Self::GetRdmTrafficEnable(param) => param.encode_parameter_data(buf),
+            Self::SetRdmTrafficEnable(param) => param.encode_parameter_data(buf),
+            Self::GetDiscoveryState(param) => param.encode_parameter_data(buf),
+            Self::SetDiscoveryState(param) => param.encode_parameter_data(buf),
+            Self::GetBackgroundDiscovery(param) => param.encode_parameter_data(buf),
+            Self::SetBackgroundDiscovery(param) => param.encode_parameter_data(buf),
+            Self::GetEndpointTiming(param) => param.encode_parameter_data(buf),
+            Self::SetEndpointTiming(param) => param.encode_parameter_data(buf),
+            Self::GetEndpointTimingDescription(param) => param.encode_parameter_data(buf),
+            Self::GetEndpointResponders(param) => param.encode_parameter_data(buf),
+            Self::GetEndpointResponderListChange(param) => param.encode_parameter_data(buf),
+            Self::GetBindingControlFields(param) => param.encode_parameter_data(buf),
             Self::GetBackgroundQueuedStatusPolicy => Ok(0),
-            Self::SetBackgroundQueuedStatusPolicy(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetBackgroundQueuedStatusPolicy(param) => param.encode_parameter_data(buf),
             Self::GetBackgroundQueuedStatusPolicyDescription(param) => {
-                param.encode_rdm_parameter_data(buf)
+                param.encode_parameter_data(buf)
             }
             // E1.33
-            Self::GetComponentScope(param) => param.encode_rdm_parameter_data(buf),
-            Self::SetComponentScope(param) => param.encode_rdm_parameter_data(buf),
+            Self::GetComponentScope(param) => param.encode_parameter_data(buf),
+            Self::SetComponentScope(param) => param.encode_parameter_data(buf),
             Self::GetSearchDomain => Ok(0),
-            Self::SetSearchDomain(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetSearchDomain(param) => param.encode_parameter_data(buf),
             Self::GetTcpCommsStatus => Ok(0),
-            Self::SetTcpCommsStatus(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetTcpCommsStatus(param) => param.encode_parameter_data(buf),
             Self::GetBrokerStatus => Ok(0),
-            Self::SetBrokerStatus(param) => param.encode_rdm_parameter_data(buf),
+            Self::SetBrokerStatus(param) => param.encode_parameter_data(buf),
             // Manufacturer or Unsupported
             Self::CustomParameter(param) => {
-                buf[0..param.parameter_data_length as usize].copy_from_slice(&param.request);
+                buf[0..param.parameter_data_length as usize].copy_from_slice(
+                    &param.parameter_data[0..param.parameter_data_length as usize],
+                );
                 Ok(param.parameter_data_length as usize)
             }
         }
@@ -972,21 +972,21 @@ impl RequestParameter {
         match (command_class, parameter_id) {
             // E1.20
             (CommandClass::Discovery, ParameterId::DiscUniqueBranch) => Ok(Self::DiscUniqueBranch(
-                DiscUniqueBranchRequest::decode_rdm_parameter_data(buf)?,
+                DiscUniqueBranchRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Discovery, ParameterId::DiscMute) => Ok(Self::DiscMute),
             (CommandClass::Discovery, ParameterId::DiscUnMute) => Ok(Self::DiscUnMute),
             (CommandClass::Get, ParameterId::CommsStatus) => Ok(Self::GetCommsStatus),
             (CommandClass::Set, ParameterId::CommsStatus) => Ok(Self::SetCommsStatus),
             (CommandClass::Get, ParameterId::QueuedMessage) => Ok(Self::GetQueuedMessage(
-                GetQueuedMessageRequest::decode_rdm_parameter_data(buf)?,
+                GetQueuedMessageRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::StatusMessages) => Ok(Self::GetStatusMessages(
-                GetStatusMessagesRequest::decode_rdm_parameter_data(buf)?,
+                GetStatusMessagesRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::StatusIdDescription) => {
                 Ok(Self::GetStatusIdDescription(
-                    GetStatusIdDescriptionRequest::decode_rdm_parameter_data(buf)?,
+                    GetStatusIdDescriptionRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Set, ParameterId::ClearStatusId) => Ok(Self::SetClearStatusId),
@@ -995,7 +995,7 @@ impl RequestParameter {
             }
             (CommandClass::Set, ParameterId::SubDeviceIdStatusReportThreshold) => {
                 Ok(Self::SetSubDeviceIdStatusReportThreshold(
-                    SetSubDeviceIdStatusReportThresholdRequest::decode_rdm_parameter_data(buf)?,
+                    SetSubDeviceIdStatusReportThresholdRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::SupportedParameters) => {
@@ -1003,7 +1003,7 @@ impl RequestParameter {
             }
             (CommandClass::Get, ParameterId::ParameterDescription) => {
                 Ok(Self::GetParameterDescription(
-                    GetParameterDescriptionRequest::decode_rdm_parameter_data(buf)?,
+                    GetParameterDescriptionRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::DeviceInfo) => Ok(Self::GetDeviceInfo),
@@ -1016,7 +1016,7 @@ impl RequestParameter {
             (CommandClass::Get, ParameterId::ManufacturerLabel) => Ok(Self::GetManufacturerLabel),
             (CommandClass::Get, ParameterId::DeviceLabel) => Ok(Self::GetDeviceLabel),
             (CommandClass::Set, ParameterId::DeviceLabel) => Ok(Self::SetDeviceLabel(
-                SetDeviceLabelRequest::decode_rdm_parameter_data(buf)?,
+                SetDeviceLabelRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::FactoryDefaults) => Ok(Self::GetFactoryDefaults),
             (CommandClass::Set, ParameterId::FactoryDefaults) => Ok(Self::SetFactoryDefaults),
@@ -1025,7 +1025,7 @@ impl RequestParameter {
             }
             (CommandClass::Get, ParameterId::Language) => Ok(Self::GetLanguage),
             (CommandClass::Set, ParameterId::Language) => Ok(Self::SetLanguage(
-                SetLanguageRequest::decode_rdm_parameter_data(buf)?,
+                SetLanguageRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::SoftwareVersionLabel) => {
                 Ok(Self::GetSoftwareVersionLabel)
@@ -1038,147 +1038,147 @@ impl RequestParameter {
             }
             (CommandClass::Get, ParameterId::DmxPersonality) => Ok(Self::GetDmxPersonality),
             (CommandClass::Set, ParameterId::DmxPersonality) => Ok(Self::SetDmxPersonality(
-                SetDmxPersonalityRequest::decode_rdm_parameter_data(buf)?,
+                SetDmxPersonalityRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DmxPersonalityDescription) => {
                 Ok(Self::GetDmxPersonalityDescription(
-                    GetDmxPersonalityDescriptionRequest::decode_rdm_parameter_data(buf)?,
+                    GetDmxPersonalityDescriptionRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::DmxStartAddress) => Ok(Self::GetDmxStartAddress),
             (CommandClass::Set, ParameterId::DmxStartAddress) => Ok(Self::SetDmxStartAddress(
-                SetDmxStartAddressRequest::decode_rdm_parameter_data(buf)?,
+                SetDmxStartAddressRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::SlotInfo) => Ok(Self::GetSlotInfo),
             (CommandClass::Get, ParameterId::SlotDescription) => Ok(Self::GetSlotDescription(
-                GetSlotDescriptionRequest::decode_rdm_parameter_data(buf)?,
+                GetSlotDescriptionRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DefaultSlotValue) => Ok(Self::GetDefaultSlotValue),
             (CommandClass::Get, ParameterId::SensorDefinition) => Ok(Self::GetSensorDefinition(
-                GetSensorDefinitionRequest::decode_rdm_parameter_data(buf)?,
+                GetSensorDefinitionRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::SensorValue) => Ok(Self::GetSensorValue(
-                GetSensorValueRequest::decode_rdm_parameter_data(buf)?,
+                GetSensorValueRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::SensorValue) => Ok(Self::SetSensorValue(
-                SetSensorValueRequest::decode_rdm_parameter_data(buf)?,
+                SetSensorValueRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::RecordSensors) => Ok(Self::SetRecordSensors(
-                SetRecordSensorsRequest::decode_rdm_parameter_data(buf)?,
+                SetRecordSensorsRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DeviceHours) => Ok(Self::GetDeviceHours),
             (CommandClass::Set, ParameterId::DeviceHours) => Ok(Self::SetDeviceHours(
-                SetDeviceHoursRequest::decode_rdm_parameter_data(buf)?,
+                SetDeviceHoursRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::LampHours) => Ok(Self::GetLampHours),
             (CommandClass::Set, ParameterId::LampHours) => Ok(Self::SetLampHours(
-                SetLampHoursRequest::decode_rdm_parameter_data(buf)?,
+                SetLampHoursRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::LampStrikes) => Ok(Self::GetLampStrikes),
             (CommandClass::Set, ParameterId::LampStrikes) => Ok(Self::SetLampStrikes(
-                SetLampStrikesRequest::decode_rdm_parameter_data(buf)?,
+                SetLampStrikesRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::LampState) => Ok(Self::GetLampState),
             (CommandClass::Set, ParameterId::LampState) => Ok(Self::SetLampState(
-                SetLampStateRequest::decode_rdm_parameter_data(buf)?,
+                SetLampStateRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::LampOnMode) => Ok(Self::GetLampOnMode),
             (CommandClass::Set, ParameterId::LampOnMode) => Ok(Self::SetLampOnMode(
-                SetLampOnModeRequest::decode_rdm_parameter_data(buf)?,
+                SetLampOnModeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DevicePowerCycles) => Ok(Self::GetDevicePowerCycles),
             (CommandClass::Set, ParameterId::DevicePowerCycles) => Ok(Self::SetDevicePowerCycles(
-                SetDevicePowerCyclesRequest::decode_rdm_parameter_data(buf)?,
+                SetDevicePowerCyclesRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DisplayInvert) => Ok(Self::GetDisplayInvert),
             (CommandClass::Set, ParameterId::DisplayInvert) => Ok(Self::SetDisplayInvert(
-                SetDisplayInvertRequest::decode_rdm_parameter_data(buf)?,
+                SetDisplayInvertRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DisplayLevel) => Ok(Self::GetDisplayLevel),
             (CommandClass::Set, ParameterId::DisplayLevel) => Ok(Self::SetDisplayLevel(
-                SetDisplayLevelRequest::decode_rdm_parameter_data(buf)?,
+                SetDisplayLevelRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::PanInvert) => Ok(Self::GetPanInvert),
             (CommandClass::Set, ParameterId::PanInvert) => Ok(Self::SetPanInvert(
-                SetPanInvertRequest::decode_rdm_parameter_data(buf)?,
+                SetPanInvertRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::TiltInvert) => Ok(Self::GetTiltInvert),
             (CommandClass::Set, ParameterId::TiltInvert) => Ok(Self::SetTiltInvert(
-                SetTiltInvertRequest::decode_rdm_parameter_data(buf)?,
+                SetTiltInvertRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::PanTiltSwap) => Ok(Self::GetPanTiltSwap),
             (CommandClass::Set, ParameterId::PanTiltSwap) => Ok(Self::SetPanTiltSwap(
-                SetPanTiltSwapRequest::decode_rdm_parameter_data(buf)?,
+                SetPanTiltSwapRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::RealTimeClock) => Ok(Self::GetRealTimeClock),
             (CommandClass::Set, ParameterId::RealTimeClock) => Ok(Self::SetRealTimeClock(
-                SetRealTimeClockRequest::decode_rdm_parameter_data(buf)?,
+                SetRealTimeClockRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::IdentifyDevice) => Ok(Self::GetIdentifyDevice),
             (CommandClass::Set, ParameterId::IdentifyDevice) => Ok(Self::SetIdentifyDevice(
-                SetIdentifyDeviceRequest::decode_rdm_parameter_data(buf)?,
+                SetIdentifyDeviceRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::ResetDevice) => Ok(Self::SetResetDevice(
-                SetResetDeviceRequest::decode_rdm_parameter_data(buf)?,
+                SetResetDeviceRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::PowerState) => Ok(Self::GetPowerState),
             (CommandClass::Set, ParameterId::PowerState) => Ok(Self::SetPowerState(
-                SetPowerStateRequest::decode_rdm_parameter_data(buf)?,
+                SetPowerStateRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::PerformSelfTest) => Ok(Self::GetPerformSelfTest),
             (CommandClass::Set, ParameterId::PerformSelfTest) => Ok(Self::SetPerformSelfTest(
-                SetPerformSelfTestRequest::decode_rdm_parameter_data(buf)?,
+                SetPerformSelfTestRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::CapturePreset) => Ok(Self::SetCapturePreset(
-                SetCapturePresetRequest::decode_rdm_parameter_data(buf)?,
+                SetCapturePresetRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::SelfTestDescription) => {
                 Ok(Self::GetSelfTestDescription(
-                    GetSelfTestDescriptionRequest::decode_rdm_parameter_data(buf)?,
+                    GetSelfTestDescriptionRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::PresetPlayback) => Ok(Self::GetPresetPlayback),
             (CommandClass::Set, ParameterId::PresetPlayback) => Ok(Self::SetPresetPlayback(
-                SetPresetPlaybackRequest::decode_rdm_parameter_data(buf)?,
+                SetPresetPlaybackRequest::decode_parameter_data(buf)?,
             )),
             // E1.37-1
             (CommandClass::Get, ParameterId::DmxBlockAddress) => Ok(Self::GetDmxBlockAddress),
             (CommandClass::Set, ParameterId::DmxBlockAddress) => Ok(Self::SetDmxBlockAddress(
-                SetDmxBlockAddressRequest::decode_rdm_parameter_data(buf)?,
+                SetDmxBlockAddressRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DmxFailMode) => Ok(Self::GetDmxFailMode),
             (CommandClass::Set, ParameterId::DmxFailMode) => Ok(Self::SetDmxFailMode(
-                SetDmxFailModeRequest::decode_rdm_parameter_data(buf)?,
+                SetDmxFailModeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DmxStartupMode) => Ok(Self::GetDmxStartupMode),
             (CommandClass::Set, ParameterId::DmxStartupMode) => Ok(Self::SetDmxStartupMode(
-                SetDmxStartupModeRequest::decode_rdm_parameter_data(buf)?,
+                SetDmxStartupModeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DimmerInfo) => Ok(Self::GetDimmerInfo),
             (CommandClass::Get, ParameterId::MinimumLevel) => Ok(Self::GetMinimumLevel),
             (CommandClass::Set, ParameterId::MinimumLevel) => Ok(Self::SetMinimumLevel(
-                SetMinimumLevelRequest::decode_rdm_parameter_data(buf)?,
+                SetMinimumLevelRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::MaximumLevel) => Ok(Self::GetMaximumLevel),
             (CommandClass::Set, ParameterId::MaximumLevel) => Ok(Self::SetMaximumLevel(
-                SetMaximumLevelRequest::decode_rdm_parameter_data(buf)?,
+                SetMaximumLevelRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::Curve) => Ok(Self::GetCurve),
-            (CommandClass::Set, ParameterId::Curve) => Ok(Self::SetCurve(
-                SetCurveRequest::decode_rdm_parameter_data(buf)?,
-            )),
+            (CommandClass::Set, ParameterId::Curve) => {
+                Ok(Self::SetCurve(SetCurveRequest::decode_parameter_data(buf)?))
+            }
             (CommandClass::Get, ParameterId::CurveDescription) => Ok(Self::GetCurveDescription(
-                GetCurveDescriptionRequest::decode_rdm_parameter_data(buf)?,
+                GetCurveDescriptionRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::OutputResponseTime) => Ok(Self::GetOutputResponseTime),
             (CommandClass::Set, ParameterId::OutputResponseTime) => {
                 Ok(Self::SetOutputResponseTime(
-                    SetOutputResponseTimeRequest::decode_rdm_parameter_data(buf)?,
+                    SetOutputResponseTimeRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::OutputResponseTimeDescription) => {
                 Ok(Self::GetOutputResponseTimeDescription(
-                    GetOutputResponseTimeDescriptionRequest::decode_rdm_parameter_data(buf)?,
+                    GetOutputResponseTimeDescriptionRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::ModulationFrequency) => {
@@ -1186,191 +1186,191 @@ impl RequestParameter {
             }
             (CommandClass::Set, ParameterId::ModulationFrequency) => {
                 Ok(Self::SetModulationFrequency(
-                    SetModulationFrequencyRequest::decode_rdm_parameter_data(buf)?,
+                    SetModulationFrequencyRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::ModulationFrequencyDescription) => {
                 Ok(Self::GetModulationFrequencyDescription(
-                    GetModulationFrequencyDescriptionRequest::decode_rdm_parameter_data(buf)?,
+                    GetModulationFrequencyDescriptionRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::PowerOnSelfTest) => Ok(Self::GetPowerOnSelfTest),
             (CommandClass::Set, ParameterId::PowerOnSelfTest) => Ok(Self::SetPowerOnSelfTest(
-                SetPowerOnSelfTestRequest::decode_rdm_parameter_data(buf)?,
+                SetPowerOnSelfTestRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::LockState) => Ok(Self::GetLockState),
             (CommandClass::Set, ParameterId::LockState) => Ok(Self::SetLockState(
-                SetLockStateRequest::decode_rdm_parameter_data(buf)?,
+                SetLockStateRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::LockStateDescription) => {
                 Ok(Self::GetLockStateDescription)
             }
             (CommandClass::Get, ParameterId::LockPin) => Ok(Self::GetLockPin),
             (CommandClass::Set, ParameterId::LockPin) => Ok(Self::SetLockPin(
-                SetLockPinRequest::decode_rdm_parameter_data(buf)?,
+                SetLockPinRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::BurnIn) => Ok(Self::GetBurnIn),
             (CommandClass::Set, ParameterId::BurnIn) => Ok(Self::SetBurnIn(
-                SetBurnInRequest::decode_rdm_parameter_data(buf)?,
+                SetBurnInRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::IdentifyMode) => Ok(Self::GetIdentifyMode),
             (CommandClass::Set, ParameterId::IdentifyMode) => Ok(Self::SetIdentifyMode(
-                SetIdentifyModeRequest::decode_rdm_parameter_data(buf)?,
+                SetIdentifyModeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::PresetInfo) => Ok(Self::GetPresetInfo),
             (CommandClass::Get, ParameterId::PresetStatus) => Ok(Self::GetPresetStatus(
-                GetPresetStatusRequest::decode_rdm_parameter_data(buf)?,
+                GetPresetStatusRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::PresetStatus) => Ok(Self::SetPresetStatus(
-                SetPresetStatusRequest::decode_rdm_parameter_data(buf)?,
+                SetPresetStatusRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::PresetMergeMode) => Ok(Self::GetPresetMergeMode),
             (CommandClass::Set, ParameterId::PresetMergeMode) => Ok(Self::SetPresetMergeMode(
-                SetPresetMergeModeRequest::decode_rdm_parameter_data(buf)?,
+                SetPresetMergeModeRequest::decode_parameter_data(buf)?,
             )),
             // E1.37-2
             (CommandClass::Get, ParameterId::ListInterfaces) => Ok(Self::GetListInterfaces),
             (CommandClass::Get, ParameterId::InterfaceLabel) => Ok(Self::GetInterfaceLabel(
-                GetInterfaceLabelRequest::decode_rdm_parameter_data(buf)?,
+                GetInterfaceLabelRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::InterfaceHardwareAddressType1) => {
                 Ok(Self::GetInterfaceHardwareAddressType1(
-                    GetInterfaceHardwareAddressType1Request::decode_rdm_parameter_data(buf)?,
+                    GetInterfaceHardwareAddressType1Request::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::IpV4DhcpMode) => Ok(Self::GetIpV4DhcpMode(
-                GetIpV4DhcpModeRequest::decode_rdm_parameter_data(buf)?,
+                GetIpV4DhcpModeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::IpV4DhcpMode) => Ok(Self::SetIpV4DhcpMode(
-                SetIpV4DhcpModeRequest::decode_rdm_parameter_data(buf)?,
+                SetIpV4DhcpModeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::IpV4ZeroConfMode) => Ok(Self::GetIpV4ZeroConfMode(
-                GetIpV4ZeroConfModeRequest::decode_rdm_parameter_data(buf)?,
+                GetIpV4ZeroConfModeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::IpV4ZeroConfMode) => Ok(Self::SetIpV4ZeroConfMode(
-                SetIpV4ZeroConfModeRequest::decode_rdm_parameter_data(buf)?,
+                SetIpV4ZeroConfModeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::IpV4CurrentAddress) => {
                 Ok(Self::GetIpV4CurrentAddress(
-                    GetIpV4CurrentAddressRequest::decode_rdm_parameter_data(buf)?,
+                    GetIpV4CurrentAddressRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::IpV4StaticAddress) => Ok(Self::GetIpV4StaticAddress(
-                GetIpV4StaticAddressRequest::decode_rdm_parameter_data(buf)?,
+                GetIpV4StaticAddressRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::IpV4StaticAddress) => Ok(Self::SetIpV4StaticAddress(
-                SetIpV4StaticAddressRequest::decode_rdm_parameter_data(buf)?,
+                SetIpV4StaticAddressRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::InterfaceApplyConfiguration) => {
                 Ok(Self::SetInterfaceApplyConfiguration(
-                    SetInterfaceApplyConfigurationRequest::decode_rdm_parameter_data(buf)?,
+                    SetInterfaceApplyConfigurationRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Set, ParameterId::InterfaceRenewDhcp) => {
                 Ok(Self::SetInterfaceRenewDhcp(
-                    SetInterfaceRenewDhcpRequest::decode_rdm_parameter_data(buf)?,
+                    SetInterfaceRenewDhcpRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Set, ParameterId::InterfaceReleaseDhcp) => {
                 Ok(Self::SetInterfaceReleaseDhcp(
-                    SetInterfaceReleaseDhcpRequest::decode_rdm_parameter_data(buf)?,
+                    SetInterfaceReleaseDhcpRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::IpV4DefaultRoute) => Ok(Self::GetIpV4DefaultRoute),
             (CommandClass::Set, ParameterId::IpV4DefaultRoute) => Ok(Self::SetIpV4DefaultRoute(
-                SetIpV4DefaultRouteRequest::decode_rdm_parameter_data(buf)?,
+                SetIpV4DefaultRouteRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DnsIpV4NameServer) => Ok(Self::GetDnsIpV4NameServer(
-                GetDnsIpV4NameServerRequest::decode_rdm_parameter_data(buf)?,
+                GetDnsIpV4NameServerRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::DnsIpV4NameServer) => Ok(Self::SetDnsIpV4NameServer(
-                SetDnsIpv4NameServerRequest::decode_rdm_parameter_data(buf)?,
+                SetDnsIpv4NameServerRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DnsHostName) => Ok(Self::GetDnsHostName),
             (CommandClass::Set, ParameterId::DnsHostName) => Ok(Self::SetDnsHostName(
-                SetDnsHostNameRequest::decode_rdm_parameter_data(buf)?,
+                SetDnsHostNameRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DnsDomainName) => Ok(Self::GetDnsDomainName),
             (CommandClass::Set, ParameterId::DnsDomainName) => Ok(Self::SetDnsDomainName(
-                SetDnsDomainNameRequest::decode_rdm_parameter_data(buf)?,
+                SetDnsDomainNameRequest::decode_parameter_data(buf)?,
             )),
             // E1.37-7
             (CommandClass::Get, ParameterId::EndpointList) => Ok(Self::GetEndpointList),
             (CommandClass::Get, ParameterId::EndpointListChange) => Ok(Self::GetEndpointListChange),
             (CommandClass::Get, ParameterId::IdentifyEndpoint) => Ok(Self::GetIdentifyEndpoint(
-                GetIdentifyEndpointRequest::decode_rdm_parameter_data(buf)?,
+                GetIdentifyEndpointRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::IdentifyEndpoint) => Ok(Self::SetIdentifyEndpoint(
-                SetIdentifyEndpointRequest::decode_rdm_parameter_data(buf)?,
+                SetIdentifyEndpointRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::EndpointToUniverse) => {
                 Ok(Self::GetEndpointToUniverse(
-                    GetEndpointToUniverseRequest::decode_rdm_parameter_data(buf)?,
+                    GetEndpointToUniverseRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Set, ParameterId::EndpointToUniverse) => {
                 Ok(Self::SetEndpointToUniverse(
-                    SetEndpointToUniverseRequest::decode_rdm_parameter_data(buf)?,
+                    SetEndpointToUniverseRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::EndpointMode) => Ok(Self::GetEndpointMode(
-                GetEndpointModeRequest::decode_rdm_parameter_data(buf)?,
+                GetEndpointModeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::EndpointMode) => Ok(Self::SetEndpointMode(
-                SetEndpointModeRequest::decode_rdm_parameter_data(buf)?,
+                SetEndpointModeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::EndpointLabel) => Ok(Self::GetEndpointLabel(
-                GetEndpointLabelRequest::decode_rdm_parameter_data(buf)?,
+                GetEndpointLabelRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::EndpointLabel) => Ok(Self::SetEndpointLabel(
-                SetEndpointLabelRequest::decode_rdm_parameter_data(buf)?,
+                SetEndpointLabelRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::RdmTrafficEnable) => Ok(Self::GetRdmTrafficEnable(
-                GetRdmTrafficEnableRequest::decode_rdm_parameter_data(buf)?,
+                GetRdmTrafficEnableRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::RdmTrafficEnable) => Ok(Self::SetRdmTrafficEnable(
-                SetRdmTrafficEnableRequest::decode_rdm_parameter_data(buf)?,
+                SetRdmTrafficEnableRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::DiscoveryState) => Ok(Self::GetDiscoveryState(
-                GetDiscoveryStateRequest::decode_rdm_parameter_data(buf)?,
+                GetDiscoveryStateRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::DiscoveryState) => Ok(Self::SetDiscoveryState(
-                SetDiscoveryStateRequest::decode_rdm_parameter_data(buf)?,
+                SetDiscoveryStateRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::BackgroundDiscovery) => {
                 Ok(Self::GetBackgroundDiscovery(
-                    GetBackgroundDiscoveryRequest::decode_rdm_parameter_data(buf)?,
+                    GetBackgroundDiscoveryRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Set, ParameterId::BackgroundDiscovery) => {
                 Ok(Self::SetBackgroundDiscovery(
-                    SetBackgroundDiscoveryRequest::decode_rdm_parameter_data(buf)?,
+                    SetBackgroundDiscoveryRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::EndpointTiming) => Ok(Self::GetEndpointTiming(
-                GetEndpointTimingRequest::decode_rdm_parameter_data(buf)?,
+                GetEndpointTimingRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::EndpointTiming) => Ok(Self::SetEndpointTiming(
-                SetEndpointTimingRequest::decode_rdm_parameter_data(buf)?,
+                SetEndpointTimingRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::EndpointTimingDescription) => {
                 Ok(Self::GetEndpointTimingDescription(
-                    GetEndpointTimingDescriptionRequest::decode_rdm_parameter_data(buf)?,
+                    GetEndpointTimingDescriptionRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::EndpointResponders) => {
                 Ok(Self::GetEndpointResponders(
-                    GetEndpointRespondersRequest::decode_rdm_parameter_data(buf)?,
+                    GetEndpointRespondersRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::EndpointResponderListChange) => {
                 Ok(Self::GetEndpointResponderListChange(
-                    GetEndpointResponderListChangeRequest::decode_rdm_parameter_data(buf)?,
+                    GetEndpointResponderListChangeRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::BindingControlFields) => {
                 Ok(Self::GetBindingControlFields(
-                    GetBindingControlFieldsRequest::decode_rdm_parameter_data(buf)?,
+                    GetBindingControlFieldsRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::BackgroundQueuedStatusPolicy) => {
@@ -1378,41 +1378,39 @@ impl RequestParameter {
             }
             (CommandClass::Set, ParameterId::BackgroundQueuedStatusPolicy) => {
                 Ok(Self::SetBackgroundQueuedStatusPolicy(
-                    SetBackgroundQueuedStatusPolicyRequest::decode_rdm_parameter_data(buf)?,
+                    SetBackgroundQueuedStatusPolicyRequest::decode_parameter_data(buf)?,
                 ))
             }
             (CommandClass::Get, ParameterId::BackgroundQueuedStatusPolicyDescription) => {
                 Ok(Self::GetBackgroundQueuedStatusPolicyDescription(
-                    GetBackgroundQueuedStatusPolicyDescriptionRequest::decode_rdm_parameter_data(
-                        buf,
-                    )?,
+                    GetBackgroundQueuedStatusPolicyDescriptionRequest::decode_parameter_data(buf)?,
                 ))
             }
             // E1.33
             (CommandClass::Get, ParameterId::ComponentScope) => Ok(Self::GetComponentScope(
-                GetComponentScopeRequest::decode_rdm_parameter_data(buf)?,
+                GetComponentScopeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Set, ParameterId::ComponentScope) => Ok(Self::SetComponentScope(
-                SetComponentScopeRequest::decode_rdm_parameter_data(buf)?,
+                SetComponentScopeRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::SearchDomain) => Ok(Self::GetSearchDomain),
             (CommandClass::Set, ParameterId::SearchDomain) => Ok(Self::SetSearchDomain(
-                SetSearchDomainRequest::decode_rdm_parameter_data(buf)?,
+                SetSearchDomainRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::TcpCommsStatus) => Ok(Self::GetTcpCommsStatus),
             (CommandClass::Set, ParameterId::TcpCommsStatus) => Ok(Self::SetTcpCommsStatus(
-                SetTcpCommsStatusRequest::decode_rdm_parameter_data(buf)?,
+                SetTcpCommsStatusRequest::decode_parameter_data(buf)?,
             )),
             (CommandClass::Get, ParameterId::BrokerStatus) => Ok(Self::GetBrokerStatus),
             (CommandClass::Set, ParameterId::BrokerStatus) => Ok(Self::SetBrokerStatus(
-                SetBrokerStatusRequest::decode_rdm_parameter_data(buf)?,
+                SetBrokerStatusRequest::decode_parameter_data(buf)?,
             )),
             // Manufacturer or Unsupported
             (command_class, parameter_id) => Ok(Self::CustomParameter(CustomRequestParameter {
                 command_class,
                 parameter_id,
                 parameter_data_length: buf.len() as u8,
-                request: Vec::from_slice(buf).unwrap(),
+                parameter_data: Vec::from_slice(buf).unwrap(),
             })),
         }
     }
@@ -1455,9 +1453,9 @@ impl RdmRequest {
         sub_device_id: SubDeviceId,
         parameter: impl RdmParameter,
     ) -> Result<Self, RdmError> {
-        let mut parameter_data = Vec::new();
+        let mut parameter_data = [0u8; 231];
 
-        let bytes_written = parameter.encode_rdm_parameter_data(&mut parameter_data)?;
+        let bytes_written = parameter.encode_parameter_data(&mut parameter_data)?;
 
         Ok(Self {
             destination_uid,
@@ -1469,7 +1467,7 @@ impl RdmRequest {
                 command_class: parameter.command_class(),
                 parameter_id: parameter.parameter_id(),
                 parameter_data_length: bytes_written as u8,
-                request: parameter_data,
+                parameter_data: Vec::from_slice(&parameter_data[0..bytes_written]).unwrap(),
             }),
         })
     }
@@ -1547,6 +1545,8 @@ impl RdmRequest {
 
 #[cfg(test)]
 mod tests {
+    use rdm_derive::rdm_request_parameter;
+
     use super::*;
 
     #[test]
@@ -1593,7 +1593,7 @@ mod tests {
     }
 
     #[test]
-    fn should_encode_decode_valid_rdm_request() {
+    fn should_encode_decode_valid_request() {
         let mut buf = [0u8; 26];
 
         let frame = RdmRequest::new(
@@ -1631,7 +1631,7 @@ mod tests {
     }
 
     #[test]
-    fn should_encode_decode_manufacturer_specific_rdm_request() {
+    fn should_encode_decode_manufacturer_specific_request() {
         let mut buf = [0u8; 30];
 
         let frame = RdmRequest::new(
@@ -1644,7 +1644,7 @@ mod tests {
                 command_class: CommandClass::Set,
                 parameter_data_length: 4,
                 parameter_id: ParameterId::Custom(0x8080),
-                request: Vec::from_slice(&[0x01, 0x02, 0x03, 0x04]).unwrap(),
+                parameter_data: Vec::from_slice(&[0x01, 0x02, 0x03, 0x04]).unwrap(),
             }),
         );
 
@@ -1662,6 +1662,54 @@ mod tests {
             0x00, 0x00, // Sub-Device ID = Root Device
             0x30, // Command Class = Set
             0x80, 0x80, // Parameter ID = Identify Device
+            0x04, // PDL
+            0x01, 0x02, 0x03, 0x04, // Parameter Data
+            0x02, 0x52, // Checksum
+        ];
+
+        assert_eq!(&buf[0..bytes_encoded], expected);
+
+        let decoded = RdmRequest::decode(&buf[0..bytes_encoded]).unwrap();
+
+        assert_eq!(decoded, frame);
+    }
+
+    #[test]
+    fn should_encode_decode_derived_manufacturer_specific_request() {
+        #[derive(Clone, Debug, PartialEq)]
+        #[rdm_request_parameter(pid = ParameterId::Custom(0x8080), command_class = CommandClass::Set)]
+        struct CustomDerivedParameter {
+            pub some_field: u32,
+        }
+
+        let mut buf = [0u8; 30];
+
+        let frame = RdmRequest::new_custom_parameter(
+            DeviceUID::new(0x0102, 0x03040506),
+            DeviceUID::new(0x0605, 0x04030201),
+            0x00,
+            0x01,
+            SubDeviceId::RootDevice,
+            CustomDerivedParameter {
+                some_field: 0x01020304,
+            },
+        )
+        .unwrap();
+
+        let bytes_encoded = frame.encode(&mut buf).unwrap();
+
+        let expected: &[u8; 30] = &[
+            0xcc, // Start Code
+            0x01, // Sub Start Code
+            0x1c, // Message Length
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, // Destination UID
+            0x06, 0x05, 0x04, 0x03, 0x02, 0x01, // Source UID
+            0x00, // Transaction Number
+            0x01, // Port ID
+            0x00, // Message Count
+            0x00, 0x00, // Sub-Device ID = Root Device
+            0x30, // Command Class = Set
+            0x80, 0x80, // Parameter ID = Manufacturer Specific
             0x04, // PDL
             0x01, 0x02, 0x03, 0x04, // Parameter Data
             0x02, 0x52, // Checksum

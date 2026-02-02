@@ -37,12 +37,12 @@ impl RdmParameterData for StaticConfigType {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let static_config_type =
             StaticConfigType::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(static_config_type)
@@ -74,12 +74,12 @@ impl RdmParameterData for BrokerState {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let broker_state =
             BrokerState::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(broker_state)

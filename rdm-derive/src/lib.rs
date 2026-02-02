@@ -6,7 +6,7 @@ fn encode_step(f: &syn::Field) -> proc_macro2::TokenStream {
     let field_name = &f.ident;
     let ty = &f.ty;
     quote! {
-        offset += <#ty as RdmParameterData>::encode_rdm_parameter_data(&self.#field_name, &mut buf[offset..])?;
+        offset += <#ty as RdmParameterData>::encode_parameter_data(&self.#field_name, &mut buf[offset..])?;
     }
 }
 
@@ -15,7 +15,7 @@ fn decode_step(f: &syn::Field) -> proc_macro2::TokenStream {
     let ty = &f.ty;
     quote! {
         #field_name: {
-            let val = <#ty as RdmParameterData>::decode_rdm_parameter_data(&buf[offset..])?;
+            let val = <#ty as RdmParameterData>::decode_parameter_data(&buf[offset..])?;
             offset += <#ty as RdmParameterData>::size_of(&val);
             val
         }
@@ -93,7 +93,7 @@ pub fn rdm_request_parameter(args: TokenStream, input: TokenStream) -> TokenStre
                 0 #( + #field_sizes)*
             }
 
-            fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_core::error::ParameterCodecError> {
+            fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_core::error::ParameterCodecError> {
                 let size = self.size_of();
 
                 if buf.len() < size {
@@ -110,7 +110,7 @@ pub fn rdm_request_parameter(args: TokenStream, input: TokenStream) -> TokenStre
                 Ok(offset)
             }
 
-            fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
+            fn decode_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
                 let mut offset = 0;
 
                 Ok(Self {
@@ -193,7 +193,7 @@ pub fn rdm_response_parameter(args: TokenStream, input: TokenStream) -> TokenStr
                 0 #( + #field_sizes)*
             }
 
-            fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_core::error::ParameterCodecError> {
+            fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_core::error::ParameterCodecError> {
                 let size = self.size_of();
 
                 if buf.len() < size {
@@ -210,7 +210,7 @@ pub fn rdm_response_parameter(args: TokenStream, input: TokenStream) -> TokenStr
                 Ok(offset)
             }
 
-            fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
+            fn decode_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
                 let mut offset = 0;
 
                 Ok(Self {

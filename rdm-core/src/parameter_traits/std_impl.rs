@@ -14,7 +14,7 @@ where
             .sum::<usize>()
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let size = self.size_of();
 
         if buf.len() < size {
@@ -27,14 +27,14 @@ where
         let mut offset = 0;
 
         for (k, v) in self.iter() {
-            offset += k.encode_rdm_parameter_data(&mut buf[offset..])?;
-            offset += v.encode_rdm_parameter_data(&mut buf[offset..])?;
+            offset += k.encode_parameter_data(&mut buf[offset..])?;
+            offset += v.encode_parameter_data(&mut buf[offset..])?;
         }
 
         Ok(offset)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let size = core::mem::size_of::<K>() + core::mem::size_of::<V>();
 
         let count = buf.len() / size;
@@ -44,10 +44,10 @@ where
         let mut out = HashMap::with_capacity_and_hasher(count, S::default());
 
         for _ in 0..count {
-            let k = K::decode_rdm_parameter_data(&buf[offset..])?;
+            let k = K::decode_parameter_data(&buf[offset..])?;
             offset += core::mem::size_of::<K>();
 
-            let v = V::decode_rdm_parameter_data(&buf[offset..])?;
+            let v = V::decode_parameter_data(&buf[offset..])?;
             offset += core::mem::size_of::<V>();
             out.insert(k, v);
         }
@@ -65,7 +65,7 @@ where
         self.iter().map(|v| v.size_of()).sum::<usize>()
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let size = self.size_of();
 
         if buf.len() < size {
@@ -78,13 +78,13 @@ where
         let mut offset = 0;
 
         for v in self {
-            offset += v.encode_rdm_parameter_data(&mut buf[offset..])?;
+            offset += v.encode_parameter_data(&mut buf[offset..])?;
         }
 
         Ok(offset)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let size = core::mem::size_of::<T>();
 
         let count = buf.len() / size;
@@ -93,7 +93,7 @@ where
         let mut offset = 0;
 
         for _ in 0..count {
-            let val = T::decode_rdm_parameter_data(&buf[offset..])?;
+            let val = T::decode_parameter_data(&buf[offset..])?;
             offset += core::mem::size_of::<T>();
             out.insert(val);
         }
@@ -113,10 +113,10 @@ mod tests {
     {
         let size = value.size_of();
 
-        let written = value.encode_rdm_parameter_data(buf).expect("encode failed");
+        let written = value.encode_parameter_data(buf).expect("encode failed");
         assert_eq!(written, size);
 
-        let decoded = T::decode_rdm_parameter_data(&buf[..written]).expect("decode failed");
+        let decoded = T::decode_parameter_data(&buf[..written]).expect("decode failed");
         assert_eq!(decoded, value);
     }
 

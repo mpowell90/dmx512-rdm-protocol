@@ -996,11 +996,11 @@ Self::SetDnsHostName(_) |
         }
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         match self {
             // E1.20
-            Self::DiscMute(param) => param.encode_rdm_parameter_data(buf),
-            Self::DiscUnMute(param) => param.encode_rdm_parameter_data(buf),
+            Self::DiscMute(param) => param.encode_parameter_data(buf),
+            Self::DiscUnMute(param) => param.encode_parameter_data(buf),
             Self::GetProxiedDeviceCount(param) => param.encode(buf),
             Self::GetProxiedDevices(param) => param.encode(buf),
             Self::GetCommsStatus(param) => param.encode(buf),
@@ -1172,7 +1172,7 @@ Self::SetDnsHostName(_) |
         }
     }
 
-    fn decode_rdm_parameter_data(
+    fn decode_parameter_data(
         response_type: ResponseType,
         command_class: CommandClass,
         parameter_id: ParameterId,
@@ -1181,10 +1181,10 @@ Self::SetDnsHostName(_) |
         match (command_class, parameter_id) {
             // E1.20
             (CommandClass::DiscoveryResponse, ParameterId::DiscMute) => Ok(Self::DiscMute(
-                DiscMuteResponse::decode_rdm_parameter_data(buf)?,
+                DiscMuteResponse::decode_parameter_data(buf)?,
             )),
             (CommandClass::DiscoveryResponse, ParameterId::DiscUnMute) => Ok(Self::DiscUnMute(
-                DiscUnMuteResponse::decode_rdm_parameter_data(buf)?,
+                DiscUnMuteResponse::decode_parameter_data(buf)?,
             )),
             (CommandClass::GetResponse, ParameterId::ProxiedDeviceCount) => {
                 Ok(Self::GetProxiedDeviceCount(ResponseResult::<
@@ -2069,7 +2069,7 @@ impl RdmFrameResponse {
         buf[0] = RDM_START_CODE_BYTE;
         buf[1] = RDM_SUB_START_CODE_BYTE;
 
-        let parameter_data_length = self.parameter.encode_rdm_parameter_data(&mut buf[24..])?;
+        let parameter_data_length = self.parameter.encode_parameter_data(&mut buf[24..])?;
         let message_length = 24 + parameter_data_length;
 
         buf[2] = message_length as u8;
@@ -2135,7 +2135,7 @@ impl RdmFrameResponse {
             transaction_number,
             message_count,
             sub_device_id,
-            parameter: ResponseParameter::decode_rdm_parameter_data(
+            parameter: ResponseParameter::decode_parameter_data(
                 response_type,
                 command_class,
                 parameter_id,

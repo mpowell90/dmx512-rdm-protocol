@@ -132,7 +132,7 @@ macro_rules! impl_rdm_string {
                 ).len()
             }
 
-            fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_core::error::ParameterCodecError> {
+            fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_core::error::ParameterCodecError> {
                 let size = self.size_of();
 
                 if buf.len() < size {
@@ -147,8 +147,8 @@ macro_rules! impl_rdm_string {
                 Ok(size)
             }
 
-            fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
-                Ok(Self(String::decode_rdm_parameter_data($crate::rdm::utils::truncate_at_null(
+            fn decode_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
+                Ok(Self(String::decode_parameter_data($crate::rdm::utils::truncate_at_null(
                     buf,
                 ))?))
             }

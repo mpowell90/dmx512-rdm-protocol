@@ -9,7 +9,7 @@ where
         self.iter().map(|v| v.size_of()).sum()
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let size = self.size_of();
 
         if buf.len() < size {
@@ -22,19 +22,19 @@ where
         let mut offset = 0;
 
         for v in self {
-            offset += v.encode_rdm_parameter_data(&mut buf[offset..])?;
+            offset += v.encode_parameter_data(&mut buf[offset..])?;
         }
 
         Ok(offset)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let mut out = heapless::Vec::<T, N>::new();
 
         let mut offset = 0;
 
         while offset < buf.len() {
-            let t = T::decode_rdm_parameter_data(&buf[offset..])?;
+            let t = T::decode_parameter_data(&buf[offset..])?;
 
             offset += t.size_of();
 
@@ -51,7 +51,7 @@ impl<const N: usize> RdmParameterData for heapless::String<N> {
         self.len()
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let size = self.size_of();
 
         if buf.len() < size {
@@ -66,7 +66,7 @@ impl<const N: usize> RdmParameterData for heapless::String<N> {
         Ok(size)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         heapless::String::<N>::from_str(core::str::from_utf8(buf)?).map_err(Into::into)
     }
 }
@@ -83,10 +83,10 @@ mod tests {
     {
         let size = value.size_of();
 
-        let written = value.encode_rdm_parameter_data(buf).expect("encode failed");
+        let written = value.encode_parameter_data(buf).expect("encode failed");
         assert_eq!(written, size);
 
-        let decoded = T::decode_rdm_parameter_data(&buf[..written]).expect("decode failed");
+        let decoded = T::decode_parameter_data(&buf[..written]).expect("decode failed");
         assert_eq!(decoded, value);
     }
 

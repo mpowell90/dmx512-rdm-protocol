@@ -49,12 +49,12 @@ impl RdmParameterData for PresetProgrammed {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let programmed =
             PresetProgrammed::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(programmed)
@@ -90,12 +90,12 @@ impl RdmParameterData for MergeMode {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let merge_mode =
             MergeMode::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(merge_mode)
@@ -122,12 +122,12 @@ impl RdmParameterData for PinCode {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..2].copy_from_slice(&self.0.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let value = u16::from_be_bytes([buf[0], buf[1]]);
         PinCode::try_from(value).map_err(|_| ParameterCodecError::MalformedData)
     }
@@ -162,13 +162,13 @@ impl RdmParameterData for SupportedTimes {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let value: u16 = (*self).into();
         buf[0..2].copy_from_slice(&value.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let value = u16::from_be_bytes([buf[0], buf[1]]);
         Ok(SupportedTimes::from(value))
     }
@@ -203,13 +203,13 @@ impl RdmParameterData for TimeMode {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let value: u16 = (*self).into();
         buf[0..2].copy_from_slice(&value.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let value = u16::from_be_bytes([buf[0], buf[1]]);
         Ok(TimeMode::from(value))
     }

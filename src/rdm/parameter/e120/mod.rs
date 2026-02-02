@@ -28,7 +28,7 @@ impl RdmParameterData for ControlField {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         if buf.len() < 2 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -41,7 +41,7 @@ impl RdmParameterData for ControlField {
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.len() < 2 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -108,7 +108,7 @@ impl RdmParameterData for ProtocolVersion {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         if buf.len() < 2 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -120,7 +120,7 @@ impl RdmParameterData for ProtocolVersion {
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.len() < 2 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -403,7 +403,7 @@ impl RdmParameterData for ProductDetail {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         if buf.len() < 2 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -416,7 +416,7 @@ impl RdmParameterData for ProductDetail {
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.len() < 2 {
             return Err(ParameterCodecError::MalformedData);
         }
@@ -449,7 +449,7 @@ impl RdmParameterData for ImplementedCommandClass {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         if buf.is_empty() {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -460,7 +460,7 @@ impl RdmParameterData for ImplementedCommandClass {
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.is_empty() {
             return Err(ParameterCodecError::MalformedData);
         }
@@ -581,7 +581,7 @@ impl RdmParameterData for ParameterDataType {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         if buf.is_empty() {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -592,7 +592,7 @@ impl RdmParameterData for ParameterDataType {
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.is_empty() {
             return Err(ParameterCodecError::MalformedData);
         }
@@ -705,12 +705,12 @@ impl RdmParameterData for StatusType {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
         let status_type = StatusType::from_be_bytes([buf[0]]);
         Ok(status_type)
     }
@@ -940,14 +940,14 @@ impl RdmParameterData for ProductCategory {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let bytes = u16::from(*self).to_be_bytes();
         buf[0] = bytes[0];
         buf[1] = bytes[1];
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let category = ProductCategory::from(u16::from_be_bytes([buf[0], buf[1]]));
         Ok(category)
     }
@@ -1000,12 +1000,12 @@ impl RdmParameterData for LampState {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = (*self).into();
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let lamp_state = Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(lamp_state)
     }
@@ -1052,12 +1052,12 @@ impl RdmParameterData for LampOnMode {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = (*self).into();
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let lamp_on_mode =
             Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(lamp_on_mode)
@@ -1091,12 +1091,12 @@ impl RdmParameterData for PowerState {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let power_state = Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(power_state)
     }
@@ -1145,12 +1145,12 @@ impl RdmParameterData for DisplayInvertMode {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let display_invert_mode =
             Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(display_invert_mode)
@@ -1180,12 +1180,12 @@ impl RdmParameterData for ResetDeviceMode {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let reset_device_mode =
             Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(reset_device_mode)
@@ -1224,12 +1224,12 @@ impl RdmParameterData for SelfTest {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = (*self).into();
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let self_test = SelfTest::from_be_bytes([buf[0]]);
         Ok(self_test)
     }
@@ -1277,14 +1277,14 @@ impl RdmParameterData for PresetPlaybackMode {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let bytes = u16::from(*self).to_be_bytes();
         buf[0] = bytes[0];
         buf[1] = bytes[1];
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let mode = PresetPlaybackMode::from(u16::from_be_bytes([buf[0], buf[1]]));
         Ok(mode)
     }
@@ -1302,14 +1302,14 @@ impl RdmParameterData for FadeTimes {
         6
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..2].copy_from_slice(&self.up_fade_time.to_be_bytes());
         buf[2..4].copy_from_slice(&self.down_fade_time.to_be_bytes());
         buf[4..6].copy_from_slice(&self.wait_time.to_be_bytes());
         Ok(6)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         Ok(FadeTimes {
             up_fade_time: u16::from_be_bytes([buf[0], buf[1]]),
             down_fade_time: u16::from_be_bytes([buf[2], buf[3]]),
@@ -1460,7 +1460,7 @@ impl RdmParameterData for StatusMessage {
         9
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         if buf.len() < 9 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -1476,7 +1476,7 @@ impl RdmParameterData for StatusMessage {
         Ok(9)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         Ok(StatusMessage {
             sub_device_id: u16::from_be_bytes([buf[0], buf[1]]).into(),
             status_type: buf[2]
@@ -1556,14 +1556,14 @@ impl RdmParameterData for SlotInfo {
         5
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..2].copy_from_slice(&self.id.to_be_bytes());
         buf[2] = self.kind.into();
         buf[3..5].copy_from_slice(&self.label_id.to_be_bytes());
         Ok(5)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         Ok(SlotInfo {
             id: u16::from_be_bytes([buf[0], buf[1]]),
             kind: SlotType::from(buf[2]),
@@ -1755,13 +1755,13 @@ impl RdmParameterData for DefaultSlotValue {
         3
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..2].copy_from_slice(&self.id.to_be_bytes());
         buf[2] = self.value;
         Ok(3)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         Ok(DefaultSlotValue {
             id: u16::from_be_bytes([buf[0], buf[1]]),
             value: buf[2],
@@ -1900,12 +1900,12 @@ impl RdmParameterData for SensorType {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = (*self).into();
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let sensor_type = Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(sensor_type)
     }
@@ -2028,12 +2028,12 @@ impl RdmParameterData for SensorUnit {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = (*self).into();
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let sensor_unit = Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(sensor_unit)
     }
@@ -2100,12 +2100,12 @@ impl RdmParameterData for SensorUnitPrefix {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = (*self) as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let sensor_unit_prefix =
             Self::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(sensor_unit_prefix)
@@ -2732,7 +2732,7 @@ impl RdmParameterData for Iso639_1 {
         Self::LENGTH
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         if buf.len() < Self::LENGTH {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -2745,7 +2745,7 @@ impl RdmParameterData for Iso639_1 {
         Ok(Self::LENGTH)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.len() < Self::LENGTH {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),

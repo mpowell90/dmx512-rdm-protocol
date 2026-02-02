@@ -438,7 +438,7 @@ impl RdmParameterData for ParameterId {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         if buf.len() < 2 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -451,7 +451,7 @@ impl RdmParameterData for ParameterId {
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.len() < 2 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -554,7 +554,7 @@ impl RdmParameterData for DeviceUID {
         6
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         if buf.len() < 6 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -567,7 +567,7 @@ impl RdmParameterData for DeviceUID {
         Ok(6)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.len() < 6 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -614,13 +614,13 @@ impl RdmParameterData for SubDeviceId {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let value: u16 = (*self).into();
         buf[0..2].copy_from_slice(&value.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.len() < 2 {
             return Err(ParameterCodecError::MalformedData);
         }
@@ -744,12 +744,12 @@ impl RdmParameterData for NackReasonCode {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..2].copy_from_slice(&u16::from(*self).to_be_bytes());
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         if buf.len() < 2 {
             return Err(ParameterCodecError::BufferTooSmall {
                 provided: buf.len(),
@@ -864,12 +864,12 @@ impl RdmParameterData for Duration {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..2].copy_from_slice(&(self.as_millis().saturating_div(100) as u16).to_be_bytes());
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let estimated_response_time = u16::from_be_bytes([buf[0], buf[1]]);
         Ok(Duration::from_millis(
             (estimated_response_time as u64).saturating_mul(100),
@@ -916,9 +916,9 @@ impl<T: RdmParameterData> ResponseResult<T> {
         // }
 
         match self {
-            Self::Ack(data) | Self::AckOverflow(data) => data.encode_rdm_parameter_data(buf),
-            Self::AckTimer(data) => data.encode_rdm_parameter_data(buf),
-            Self::Nack(data) => data.encode_rdm_parameter_data(buf),
+            Self::Ack(data) | Self::AckOverflow(data) => data.encode_parameter_data(buf),
+            Self::AckTimer(data) => data.encode_parameter_data(buf),
+            Self::Nack(data) => data.encode_parameter_data(buf),
         }
 
         // // Encode PID
@@ -948,15 +948,15 @@ impl<T: RdmParameterData> ResponseResult<T> {
         // }
 
         let res = match response_type {
-            ResponseType::Ack => ResponseResult::Ack(T::decode_rdm_parameter_data(buf)?),
+            ResponseType::Ack => ResponseResult::Ack(T::decode_parameter_data(buf)?),
             ResponseType::AckOverflow => {
-                ResponseResult::AckOverflow(T::decode_rdm_parameter_data(buf)?)
+                ResponseResult::AckOverflow(T::decode_parameter_data(buf)?)
             }
             ResponseType::AckTimer => {
-                ResponseResult::AckTimer(Duration::decode_rdm_parameter_data(buf)?)
+                ResponseResult::AckTimer(Duration::decode_parameter_data(buf)?)
             }
             ResponseType::Nack => {
-                ResponseResult::Nack(NackReasonCode::decode_rdm_parameter_data(buf)?)
+                ResponseResult::Nack(NackReasonCode::decode_parameter_data(buf)?)
             }
         };
 

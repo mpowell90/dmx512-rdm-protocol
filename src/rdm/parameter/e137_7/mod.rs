@@ -49,12 +49,12 @@ impl RdmParameterData for DiscoveryState {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = (*self).into();
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let discovery_state =
             DiscoveryState::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(discovery_state)
@@ -93,13 +93,13 @@ impl RdmParameterData for DiscoveryCountStatus {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let value: u16 = (*self).into();
         buf[0..2].copy_from_slice(&value.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let value = u16::from_be_bytes([buf[0], buf[1]]);
         Ok(DiscoveryCountStatus::from(value))
     }
@@ -130,12 +130,12 @@ impl RdmParameterData for EndpointMode {
         1
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let endpoint_mode =
             EndpointMode::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(endpoint_mode)
@@ -150,12 +150,12 @@ impl RdmParameterData for EndpointIdValue {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..2].copy_from_slice(&self.0.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let endpoint_id_value = EndpointIdValue(u16::from_be_bytes([buf[0], buf[1]]));
         Ok(endpoint_id_value)
     }
@@ -208,13 +208,13 @@ impl RdmParameterData for EndpointId {
         2
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         let value: u16 = (*self).into();
         buf[0..2].copy_from_slice(&value.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
         let value = u16::from_be_bytes([buf[0], buf[1]]);
         Ok(EndpointId::from(value))
     }
@@ -249,14 +249,14 @@ impl RdmParameterData for EndpointEntry {
         3
     }
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
         buf[0..2].copy_from_slice(&self.endpoint_id.0.to_be_bytes());
         buf[2] = self.endpoint_type as u8;
         Ok(3)
     }
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-        let endpoint_id = EndpointIdValue::decode_rdm_parameter_data(&buf[0..2])?;
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        let endpoint_id = EndpointIdValue::decode_parameter_data(&buf[0..2])?;
         let endpoint_type =
             EndpointType::try_from(buf[2]).map_err(|_| ParameterCodecError::MalformedData)?;
         Ok(EndpointEntry {

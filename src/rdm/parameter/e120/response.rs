@@ -24,7 +24,7 @@ pub struct DiscoveryUniqueBranchFrameResponse {
 
 impl DiscoveryUniqueBranchFrameResponse {
     pub fn size(&self) -> usize {
-        24 // Fixed size for Discovery Unique Branch Frame
+        24
     }
 
     pub fn encode(&self, buf: &mut [u8]) -> Result<usize, RdmError> {

@@ -6,5 +6,5 @@ pub struct CustomRequestParameter {
     pub command_class: CommandClass,
     pub parameter_id: ParameterId,
     pub parameter_data_length: u8,
-    pub request: Vec<u8, 231>,
+    pub parameter_data: Vec<u8, 231>,
 }

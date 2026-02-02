@@ -10,9 +10,9 @@ pub mod std_impl;
 pub trait RdmParameterData: Sized {
     fn size_of(&self) -> usize;
 
-    fn encode_rdm_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
 
-    fn decode_rdm_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError>;
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError>;
 }
 
 pub trait RdmParameter: RdmParameterData {
