@@ -3,7 +3,7 @@ use crate::rdm::parameter::e137_7::{
     EndpointIdValue, EndpointLabel, EndpointMode, EndpointTimingDescription,
 };
 use heapless::Vec;
-use rdm_core::{CommandClass, DeviceUID, ParameterId, parameter_traits::RdmParameterData};
+use rdm_core::{CommandClass, DeviceUID, ParameterId};
 use rdm_derive::rdm_response_parameter;
 
 #[derive(Clone, Debug, PartialEq)]

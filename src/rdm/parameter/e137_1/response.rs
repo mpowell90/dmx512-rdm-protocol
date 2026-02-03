@@ -5,7 +5,7 @@ use crate::rdm::parameter::{
     },
     e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
 };
-use rdm_core::{CommandClass, ParameterId, parameter_traits::RdmParameterData};
+use rdm_core::{CommandClass, ParameterId};
 use rdm_derive::rdm_response_parameter;
 
 #[derive(Clone, Debug, PartialEq)]

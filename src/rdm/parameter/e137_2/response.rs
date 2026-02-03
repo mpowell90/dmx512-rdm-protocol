@@ -2,7 +2,7 @@ use crate::rdm::parameter::e137_2::{
     DhcpMode, DnsDomainName, DnsHostName, InterfaceLabel, Ipv4Address, Ipv4Route, MacAddress,
     NetworkInterface,
 };
-use rdm_core::{CommandClass, ParameterId, parameter_traits::RdmParameterData};
+use rdm_core::{CommandClass, ParameterId};
 use rdm_derive::rdm_response_parameter;
 
 #[derive(Clone, Debug, PartialEq)]

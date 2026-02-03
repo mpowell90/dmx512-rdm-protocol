@@ -2,7 +2,7 @@ use crate::rdm::parameter::e120::{
     DeviceLabel, DisplayInvertMode, FadeTimes, Iso639_1, LampOnMode, LampState, PowerState,
     PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType,
 };
-use rdm_core::{CommandClass, DeviceUID, ParameterId, parameter_traits::RdmParameterData};
+use rdm_core::{CommandClass, DeviceUID, ParameterId};
 use rdm_derive::rdm_request_parameter;
 
 #[derive(Copy, Clone, Debug, PartialEq)]

@@ -1,5 +1,5 @@
 use crate::rdm::parameter::e137_2::{DnsDomainName, DnsHostName, Ipv4Address, Ipv4Route};
-use rdm_core::{CommandClass, ParameterId, parameter_traits::RdmParameterData};
+use rdm_core::{CommandClass, ParameterId};
 use rdm_derive::rdm_request_parameter;
 
 #[derive(Clone, Debug, PartialEq)]

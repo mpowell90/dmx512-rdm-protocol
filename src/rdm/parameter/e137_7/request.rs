@@ -1,5 +1,5 @@
 use crate::rdm::parameter::e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode};
-use rdm_core::{CommandClass, DeviceUID, ParameterId, parameter_traits::RdmParameterData};
+use rdm_core::{CommandClass, DeviceUID, ParameterId};
 use rdm_derive::rdm_request_parameter;
 
 #[derive(Clone, Debug, PartialEq)]

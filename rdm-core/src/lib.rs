@@ -905,31 +905,11 @@ impl<T: RdmParameterData> ResponseResult<T> {
     }
 
     pub fn encode(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        // let size_of_parameter_data = self.size_of();
-        // let required_size = 4 + size_of_parameter_data;
-
-        // if buf.len() < required_size {
-        //     return Err(ParameterCodecError::BufferTooSmall {
-        //         provided: buf.len(),
-        //         required: required_size,
-        //     });
-        // }
-
         match self {
             Self::Ack(data) | Self::AckOverflow(data) => data.encode_parameter_data(buf),
             Self::AckTimer(data) => data.encode_parameter_data(buf),
             Self::Nack(data) => data.encode_parameter_data(buf),
         }
-
-        // // Encode PID
-        // buf[0] = self.command_class();
-        // buf[1..3].copy_from_slice(&self.parameter_id().to_be_bytes());
-        // buf[3] = size_of_parameter_data as u8;
-
-        // // Encode parameter data
-        // let data_size =
-
-        // Ok(data_size + 4)
     }
 
     pub fn decode(response_type: ResponseType, buf: &[u8]) -> Result<Self, ParameterCodecError> {
@@ -955,9 +935,7 @@ impl<T: RdmParameterData> ResponseResult<T> {
             ResponseType::AckTimer => {
                 ResponseResult::AckTimer(Duration::decode_parameter_data(buf)?)
             }
-            ResponseType::Nack => {
-                ResponseResult::Nack(NackReasonCode::decode_parameter_data(buf)?)
-            }
+            ResponseType::Nack => ResponseResult::Nack(NackReasonCode::decode_parameter_data(buf)?),
         };
 
         Ok(res)

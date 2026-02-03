@@ -2,7 +2,7 @@ use crate::rdm::parameter::{
     e133::{BrokerState, Scope, SearchDomain, StaticConfigType},
     e137_2::{Ipv4Address, Ipv6Address},
 };
-use rdm_core::{CommandClass, ParameterId, parameter_traits::RdmParameterData};
+use rdm_core::{CommandClass, ParameterId};
 use rdm_derive::rdm_request_parameter;
 
 #[derive(Clone, Debug, PartialEq)]

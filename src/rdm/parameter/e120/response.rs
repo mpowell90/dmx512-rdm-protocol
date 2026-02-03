@@ -12,9 +12,7 @@ use crate::rdm::{
     utils::bsd_16_crc,
 };
 use heapless::Vec;
-use rdm_core::{
-    CommandClass, DeviceUID, ParameterId, error::RdmError, parameter_traits::RdmParameterData,
-};
+use rdm_core::{CommandClass, DeviceUID, ParameterId, error::RdmError};
 use rdm_derive::rdm_response_parameter;
 
 #[derive(Copy, Clone, Debug, PartialEq)]

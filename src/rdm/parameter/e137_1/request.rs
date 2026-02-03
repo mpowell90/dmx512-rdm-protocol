@@ -2,7 +2,7 @@ use crate::rdm::parameter::{
     e120::{PresetPlaybackMode, SelfTest},
     e137_1::{MergeMode, PinCode, TimeMode},
 };
-use rdm_core::{CommandClass, ParameterId, parameter_traits::RdmParameterData};
+use rdm_core::{CommandClass, ParameterId};
 use rdm_derive::rdm_request_parameter;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
