@@ -784,81 +784,6 @@ impl TryFrom<u8> for ResponseType {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct AckTimerParameter {
-    pub command_class: u8,
-    pub parameter_id: u16,
-    pub estimated_response_time: u16,
-}
-
-// impl RdmResponseParameterCodec for AckTimerParameter {
-//     fn command_class(&self) -> u8 {
-//         self.command_class
-//     }
-
-//     fn parameter_id(&self) -> u16 {
-//         self.parameter_id
-//     }
-
-//     fn size_of_parameter(&self) -> usize {
-//         6
-//     }
-
-//     fn encode_parameter(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-//         if buf.len() < 6 {
-//             return Err(ParameterCodecError::BufferTooSmall {
-//                 provided: buf.len(),
-//                 required: 6,
-//             });
-//         }
-
-//         buf[0] = self.command_class();
-//         buf[1..3].copy_from_slice(&self.parameter_id().to_be_bytes());
-//         buf[3] = 0x02; // parameter data length
-
-//         buf[4..6].copy_from_slice(&self.estimated_response_time.to_be_bytes());
-
-//         Ok(6)
-//     }
-
-//     fn decode_parameter(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-//         if buf.len() < 6 {
-//             return Err(ParameterCodecError::BufferTooSmall {
-//                 provided: buf.len(),
-//                 required: 6,
-//             });
-//         }
-
-//         Ok(AckTimerParameter {
-//             command_class: buf[0],
-//             parameter_id: u16::from_be_bytes([buf[1], buf[2]]),
-//             estimated_response_time: u16::from_be_bytes([buf[4], buf[5]]),
-//         })
-//     }
-// }
-
-// #[derive(Copy, Clone, Debug, PartialEq)]
-// pub struct NackReasonParameter {
-//     pub command_class: u8,
-//     pub parameter_id: u16,
-//     pub nack_reason_code: NackReasonCode,
-// }
-
-// #[derive(Clone, Debug, PartialEq)]
-// pub struct ResponseMessageDataBlock<T: RdmParameterData> {
-//     pub message_count: u8,
-//     pub sub_device_id: SubDeviceId,
-//     pub response: ResponseResult<T>,
-// }
-
-// #[derive(Clone, Debug, PartialEq)]
-// pub enum ResponseResult2<T: RdmParameterData> {
-//     Ack(T),
-//     AckOverflow(T),
-//     AckTimer(AckTimerParameter),
-//     Nack(NackReasonParameter),
-// }
-
 impl RdmParameterData for Duration {
     fn size_of(&self) -> usize {
         2
@@ -913,6 +838,7 @@ impl<T: RdmParameterData> ResponseResult<T> {
     }
 
     pub fn decode(response_type: ResponseType, buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        // TODO consider how we handle parameter data length checks here
         // if buf.len() < 8 {
         //     return Err(ParameterCodecError::BufferTooSmall {
         //         provided: buf.len(),

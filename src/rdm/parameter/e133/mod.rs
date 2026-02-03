@@ -86,12 +86,12 @@ impl RdmParameterData for BrokerState {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Default, PartialEq, Hash)]
 pub struct SearchDomain(String<{ SearchDomain::MAX_LENGTH }>);
 
 impl_rdm_string!(SearchDomain, 231);
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub struct Scope(String<{ Scope::MAX_LENGTH }>);
 
 impl_rdm_string!(Scope, 63);

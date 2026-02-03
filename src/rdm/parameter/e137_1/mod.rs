@@ -5,6 +5,7 @@ use rdm_core::{
     error::{ParameterCodecError, RdmError},
     parameter_traits::RdmParameterData,
 };
+use rdm_derive::RdmParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum IdentifyMode {
@@ -102,7 +103,7 @@ impl RdmParameterData for MergeMode {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, RdmParameterData)]
 pub struct PinCode(pub u16);
 
 impl TryFrom<u16> for PinCode {
@@ -114,22 +115,6 @@ impl TryFrom<u16> for PinCode {
         } else {
             Ok(Self(value))
         }
-    }
-}
-
-impl RdmParameterData for PinCode {
-    fn size_of(&self) -> usize {
-        2
-    }
-
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        buf[0..2].copy_from_slice(&self.0.to_be_bytes());
-        Ok(2)
-    }
-
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-        let value = u16::from_be_bytes([buf[0], buf[1]]);
-        PinCode::try_from(value).map_err(|_| ParameterCodecError::MalformedData)
     }
 }
 

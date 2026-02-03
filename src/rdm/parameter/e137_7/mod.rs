@@ -266,17 +266,17 @@ impl RdmParameterData for EndpointEntry {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct EndpointLabel(String<{ EndpointLabel::MAX_LENGTH }>);
 
 impl_rdm_string!(EndpointLabel, 231);
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct EndpointTimingDescription(String<{ EndpointTimingDescription::MAX_LENGTH }>);
 
 impl_rdm_string!(EndpointTimingDescription, 32);
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct BackgroundQueuedStatusPolicyDescription(
     String<{ BackgroundQueuedStatusPolicyDescription::MAX_LENGTH }>,
 );

@@ -9,6 +9,7 @@ use rdm_core::{
     error::{ParameterCodecError, RdmError},
     parameter_traits::RdmParameterData,
 };
+use rdm_derive::RdmParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DhcpMode {
@@ -397,42 +398,38 @@ impl From<HardwareType> for u16 {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+impl RdmParameterData for HardwareType {
+    fn size_of(&self) -> usize {
+        2
+    }
+
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+        buf[0..2].copy_from_slice(&u16::from(*self).to_be_bytes());
+        Ok(2)
+    }
+
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        Ok(u16::from_be_bytes([buf[0], buf[1]]).into())
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, RdmParameterData)]
 pub struct NetworkInterface {
     pub interface_id: u32,
     pub hardware_type: HardwareType,
 }
 
-impl RdmParameterData for NetworkInterface {
-    fn size_of(&self) -> usize {
-        6
-    }
-
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        buf[0..4].copy_from_slice(&self.interface_id.to_be_bytes());
-        buf[4..6].copy_from_slice(&u16::from(self.hardware_type).to_be_bytes());
-        Ok(6)
-    }
-
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-        Ok(Self {
-            interface_id: u32::from_be_bytes([buf[0], buf[1], buf[2], buf[3]]),
-            hardware_type: u16::from_be_bytes([buf[4], buf[5]]).into(),
-        })
-    }
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct InterfaceLabel(String<{ InterfaceLabel::MAX_LENGTH }>);
 
 impl_rdm_string!(InterfaceLabel, 32);
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DnsHostName(String<{ DnsHostName::MAX_LENGTH }>);
 
 impl_rdm_string!(DnsHostName, 63);
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DnsDomainName(String<{ DnsDomainName::MAX_LENGTH }>);
 
 impl_rdm_string!(DnsDomainName, 231);

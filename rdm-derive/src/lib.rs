@@ -13,34 +13,6 @@ fn get_field_accessor(f: &syn::Field, index: usize) -> proc_macro2::TokenStream 
     }
 }
 
-fn encode_step((i, f): (usize, &syn::Field)) -> proc_macro2::TokenStream {
-    let accessor = get_field_accessor(f, i);
-    let ty = &f.ty;
-
-    quote! {
-        offset += <#ty as rdm_core::parameter_traits::RdmParameterData>::encode_parameter_data(&self.#accessor, &mut buf[offset..])?;
-    }
-}
-
-// fn decode_step((i, f): (usize, &syn::Field)) -> proc_macro2::TokenStream {
-//     let ty = &f.ty;
-
-//     // The logic to read the value is the same
-//     let value_expr = quote! {
-//         {
-//             let val = <#ty as rdm_core::parameter_traits::RdmParameterData>::decode_parameter_data(&buf[offset..])?;
-//             offset += <#ty as rdm_core::parameter_traits::RdmParameterData>::size_of(&val);
-//             val
-//         }
-//     };
-
-//     // If named, we need "name: value". If tuple, just "value".
-//     match &f.ident {
-//         Some(ident) => quote! { #ident: #value_expr },
-//         None => quote! { #value_expr },
-//     }
-// }
-
 fn field_size(pair: (usize, &syn::Field)) -> proc_macro2::TokenStream {
     let (i, f) = pair;
     let accessor = get_field_accessor(f, i);
@@ -59,7 +31,14 @@ pub fn derive_rdm_parameter_data(input: TokenStream) -> TokenStream {
         _ => panic!("Only structs supported"),
     };
 
-    let encode_steps = fields_data.iter().enumerate().map(encode_step);
+    let encode_steps = fields_data.iter().enumerate().map(|(i, f)| {
+        let accessor = get_field_accessor(f, i);
+        let ty = &f.ty;
+
+        quote! {
+            offset += <#ty as rdm_core::parameter_traits::RdmParameterData>::encode_parameter_data(&self.#accessor, &mut buf[offset..])?;
+        }
+    });
 
     let decode_values = fields_data.iter().map(|f| {
         let ty = &f.ty;

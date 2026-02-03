@@ -365,7 +365,7 @@ impl RdmParameterData for ProductDetail {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ImplementedCommandClass {
     Get = 0x01,
     Set = 0x02,
@@ -411,7 +411,7 @@ impl RdmParameterData for ImplementedCommandClass {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterDataType {
     NotDefined,
     BitField,
@@ -557,7 +557,7 @@ pub enum ConvertedParameterValue {
 
 pub const PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ParameterDescriptionLabel(String<PARAMETER_DESCRIPTION_LABEL_MAX_LENGTH>);
 impl_rdm_string!(
     ParameterDescriptionLabel,
@@ -566,7 +566,7 @@ impl_rdm_string!(
 
 pub const DMX_PERSONALITY_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DmxPersonalityDescription(String<DMX_PERSONALITY_DESCRIPTION_MAX_LENGTH>);
 
 impl_rdm_string!(
@@ -576,42 +576,42 @@ impl_rdm_string!(
 
 pub const SLOT_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct SlotDescription(String<SLOT_DESCRIPTION_MAX_LENGTH>);
 
 impl_rdm_string!(SlotDescription, SLOT_DESCRIPTION_MAX_LENGTH);
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DeviceLabel(String<{ DeviceLabel::MAX_LENGTH }>);
 
 impl_rdm_string!(DeviceLabel, 32);
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct DeviceModelDescription(String<{ DeviceModelDescription::MAX_LENGTH }>);
 
 impl_rdm_string!(DeviceModelDescription, 32);
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ManufacturerLabel(String<{ ManufacturerLabel::MAX_LENGTH }>);
 
 impl_rdm_string!(ManufacturerLabel, 32);
 
 pub const SOFTWARE_VERSION_LABEL_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct SoftwareVersionLabel(String<SOFTWARE_VERSION_LABEL_MAX_LENGTH>);
 impl_rdm_string!(SoftwareVersionLabel, SOFTWARE_VERSION_LABEL_MAX_LENGTH);
 
 pub const BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct BootSoftwareVersionLabel(String<BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH>);
 impl_rdm_string!(
     BootSoftwareVersionLabel,
     BOOT_SOFTWARE_VERSION_LABEL_MAX_LENGTH
 );
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StatusType {
     None = 0x00,
     GetLastMessage = 0x01,
@@ -624,9 +624,9 @@ pub enum StatusType {
 }
 
 impl TryFrom<u8> for StatusType {
-    type Error = RdmError;
+    type Error = ParameterCodecError;
 
-    fn try_from(value: u8) -> Result<Self, RdmError> {
+    fn try_from(value: u8) -> Result<Self, ParameterCodecError> {
         match value {
             0x00 => Ok(Self::None),
             0x01 => Ok(Self::GetLastMessage),
@@ -636,8 +636,14 @@ impl TryFrom<u8> for StatusType {
             0x12 => Ok(Self::AdvisoryCleared),
             0x13 => Ok(Self::WarningCleared),
             0x14 => Ok(Self::ErrorCleared),
-            _ => Err(RdmError::InvalidStatusType(value)),
+            _ => Err(ParameterCodecError::MalformedData),
         }
+    }
+}
+
+impl From<StatusType> for u8 {
+    fn from(value: StatusType) -> Self {
+        value as u8
     }
 }
 
@@ -651,19 +657,8 @@ impl RdmParameterData for StatusType {
         Ok(1)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
-        let status_type = StatusType::from_be_bytes([buf[0]]);
-        Ok(status_type)
-    }
-}
-
-impl StatusType {
-    pub fn from_be_bytes(bytes: [u8; 1]) -> Self {
-        Self::try_from(bytes[0]).unwrap() // TODO consider error handling
-    }
-
-    pub fn to_be_bytes(&self) -> [u8; 1] {
-        [*self as u8]
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+        StatusType::try_from(buf[0])
     }
 }
 
@@ -1269,20 +1264,20 @@ pub enum StatusMessageIdDefinition {
 
 pub const STATUS_ID_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct StatusIdDescription(String<STATUS_ID_DESCRIPTION_MAX_LENGTH>);
 impl_rdm_string!(StatusIdDescription, STATUS_ID_DESCRIPTION_MAX_LENGTH);
 
 pub const STATUS_MESSAGE_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct StatusMessageDescription(String<STATUS_MESSAGE_DESCRIPTION_MAX_LENGTH>);
 impl_rdm_string!(
     StatusMessageDescription,
     STATUS_MESSAGE_DESCRIPTION_MAX_LENGTH
 );
 
-#[derive(Clone, Debug, PartialEq, Eq, RdmParameterData)]
+#[derive(Clone, Debug, PartialEq, RdmParameterData)]
 pub struct StatusMessage {
     pub sub_device_id: SubDeviceId,
     pub status_type: StatusType,
@@ -1375,7 +1370,7 @@ impl StatusMessage {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum SlotType {
     Primary,
@@ -1630,26 +1625,7 @@ impl DefaultSlotValue {
     }
 }
 
-// impl RdmParameterData for DefaultSlotValue {
-//     fn size_of(&self) -> usize {
-//         3
-//     }
-
-//     fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-//         buf[0..2].copy_from_slice(&self.id.to_be_bytes());
-//         buf[2] = self.value;
-//         Ok(3)
-//     }
-
-//     fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-//         Ok(DefaultSlotValue {
-//             id: u16::from_be_bytes([buf[0], buf[1]]),
-//             value: buf[2],
-//         })
-//     }
-// }
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum SensorType {
     Temperature,
@@ -1791,7 +1767,7 @@ impl RdmParameterData for SensorType {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 #[non_exhaustive]
 pub enum SensorUnit {
     None,
@@ -1919,7 +1895,7 @@ impl RdmParameterData for SensorUnit {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SensorUnitPrefix {
     None = 0x00,
     Deci = 0x01,
@@ -1994,7 +1970,7 @@ impl RdmParameterData for SensorUnitPrefix {
 
 pub const SENSOR_DEFINITION_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct SensorDefinitionDescription(String<SENSOR_DEFINITION_DESCRIPTION_MAX_LENGTH>);
 
 impl_rdm_string!(
@@ -2003,7 +1979,7 @@ impl_rdm_string!(
 );
 
 // ISO 639-1 Language Codes copied from https://github.com/AlbanMinassian/iso639
-#[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Iso639_1 {
     Aa, // Afar
     Ab, // Abkhaz
@@ -2614,25 +2590,25 @@ impl RdmParameterData for Iso639_1 {
 
 pub const SELF_TEST_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct SelfTestDescription(String<SELF_TEST_DESCRIPTION_MAX_LENGTH>);
 impl_rdm_string!(SelfTestDescription, SELF_TEST_DESCRIPTION_MAX_LENGTH);
 
 pub const LOCK_STATE_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct LockStateDescription(String<LOCK_STATE_DESCRIPTION_MAX_LENGTH>);
 impl_rdm_string!(LockStateDescription, LOCK_STATE_DESCRIPTION_MAX_LENGTH);
 
 pub const CURVE_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct CurveDescription(String<CURVE_DESCRIPTION_MAX_LENGTH>);
 impl_rdm_string!(CurveDescription, CURVE_DESCRIPTION_MAX_LENGTH);
 
 pub const OUTPUT_RESPONSE_TIME_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct OutputResponseTimeDescription(String<OUTPUT_RESPONSE_TIME_DESCRIPTION_MAX_LENGTH>);
 impl_rdm_string!(
     OutputResponseTimeDescription,
@@ -2641,7 +2617,7 @@ impl_rdm_string!(
 
 pub const MODULATION_FREQUENCY_DESCRIPTION_MAX_LENGTH: usize = 32;
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ModulationFrequencyDescription(String<MODULATION_FREQUENCY_DESCRIPTION_MAX_LENGTH>);
 impl_rdm_string!(
     ModulationFrequencyDescription,
