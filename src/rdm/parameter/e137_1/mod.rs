@@ -1,11 +1,13 @@
 pub mod request;
 pub mod response;
 
-use rdm_core::{
-    error::{ParameterDataError, RdmError},
-    parameter_traits::RdmParameterData,
+use crate::rdm::{
+    core::{
+        error::{ParameterDataError, RdmError},
+        parameter_traits::RdmParameterData,
+    },
+    derive::ParameterData,
 };
-use rdm_derive::ParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum IdentifyMode {

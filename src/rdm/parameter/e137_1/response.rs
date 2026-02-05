@@ -1,12 +1,14 @@
-use crate::rdm::parameter::{
-    e120::{
-        CurveDescription, LockStateDescription, ModulationFrequencyDescription,
-        OutputResponseTimeDescription, PresetPlaybackMode,
+use crate::rdm::{
+    core::{CommandClass, ParameterId},
+    derive::rdm_parameter,
+    parameter::{
+        e120::{
+            CurveDescription, LockStateDescription, ModulationFrequencyDescription,
+            OutputResponseTimeDescription, PresetPlaybackMode,
+        },
+        e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
     },
-    e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
 };
-use rdm_core::{CommandClass, ParameterId};
-use rdm_derive::rdm_parameter;
 
 #[derive(Clone, Debug, PartialEq)]
 #[rdm_parameter(pid = ParameterId::DmxBlockAddress, command_class = CommandClass::GetResponse)]

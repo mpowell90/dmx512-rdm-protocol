@@ -1,15 +1,19 @@
 pub mod request;
 pub mod response;
 
-use crate::impl_rdm_string;
+use crate::{
+    impl_rdm_string,
+    rdm::{
+        core::{
+            error::{ParameterDataError, RdmError},
+            parameter_traits::RdmParameterData,
+        },
+        derive::ParameterData,
+    },
+};
 use core::net::{Ipv4Addr, Ipv6Addr};
 use heapless::String;
 use macaddr::MacAddr6;
-use rdm_core::{
-    error::{ParameterDataError, RdmError},
-    parameter_traits::RdmParameterData,
-};
-use rdm_derive::ParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DhcpMode {

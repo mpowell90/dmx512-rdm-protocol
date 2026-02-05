@@ -1,6 +1,8 @@
-use crate::rdm::parameter::e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode};
-use rdm_core::{CommandClass, DeviceUID, ParameterId};
-use rdm_derive::rdm_parameter;
+use crate::rdm::{
+    core::{CommandClass, DeviceUID, ParameterId},
+    derive::rdm_parameter,
+    parameter::e137_7::{DiscoveryState, EndpointId, EndpointLabel, EndpointMode},
+};
 
 #[derive(Clone, Debug, PartialEq)]
 #[rdm_parameter(pid = ParameterId::IdentifyEndpoint, command_class = CommandClass::Get)]

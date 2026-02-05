@@ -1,10 +1,12 @@
-use crate::rdm::parameter::e137_7::{
-    BackgroundQueuedStatusPolicyDescription, DiscoveryCountStatus, DiscoveryState, EndpointEntry,
-    EndpointId, EndpointLabel, EndpointMode, EndpointTimingDescription,
+use crate::rdm::{
+    core::{CommandClass, DeviceUID, ParameterId},
+    derive::rdm_parameter,
+    parameter::e137_7::{
+        BackgroundQueuedStatusPolicyDescription, DiscoveryCountStatus, DiscoveryState,
+        EndpointEntry, EndpointId, EndpointLabel, EndpointMode, EndpointTimingDescription,
+    },
 };
 use heapless::Vec;
-use rdm_core::{CommandClass, DeviceUID, ParameterId};
-use rdm_derive::rdm_parameter;
 
 #[derive(Clone, Debug, PartialEq)]
 #[rdm_parameter(pid = ParameterId::EndpointList, command_class = CommandClass::Get)]

@@ -1,9 +1,11 @@
-use crate::rdm::parameter::{
-    e120::{PresetPlaybackMode, SelfTest},
-    e137_1::{MergeMode, PinCode, TimeMode},
+use crate::rdm::{
+    core::{CommandClass, ParameterId},
+    derive::rdm_parameter,
+    parameter::{
+        e120::{PresetPlaybackMode, SelfTest},
+        e137_1::{MergeMode, PinCode, TimeMode},
+    },
 };
-use rdm_core::{CommandClass, ParameterId};
-use rdm_derive::rdm_parameter;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[rdm_parameter(pid = ParameterId::DmxBlockAddress, command_class = CommandClass::Set)]

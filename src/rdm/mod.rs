@@ -1,13 +1,18 @@
 //! Data types and functionality for encoding and decoding RDM packets
 
+pub mod core {
+    pub use rdm_core::*;
+}
+pub mod derive {
+    pub use rdm_derive::*;
+}
 pub mod parameter;
 pub mod request;
 pub mod response;
-pub mod utils;
 
 use crate::rdm::{request::RdmRequest, response::RdmResponse};
+use core::{CommandClass, RdmFrameKind, error::RdmError};
 pub use macaddr;
-use rdm_core::{CommandClass, RdmFrameKind, error::RdmError};
 
 pub const RDM_START_CODE_BYTE: u8 = 0xcc;
 pub const RDM_SUB_START_CODE_BYTE: u8 = 0x01;
@@ -101,5 +106,94 @@ impl<'a> RdmFrameView<'a> {
             RdmFrameKind::Request => Ok(RdmFrame::Request(RdmRequest::decode(self.0)?)),
             RdmFrameKind::Response => Ok(RdmFrame::Response(RdmResponse::decode(self.0)?)),
         }
+    }
+}
+
+#[macro_export]
+macro_rules! impl_rdm_string {
+    ($t:ty, $e:expr) => {
+        impl $t {
+            pub const MAX_LENGTH: usize = $e;
+        }
+
+        impl core::ops::Deref for $t {
+            type Target = str;
+
+            fn deref(&self) -> &Self::Target {
+                self.0.as_str()
+            }
+        }
+
+        impl core::ops::DerefMut for $t {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                self.0.as_mut_str()
+            }
+        }
+
+        impl core::str::FromStr for $t {
+            type Err = $crate::rdm::core::error::ParameterDataError;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                Ok(Self(String::<{ Self::MAX_LENGTH }>::from_str(s.trim_end_matches('\0'))?))
+            }
+        }
+
+        impl $crate::rdm::core::parameter_traits::RdmParameterData for $t {
+            fn size_of(&self) -> usize {
+                $crate::rdm::core::utils::truncate_at_null(
+                    self.0.as_bytes()
+                ).len()
+            }
+
+            fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, $crate::rdm::core::error::ParameterDataError> {
+                let size = self.size_of();
+
+                if buf.len() < size {
+                    return Err($crate::rdm::core::error::ParameterDataError::BufferTooSmall {
+                        provided: buf.len(),
+                        required: size,
+                    });
+                }
+
+                buf[..size].copy_from_slice($crate::rdm::core::utils::truncate_at_null(self.0.as_bytes()));
+
+                Ok(size)
+            }
+
+            fn decode_parameter_data(buf: &[u8]) -> Result<Self, $crate::rdm::core::error::ParameterDataError> {
+                Ok(Self(String::decode_parameter_data($crate::rdm::core::utils::truncate_at_null(
+                    buf,
+                ))?))
+            }
+        }
+    };
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::rdm::core::parameter_traits::RdmParameterData;
+    use heapless::String;
+    use std::str::FromStr;
+
+    const MAX_LEN: usize = 10;
+    #[derive(Clone, Debug, PartialEq)]
+    struct TestString(String<MAX_LEN>);
+    impl_rdm_string!(TestString, MAX_LEN);
+
+    #[test]
+    fn should_encode_decode_rdm_string() {
+        let original = TestString::from_str("Hello").unwrap();
+        let mut buffer = [0u8; 10];
+        let bytes_written = original.encode_parameter_data(&mut buffer).unwrap();
+        assert_eq!(bytes_written, 5);
+        let decoded = TestString::decode_parameter_data(&buffer[..bytes_written]).unwrap();
+        assert_eq!(original, decoded);
+
+        let original = TestString::from_str("Hello\0\0\0\0").unwrap();
+        let mut buffer = [0u8; 10];
+        let bytes_written = original.encode_parameter_data(&mut buffer).unwrap();
+        assert_eq!(bytes_written, 5);
+        let decoded = TestString::decode_parameter_data(&buffer[..bytes_written]).unwrap();
+        assert_eq!(original, decoded);
     }
 }

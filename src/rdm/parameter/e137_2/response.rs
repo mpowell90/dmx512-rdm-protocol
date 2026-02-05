@@ -1,9 +1,11 @@
-use crate::rdm::parameter::e137_2::{
-    DhcpMode, DnsDomainName, DnsHostName, InterfaceLabel, Ipv4Address, Ipv4Route, MacAddress,
-    NetworkInterface,
+use crate::rdm::{
+    core::{CommandClass, ParameterId},
+    derive::rdm_parameter,
+    parameter::e137_2::{
+        DhcpMode, DnsDomainName, DnsHostName, InterfaceLabel, Ipv4Address, Ipv4Route, MacAddress,
+        NetworkInterface,
+    },
 };
-use rdm_core::{CommandClass, ParameterId};
-use rdm_derive::rdm_parameter;
 
 #[derive(Clone, Debug, PartialEq)]
 #[rdm_parameter(pid = ParameterId::ListInterfaces, command_class = CommandClass::GetResponse)]

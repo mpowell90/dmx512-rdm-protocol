@@ -1,13 +1,15 @@
 pub mod request;
 pub mod response;
 
-use crate::impl_rdm_string;
+use crate::{
+    impl_rdm_string,
+    rdm::core::{
+        error::{ParameterDataError, RdmError},
+        parameter_traits::RdmParameterData,
+    },
+};
 use core::time::Duration;
 use heapless::String;
-use rdm_core::{
-    error::{ParameterDataError, RdmError},
-    parameter_traits::RdmParameterData,
-};
 
 pub const E133_TCP_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 pub const E133_HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(45);

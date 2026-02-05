@@ -1,5 +1,7 @@
 use crate::rdm::{
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
+    core::{CommandClass, DeviceUID, ParameterId, error::RdmError, utils::bsd_16_crc},
+    derive::rdm_parameter,
     parameter::e120::{
         BootSoftwareVersionLabel, ControlField, DefaultSlotValue, DeviceLabel,
         DeviceModelDescription, DisplayInvertMode, DmxPersonalityDescription,
@@ -9,11 +11,8 @@ use crate::rdm::{
         SensorDefinitionDescription, SensorType, SensorUnit, SensorUnitPrefix, SlotDescription,
         SlotInfo, SoftwareVersionLabel, StatusIdDescription, StatusMessage, StatusType,
     },
-    utils::bsd_16_crc,
 };
 use heapless::Vec;
-use rdm_core::{CommandClass, DeviceUID, ParameterId, error::RdmError};
-use rdm_derive::rdm_parameter;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct DiscoveryUniqueBranchFrameResponse {

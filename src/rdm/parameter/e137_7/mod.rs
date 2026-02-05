@@ -1,12 +1,14 @@
 pub mod request;
 pub mod response;
 
-use crate::impl_rdm_string;
-use heapless::String;
-use rdm_core::{
-    error::{ParameterDataError, RdmError},
-    parameter_traits::RdmParameterData,
+use crate::{
+    impl_rdm_string,
+    rdm::core::{
+        error::{ParameterDataError, RdmError},
+        parameter_traits::RdmParameterData,
+    },
 };
+use heapless::String;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum EndpointId {
@@ -276,12 +278,18 @@ mod tests {
         let c = DiscoveryCountStatus::Count(0x0102);
         c.encode_parameter_data(&mut buf).unwrap();
         assert_eq!(&buf, &[0x01, 0x02]);
-        assert_eq!(DiscoveryCountStatus::decode_parameter_data(&buf).unwrap(), c);
+        assert_eq!(
+            DiscoveryCountStatus::decode_parameter_data(&buf).unwrap(),
+            c
+        );
 
         let u = DiscoveryCountStatus::Unknown;
         u.encode_parameter_data(&mut buf).unwrap();
         assert_eq!(&buf, &0xffffu16.to_be_bytes());
-        assert_eq!(DiscoveryCountStatus::decode_parameter_data(&buf).unwrap(), u);
+        assert_eq!(
+            DiscoveryCountStatus::decode_parameter_data(&buf).unwrap(),
+            u
+        );
     }
 
     #[test]

@@ -1,16 +1,17 @@
 #![no_std]
 
-pub mod error;
-pub mod parameter_traits;
-pub mod request;
-pub mod response;
-
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
 // Allows using std types when desired, while keeping the crate `no_std`.
 #[cfg(feature = "std")]
 extern crate std;
+
+pub mod error;
+pub mod parameter_traits;
+pub mod request;
+pub mod response;
+pub mod utils;
 
 use crate::{error::ParameterDataError, parameter_traits::RdmParameterData};
 use core::time::Duration;

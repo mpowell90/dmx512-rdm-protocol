@@ -1,9 +1,11 @@
-use crate::rdm::parameter::e120::{
-    DeviceLabel, DisplayInvertMode, FadeTimes, Iso639_1, LampOnMode, LampState, PowerState,
-    PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType,
+use crate::rdm::{
+    core::{CommandClass, DeviceUID, ParameterId},
+    derive::rdm_parameter,
+    parameter::e120::{
+        DeviceLabel, DisplayInvertMode, FadeTimes, Iso639_1, LampOnMode, LampState, PowerState,
+        PresetPlaybackMode, ResetDeviceMode, SelfTest, StatusType,
+    },
 };
-use rdm_core::{CommandClass, DeviceUID, ParameterId};
-use rdm_derive::rdm_parameter;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 #[rdm_parameter(pid = ParameterId::DiscUniqueBranch, command_class = CommandClass::Discovery)]

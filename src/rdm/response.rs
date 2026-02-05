@@ -52,10 +52,14 @@
 
 use super::{
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
-    RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE, utils::bsd_16_crc,
-};
-use crate::rdm::{
-    MIN_DISC_FRAME_LENGTH, MIN_RDM_FRAME_LENGTH,
+    MIN_DISC_FRAME_LENGTH, MIN_RDM_FRAME_LENGTH, RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
+    core::{
+        CommandClass, DeviceUID, ParameterId, ResponseResult, ResponseType, SubDeviceId,
+        error::{ParameterDataError, RdmError},
+        parameter_traits::RdmParameterData,
+        response::CustomResponseParameter,
+        utils::bsd_16_crc,
+    },
     parameter::{
         e120::response::{
             DiscMuteResponse, DiscUnMuteResponse, DiscoveryUniqueBranchFrameResponse,
@@ -114,14 +118,6 @@ use crate::rdm::{
 };
 use core::convert::TryFrom;
 use heapless::Vec;
-use rdm_core::{
-    CommandClass, DeviceUID, ParameterId, ResponseResult, SubDeviceId,
-    parameter_traits::RdmParameterData, response::CustomResponseParameter,
-};
-use rdm_core::{
-    ResponseType,
-    error::{ParameterDataError, RdmError},
-};
 
 #[allow(clippy::large_enum_variant)]
 #[non_exhaustive]

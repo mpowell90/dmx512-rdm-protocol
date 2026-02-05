@@ -1,6 +1,8 @@
-use crate::rdm::parameter::e137_2::{DnsDomainName, DnsHostName, Ipv4Address, Ipv4Route};
-use rdm_core::{CommandClass, ParameterId};
-use rdm_derive::rdm_parameter;
+use crate::rdm::{
+    core::{CommandClass, ParameterId},
+    derive::rdm_parameter,
+    parameter::e137_2::{DnsDomainName, DnsHostName, Ipv4Address, Ipv4Route},
+};
 
 #[derive(Clone, Debug, PartialEq)]
 #[rdm_parameter(pid = ParameterId::InterfaceLabel, command_class = CommandClass::Get)]

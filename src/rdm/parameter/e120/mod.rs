@@ -1,16 +1,20 @@
 pub mod request;
 pub mod response;
 
-use crate::impl_rdm_string;
+use crate::{
+    impl_rdm_string,
+    rdm::{
+        core::{
+            SubDeviceId,
+            error::{ParameterDataError, RdmError},
+            parameter_traits::RdmParameterData,
+        },
+        derive::ParameterData,
+    },
+};
 use bitflags::bitflags;
 use core::{fmt, str::FromStr};
 use heapless::String;
-use rdm_core::{
-    SubDeviceId,
-    error::{ParameterDataError, RdmError},
-    parameter_traits::RdmParameterData,
-};
-use rdm_derive::ParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq, ParameterData)]
 pub struct ControlField(u16);

@@ -29,8 +29,13 @@ keywords = ["dmx", "rdm", "lighting", "protocol", "control"]
 edition.workspace = true
 
 [features]
-default = ["rdm"]
+default = ["full"]
+full = ["rdm", "e133", "e137_1", "e137_2", "e137_7"]
 rdm = []
+e133 = []
+e137_1 = []
+e137_2 = []
+e137_7 = []
 
 [dependencies]
 heapless = "0.9.1"

@@ -44,7 +44,16 @@
 //!
 //! See tests for more examples.
 
-use super::{RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE, utils::bsd_16_crc};
+use super::{
+    RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
+    core::{
+        CommandClass, DeviceUID, ParameterId, SubDeviceId,
+        error::{ParameterDataError, RdmError},
+        parameter_traits::{RdmParameter, RdmParameterData},
+        request::CustomRequestParameter,
+        utils::bsd_16_crc,
+    },
+};
 use crate::rdm::parameter::{
     e120::request::{
         DiscUniqueBranchRequest, GetDmxPersonalityDescriptionRequest,
@@ -94,13 +103,6 @@ use crate::rdm::parameter::{
     },
 };
 use heapless::Vec;
-use rdm_core::{
-    CommandClass, DeviceUID, SubDeviceId,
-    error::ParameterDataError,
-    parameter_traits::{RdmParameter, RdmParameterData},
-    request::CustomRequestParameter,
-};
-use rdm_core::{ParameterId, error::RdmError};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestParameter {
