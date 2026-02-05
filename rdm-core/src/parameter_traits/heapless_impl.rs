@@ -1,4 +1,4 @@
-use crate::parameter_traits::{ParameterCodecError, RdmParameterData};
+use crate::parameter_traits::{ParameterDataError, RdmParameterData};
 use core::str::FromStr;
 
 impl<T, const N: usize> RdmParameterData for heapless::Vec<T, N>
@@ -9,11 +9,11 @@ where
         self.iter().map(|v| v.size_of()).sum()
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let size = self.size_of();
 
         if buf.len() < size {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: size,
             });
@@ -28,7 +28,7 @@ where
         Ok(offset)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let mut out = heapless::Vec::<T, N>::new();
 
         let mut offset = 0;
@@ -39,7 +39,7 @@ where
             offset += t.size_of();
 
             out.push(t)
-                .map_err(|_| ParameterCodecError::MalformedData)?;
+                .map_err(|_| ParameterDataError::MalformedData)?;
         }
 
         Ok(out)
@@ -51,11 +51,11 @@ impl<const N: usize> RdmParameterData for heapless::String<N> {
         self.len()
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let size = self.size_of();
 
         if buf.len() < size {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: size,
             });
@@ -66,7 +66,7 @@ impl<const N: usize> RdmParameterData for heapless::String<N> {
         Ok(size)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         heapless::String::<N>::from_str(core::str::from_utf8(buf)?).map_err(Into::into)
     }
 }

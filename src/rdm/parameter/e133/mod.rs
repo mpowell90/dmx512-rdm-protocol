@@ -5,7 +5,7 @@ use crate::impl_rdm_string;
 use core::time::Duration;
 use heapless::String;
 use rdm_core::{
-    error::{ParameterCodecError, RdmError},
+    error::{ParameterDataError, RdmError},
     parameter_traits::RdmParameterData,
 };
 
@@ -37,14 +37,14 @@ impl RdmParameterData for StaticConfigType {
         1
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let static_config_type =
-            StaticConfigType::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+            StaticConfigType::try_from(buf[0]).map_err(|_| ParameterDataError::MalformedData)?;
         Ok(static_config_type)
     }
 }
@@ -74,14 +74,14 @@ impl RdmParameterData for BrokerState {
         1
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let broker_state =
-            BrokerState::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+            BrokerState::try_from(buf[0]).map_err(|_| ParameterDataError::MalformedData)?;
         Ok(broker_state)
     }
 }
@@ -95,3 +95,53 @@ impl_rdm_string!(SearchDomain, 231);
 pub struct Scope(String<{ Scope::MAX_LENGTH }>);
 
 impl_rdm_string!(Scope, 63);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::str::FromStr;
+
+    #[test]
+    fn should_encode_decode_static_config_type() {
+        let mut buf = [0u8; 1];
+        let typ = StaticConfigType::StaticConfigIpv4;
+        let n = typ.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(buf[0], 0x01);
+        let decoded = StaticConfigType::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, typ);
+    }
+
+    #[test]
+    fn should_encode_decode_broker_state() {
+        let mut buf = [0u8; 1];
+        let state = BrokerState::Active;
+        let n = state.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(buf[0], 0x01);
+        let decoded = BrokerState::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, state);
+    }
+
+    #[test]
+    fn should_encode_decode_search_domain() {
+        let sd = SearchDomain::from_str("example.com").unwrap();
+        let mut buf = [0u8; SearchDomain::MAX_LENGTH];
+        let n = sd.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n, sd.len());
+        assert_eq!(&buf[..n], sd.as_bytes());
+        let decoded = SearchDomain::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, sd);
+    }
+
+    #[test]
+    fn should_encode_decode_scope() {
+        let s = Scope::from_str("my_scope").unwrap();
+        let mut buf = [0u8; Scope::MAX_LENGTH];
+        let n = s.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n, s.len());
+        assert_eq!(&buf[..n], s.as_bytes());
+        let decoded = Scope::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, s);
+    }
+}

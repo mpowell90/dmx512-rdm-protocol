@@ -1,10 +1,3 @@
-use core::{
-    error::Error,
-    ops::Deref,
-    str::{FromStr, Utf8Error},
-};
-use rdm_core::error::RdmError;
-
 pub fn bsd_16_crc(packet: &[u8]) -> u16 {
     packet
         .iter()
@@ -25,82 +18,16 @@ pub fn truncate_at_null(slice: &[u8]) -> &[u8] {
     }
 }
 
-pub trait RdmTruncateNullStr {
-    type Error: Error + From<RdmError> + From<Utf8Error>;
-
-    fn encode(&self, buf: &mut [u8]) -> Result<usize, Self::Error>
-    where
-        Self: Deref<Target = str>,
-    {
-        let buffer_len = buf.len();
-        let str_len = self.len();
-
-        if str_len > buffer_len {
-            return Err(RdmError::InvalidBufferLength(buffer_len, str_len).into());
-        }
-
-        buf[0..str_len].copy_from_slice(self.as_bytes());
-
-        Ok(str_len)
-    }
-
-    fn decode(bytes: &[u8]) -> Result<Self, Self::Error>
-    where
-        Self: Sized + FromStr<Err = Self::Error>,
-    {
-        core::str::from_utf8(truncate_at_null(bytes))
-            .map_err(Self::Error::from)?
-            .parse()
-    }
-}
-
-pub trait RdmPadNullStr {
-    const MAX_LENGTH: usize;
-
-    type Error: Error + From<RdmError> + From<Utf8Error>;
-
-    fn encode(&self, buf: &mut [u8]) -> Result<usize, Self::Error>
-    where
-        Self: Deref<Target = str>,
-    {
-        let buffer_len = buf.len();
-        let str_len = self.len();
-
-        if Self::MAX_LENGTH > buffer_len {
-            return Err(RdmError::InvalidBufferLength(buffer_len, Self::MAX_LENGTH).into());
-        }
-
-        buf[0..str_len].copy_from_slice(self.as_bytes());
-
-        let remaining_len = Self::MAX_LENGTH - str_len;
-
-        if remaining_len > 0 {
-            buf[str_len..Self::MAX_LENGTH].fill(0);
-        }
-
-        Ok(str_len)
-    }
-
-    fn decode(bytes: &[u8]) -> Result<Self, Self::Error>
-    where
-        Self: Sized + FromStr<Err = Self::Error>,
-    {
-        core::str::from_utf8(trim_trailing_nulls(bytes))
-            .map_err(Self::Error::from)?
-            .parse()
-    }
-}
-
 #[macro_export]
 macro_rules! impl_rdm_string {
     ($t:ty, $e:expr) => {
         impl $t {
             pub const MAX_LENGTH: usize = {$e};
 
-            #[allow(clippy::new_without_default)]
-            pub const fn new() -> Self {
-                Self(String::new())
-            }
+            // #[allow(clippy::new_without_default)]
+            // pub const fn new() -> Self {
+            //     Self(String::new())
+            // }
         }
 
         impl core::ops::Deref for $t {
@@ -118,7 +45,7 @@ macro_rules! impl_rdm_string {
         }
 
         impl core::str::FromStr for $t {
-            type Err = rdm_core::error::ParameterCodecError;
+            type Err = rdm_core::error::ParameterDataError;
 
             fn from_str(s: &str) -> Result<Self, Self::Err> {
                 Ok(Self(String::<{ Self::MAX_LENGTH }>::from_str(s.trim_end_matches('\0'))?))
@@ -132,11 +59,11 @@ macro_rules! impl_rdm_string {
                 ).len()
             }
 
-            fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_core::error::ParameterCodecError> {
+            fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, rdm_core::error::ParameterDataError> {
                 let size = self.size_of();
 
                 if buf.len() < size {
-                    return Err(rdm_core::error::ParameterCodecError::BufferTooSmall {
+                    return Err(rdm_core::error::ParameterDataError::BufferTooSmall {
                         provided: buf.len(),
                         required: size,
                     });
@@ -147,11 +74,40 @@ macro_rules! impl_rdm_string {
                 Ok(size)
             }
 
-            fn decode_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterCodecError> {
+            fn decode_parameter_data(buf: &[u8]) -> Result<Self, rdm_core::error::ParameterDataError> {
                 Ok(Self(String::decode_parameter_data($crate::rdm::utils::truncate_at_null(
                     buf,
                 ))?))
             }
         }
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use heapless::String;
+    use rdm_core::parameter_traits::RdmParameterData;
+    use std::str::FromStr;
+
+    const MAX_LEN: usize = 10;
+    #[derive(Clone, Debug, PartialEq)]
+    struct TestString(String<MAX_LEN>);
+    impl_rdm_string!(TestString, MAX_LEN);
+
+    #[test]
+    fn should_encode_decode_rdm_string() {
+        let original = TestString::from_str("Hello").unwrap();
+        let mut buffer = [0u8; 10];
+        let bytes_written = original.encode_parameter_data(&mut buffer).unwrap();
+        assert_eq!(bytes_written, 5);
+        let decoded = TestString::decode_parameter_data(&buffer[..bytes_written]).unwrap();
+        assert_eq!(original, decoded);
+
+        let original = TestString::from_str("Hello\0\0\0\0").unwrap();
+        let mut buffer = [0u8; 10];
+        let bytes_written = original.encode_parameter_data(&mut buffer).unwrap();
+        assert_eq!(bytes_written, 5);
+        let decoded = TestString::decode_parameter_data(&buffer[..bytes_written]).unwrap();
+        assert_eq!(original, decoded);
+    }
 }

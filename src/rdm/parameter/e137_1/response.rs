@@ -6,17 +6,17 @@ use crate::rdm::parameter::{
     e137_1::{MergeMode, PinCode, PresetProgrammed, SupportedTimes, TimeMode},
 };
 use rdm_core::{CommandClass, ParameterId};
-use rdm_derive::rdm_response_parameter;
+use rdm_derive::rdm_parameter;
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::DmxBlockAddress, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::DmxBlockAddress, command_class = CommandClass::GetResponse)]
 pub struct GetDmxBlockAddressResponse {
     pub total_sub_device_footprint: u16,
     pub base_dmx_address: u16,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::DmxFailMode, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::DmxFailMode, command_class = CommandClass::GetResponse)]
 pub struct GetDmxFailModeResponse {
     pub scene_id: PresetPlaybackMode,
     pub loss_of_signal_delay: TimeMode,
@@ -25,7 +25,7 @@ pub struct GetDmxFailModeResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::DmxStartupMode, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::DmxStartupMode, command_class = CommandClass::GetResponse)]
 pub struct GetDmxStartupModeResponse {
     pub scene_id: PresetPlaybackMode,
     pub startup_delay: TimeMode,
@@ -34,7 +34,7 @@ pub struct GetDmxStartupModeResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::DimmerInfo, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::DimmerInfo, command_class = CommandClass::GetResponse)]
 pub struct GetDimmerInfoResponse {
     pub minimum_level_lower_limit: u16,
     pub minimum_level_upper_limit: u16,
@@ -46,7 +46,7 @@ pub struct GetDimmerInfoResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::MinimumLevel, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::MinimumLevel, command_class = CommandClass::GetResponse)]
 pub struct GetMinimumLevelResponse {
     pub minimum_level_increasing: u16,
     pub minimum_level_decreasing: u16,
@@ -54,48 +54,48 @@ pub struct GetMinimumLevelResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::MaximumLevel, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::MaximumLevel, command_class = CommandClass::GetResponse)]
 pub struct GetMaximumLevelResponse {
     pub maximum_level: u16,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::Curve, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::Curve, command_class = CommandClass::GetResponse)]
 pub struct GetCurveResponse {
     pub curve_id: u8,
     pub curve_count: u8,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::CurveDescription, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::CurveDescription, command_class = CommandClass::GetResponse)]
 pub struct GetCurveDescriptionResponse {
     pub curve_id: u8,
     pub description: CurveDescription,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::OutputResponseTime, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::OutputResponseTime, command_class = CommandClass::GetResponse)]
 pub struct GetOutputResponseTimeResponse {
     pub response_time_id: u8,
     pub response_time_count: u8,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::OutputResponseTimeDescription, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::OutputResponseTimeDescription, command_class = CommandClass::GetResponse)]
 pub struct GetOutputResponseTimeDescriptionResponse {
     pub response_time_id: u8,
     pub description: OutputResponseTimeDescription,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::ModulationFrequency, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::ModulationFrequency, command_class = CommandClass::GetResponse)]
 pub struct GetModulationFrequencyResponse {
     pub modulation_frequency_id: u8,
     pub modulation_frequency_count: u8,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::ModulationFrequencyDescription, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::ModulationFrequencyDescription, command_class = CommandClass::GetResponse)]
 pub struct GetModulationFrequencyDescriptionResponse {
     pub modulation_frequency_id: u8,
     pub frequency: u32,
@@ -103,38 +103,38 @@ pub struct GetModulationFrequencyDescriptionResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::BurnIn, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::BurnIn, command_class = CommandClass::GetResponse)]
 pub struct GetBurnInResponse {
     pub hours_remaining: u8,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::LockPin, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::LockPin, command_class = CommandClass::GetResponse)]
 pub struct GetLockPinResponse {
     pub current_pin_code: PinCode,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::LockState, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::LockState, command_class = CommandClass::GetResponse)]
 pub struct GetLockStateResponse {
     pub lock_state_id: u8,
     pub lock_state_count: u8,
 }
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::LockStateDescription, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::LockStateDescription, command_class = CommandClass::GetResponse)]
 pub struct GetLockStateDescriptionResponse {
     pub lock_state_id: u8,
     pub description: LockStateDescription,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::IdentifyMode, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::IdentifyMode, command_class = CommandClass::GetResponse)]
 pub struct GetIdentifyModeResponse {
     pub identify_mode: u8, // TODO use enum
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::PresetInfo, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::PresetInfo, command_class = CommandClass::GetResponse)]
 pub struct GetPresetInfoResponse {
     pub level_field_supported: bool,
     pub preset_sequence_supported: bool,
@@ -158,13 +158,13 @@ pub struct GetPresetInfoResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::PresetMergeMode, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::PresetMergeMode, command_class = CommandClass::GetResponse)]
 pub struct GetPresetMergeModeResponse {
     pub merge_mode: MergeMode,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::PresetStatus, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::PresetStatus, command_class = CommandClass::GetResponse)]
 pub struct GetPresetStatusResponse {
     pub scene_id: u16,
     pub up_fade_time: u16,
@@ -174,7 +174,7 @@ pub struct GetPresetStatusResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::PowerOnSelfTest, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::PowerOnSelfTest, command_class = CommandClass::GetResponse)]
 pub struct GetPowerOnSelfTestResponse {
     pub power_on_self_test: bool,
 }

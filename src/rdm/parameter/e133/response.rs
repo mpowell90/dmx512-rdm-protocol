@@ -3,10 +3,10 @@ use crate::rdm::parameter::{
     e137_2::{Ipv4Address, Ipv6Address},
 };
 use rdm_core::{CommandClass, ParameterId};
-use rdm_derive::rdm_response_parameter;
+use rdm_derive::rdm_parameter;
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::ComponentScope, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::ComponentScope, command_class = CommandClass::GetResponse)]
 pub struct GetComponentScopeResponse {
     pub scope_slot: u16,
     pub scope_string: Scope,
@@ -17,13 +17,13 @@ pub struct GetComponentScopeResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::SearchDomain, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::SearchDomain, command_class = CommandClass::GetResponse)]
 pub struct GetSearchDomainResponse {
     pub search_domain: SearchDomain,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::TcpCommsStatus, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::TcpCommsStatus, command_class = CommandClass::GetResponse)]
 pub struct GetTcpCommsStatusResponse {
     pub scope_string: Scope,
     pub broker_ipv4_address: Ipv4Address,
@@ -33,7 +33,7 @@ pub struct GetTcpCommsStatusResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::BrokerStatus, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::BrokerStatus, command_class = CommandClass::GetResponse)]
 pub struct GetBrokerStatusResponse {
     pub is_allowing_set_commands: bool,
     pub broker_state: BrokerState,

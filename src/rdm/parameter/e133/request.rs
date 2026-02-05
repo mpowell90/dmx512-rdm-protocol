@@ -3,16 +3,16 @@ use crate::rdm::parameter::{
     e137_2::{Ipv4Address, Ipv6Address},
 };
 use rdm_core::{CommandClass, ParameterId};
-use rdm_derive::rdm_request_parameter;
+use rdm_derive::rdm_parameter;
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_request_parameter(pid = ParameterId::ComponentScope, command_class = CommandClass::Get)]
+#[rdm_parameter(pid = ParameterId::ComponentScope, command_class = CommandClass::Get)]
 pub struct GetComponentScopeRequest {
     pub scope_slot: u16,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_request_parameter(pid = ParameterId::ComponentScope, command_class = CommandClass::Set)]
+#[rdm_parameter(pid = ParameterId::ComponentScope, command_class = CommandClass::Set)]
 pub struct SetComponentScopeRequest {
     pub scope_slot: u16,
     pub scope_string: Scope,
@@ -23,19 +23,19 @@ pub struct SetComponentScopeRequest {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_request_parameter(pid = ParameterId::SearchDomain, command_class = CommandClass::Set)]
+#[rdm_parameter(pid = ParameterId::SearchDomain, command_class = CommandClass::Set)]
 pub struct SetSearchDomainRequest {
     pub search_domain: SearchDomain,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_request_parameter(pid = ParameterId::TcpCommsStatus, command_class = CommandClass::Set)]
+#[rdm_parameter(pid = ParameterId::TcpCommsStatus, command_class = CommandClass::Set)]
 pub struct SetTcpCommsStatusRequest {
     pub scope: Scope,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_request_parameter(pid = ParameterId::BrokerStatus, command_class = CommandClass::Set)]
+#[rdm_parameter(pid = ParameterId::BrokerStatus, command_class = CommandClass::Set)]
 pub struct SetBrokerStatusRequest {
     pub broker_state: BrokerState,
 }

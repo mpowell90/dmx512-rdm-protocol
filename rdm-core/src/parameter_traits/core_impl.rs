@@ -1,4 +1,4 @@
-use crate::parameter_traits::{ParameterCodecError, RdmParameterData};
+use crate::parameter_traits::{ParameterDataError, RdmParameterData};
 
 macro_rules! impl_rdm_data_primitive {
     ($($t:ty),*) => {
@@ -9,11 +9,11 @@ macro_rules! impl_rdm_data_primitive {
                     core::mem::size_of::<$t>()
                 }
 
-                fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+                fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
                     let size = self.size_of();
 
                     if buf.len() < size {
-                        return Err(ParameterCodecError::BufferTooSmall {
+                        return Err(ParameterDataError::BufferTooSmall {
                             provided: buf.len(),
                             required: size,
                         });
@@ -23,11 +23,11 @@ macro_rules! impl_rdm_data_primitive {
                     Ok(size)
                 }
 
-                fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+                fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
                     let size = core::mem::size_of::<$t>();
 
                     if buf.len() < size {
-                        return Err(ParameterCodecError::BufferTooSmall {
+                        return Err(ParameterDataError::BufferTooSmall {
                             provided: buf.len(),
                             required: size,
                         });
@@ -36,7 +36,7 @@ macro_rules! impl_rdm_data_primitive {
                     let val = <$t>::from_be_bytes(
                         buf[..size]
                             .try_into()
-                            .map_err(|_| ParameterCodecError::MalformedData)?
+                            .map_err(|_| ParameterDataError::MalformedData)?
                     );
                     Ok(val)
                 }
@@ -48,11 +48,11 @@ macro_rules! impl_rdm_data_primitive {
                     N * core::mem::size_of::<$t>()
                 }
 
-                fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+                fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
                     let size = self.size_of();
 
                     if buf.len() < size {
-                        return Err(ParameterCodecError::BufferTooSmall {
+                        return Err(ParameterDataError::BufferTooSmall {
                             provided: buf.len(),
                             required: size,
                         });
@@ -69,11 +69,11 @@ macro_rules! impl_rdm_data_primitive {
                     Ok(size)
                 }
 
-                fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+                fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
                     let size = core::mem::size_of::<$t>() * N;
 
                     if buf.len() < size {
-                        return Err(ParameterCodecError::BufferTooSmall {
+                        return Err(ParameterDataError::BufferTooSmall {
                             provided: buf.len(),
                             required: size,
                         });
@@ -89,7 +89,7 @@ macro_rules! impl_rdm_data_primitive {
                         *item = <$t>::from_be_bytes(
                             buf[start..end]
                                 .try_into()
-                                .map_err(|_| ParameterCodecError::MalformedData)?
+                                .map_err(|_| ParameterDataError::MalformedData)?
                         );
                     }
 
@@ -108,11 +108,11 @@ impl RdmParameterData for () {
         0
     }
 
-    fn encode_parameter_data(&self, _buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, _buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         Ok(0)
     }
 
-    fn decode_parameter_data(_buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(_buf: &[u8]) -> Result<Self, ParameterDataError> {
         Ok(())
     }
 }
@@ -123,9 +123,9 @@ impl RdmParameterData for bool {
         1
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         if buf.is_empty() {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: 1,
             });
@@ -136,9 +136,9 @@ impl RdmParameterData for bool {
         Ok(1)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         if buf.is_empty() {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: 1,
             });
@@ -161,14 +161,14 @@ where
         }
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         match self {
             Some(v) => v.encode_parameter_data(buf),
             None => Ok(0),
         }
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         if buf.is_empty() {
             Ok(None)
         } else {
@@ -184,11 +184,11 @@ impl<const N: usize> RdmParameterData for [bool; N] {
         N * core::mem::size_of::<bool>()
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let size = self.size_of();
 
         if buf.len() < size {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: size,
             });
@@ -202,11 +202,11 @@ impl<const N: usize> RdmParameterData for [bool; N] {
         Ok(size)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let size = core::mem::size_of::<bool>() * N;
 
         if buf.len() < size {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: size,
             });

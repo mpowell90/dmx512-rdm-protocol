@@ -1,41 +1,41 @@
 use core::{array::TryFromSliceError, error::Error, fmt, str::Utf8Error};
 
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub enum ParameterCodecError {
+pub enum ParameterDataError {
     BufferTooSmall { provided: usize, required: usize },
     MalformedData,
     Utf8Error(core::str::Utf8Error),
     CapacityError,
 }
 
-impl core::fmt::Display for ParameterCodecError {
+impl core::fmt::Display for ParameterDataError {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
-            ParameterCodecError::BufferTooSmall { provided, required } => write!(
+            ParameterDataError::BufferTooSmall { provided, required } => write!(
                 f,
                 "Buffer too small, provided: {}, required: {}",
                 provided, required
             ),
-            ParameterCodecError::MalformedData => write!(f, "Malformed data"),
-            ParameterCodecError::Utf8Error(e) => write!(f, "UTF-8 error: {}", e),
-            ParameterCodecError::CapacityError => write!(f, "Insufficient capacity"),
+            ParameterDataError::MalformedData => write!(f, "Malformed data"),
+            ParameterDataError::Utf8Error(e) => write!(f, "UTF-8 error: {}", e),
+            ParameterDataError::CapacityError => write!(f, "Insufficient capacity"),
         }
     }
 }
 
-impl From<core::str::Utf8Error> for ParameterCodecError {
+impl From<core::str::Utf8Error> for ParameterDataError {
     fn from(err: core::str::Utf8Error) -> Self {
-        ParameterCodecError::Utf8Error(err)
+        ParameterDataError::Utf8Error(err)
     }
 }
 
-impl From<heapless::CapacityError> for ParameterCodecError {
+impl From<heapless::CapacityError> for ParameterDataError {
     fn from(_: heapless::CapacityError) -> Self {
-        ParameterCodecError::CapacityError
+        ParameterDataError::CapacityError
     }
 }
 
-impl core::error::Error for ParameterCodecError {}
+impl core::error::Error for ParameterDataError {}
 
 #[derive(Clone, Debug, PartialEq)]
 #[non_exhaustive]
@@ -60,7 +60,7 @@ pub enum RdmError {
     InvalidLampState(u8),
     InvalidLampOnMode(u8),
     InvalidPowerState(u8),
-    InvalidOnOffStates(u8),
+    InvalidOnOffState(u8),
     InvalidDisplayInvertMode(u8),
     InvalidResetDeviceMode(u8),
     InvalidSensorType(u8),
@@ -77,7 +77,7 @@ pub enum RdmError {
     InvalidBufferLength(usize, usize),
     InvalidStringLength(usize, usize),
     MalformedPacket,
-    ParameterCodecError(ParameterCodecError),
+    ParameterDataError(ParameterDataError),
 }
 
 impl From<TryFromSliceError> for RdmError {
@@ -92,9 +92,9 @@ impl From<Utf8Error> for RdmError {
     }
 }
 
-impl From<ParameterCodecError> for RdmError {
-    fn from(source: ParameterCodecError) -> Self {
-        RdmError::ParameterCodecError(source)
+impl From<ParameterDataError> for RdmError {
+    fn from(source: ParameterDataError) -> Self {
+        RdmError::ParameterDataError(source)
     }
 }
 
@@ -150,7 +150,7 @@ impl fmt::Display for RdmError {
             Self::InvalidLampState(state) => write!(f, "Invalid LampState: {state}"),
             Self::InvalidLampOnMode(mode) => write!(f, "Invalid LampOnMode: {mode}"),
             Self::InvalidPowerState(state) => write!(f, "Invalid PowerState: {state}"),
-            Self::InvalidOnOffStates(states) => write!(f, "Invalid OnOffStates: {states}"),
+            Self::InvalidOnOffState(states) => write!(f, "Invalid OnOffState: {states}"),
             Self::InvalidDisplayInvertMode(mode) => {
                 write!(f, "Invalid DisplayInvertMode: {mode}")
             }
@@ -195,7 +195,7 @@ impl fmt::Display for RdmError {
                 write!(f, "Invalid string length: {actual}, must be <= {max}")
             }
             Self::MalformedPacket => write!(f, "Malformed packet"),
-            Self::ParameterCodecError(source) => write!(f, "Parameter codec error: {source}"),
+            Self::ParameterDataError(source) => write!(f, "Parameter codec error: {source}"),
         }
     }
 }

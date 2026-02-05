@@ -23,7 +23,7 @@
 //!
 //! See module documentation or test suite for examples.
 
-#![no_std]
+// #![no_std]
 
 #[cfg(test)]
 extern crate std;

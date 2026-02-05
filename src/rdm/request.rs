@@ -96,7 +96,7 @@ use crate::rdm::parameter::{
 use heapless::Vec;
 use rdm_core::{
     CommandClass, DeviceUID, SubDeviceId,
-    error::ParameterCodecError,
+    error::ParameterDataError,
     parameter_traits::{RdmParameter, RdmParameterData},
     request::CustomRequestParameter,
 };
@@ -781,7 +781,7 @@ impl RequestParameter {
         }
     }
 
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         match self {
             // E1.20
             Self::DiscUniqueBranch(param) => param.encode_parameter_data(buf),
@@ -968,7 +968,7 @@ impl RequestParameter {
         command_class: CommandClass,
         parameter_id: ParameterId,
         buf: &[u8],
-    ) -> Result<Self, ParameterCodecError> {
+    ) -> Result<Self, ParameterDataError> {
         match (command_class, parameter_id) {
             // E1.20
             (CommandClass::Discovery, ParameterId::DiscUniqueBranch) => Ok(Self::DiscUniqueBranch(
@@ -1453,9 +1453,18 @@ impl RdmRequest {
         sub_device_id: SubDeviceId,
         parameter: impl RdmParameter,
     ) -> Result<Self, RdmError> {
-        let mut parameter_data = [0u8; 231];
+        let command_class = parameter.command_class();
+
+        match command_class {
+            CommandClass::Discovery | CommandClass::Get | CommandClass::Set => {}
+            _ => return Err(RdmError::InvalidCommandClass(command_class.into())),
+        }
+
+        let mut parameter_data = Vec::from_slice(&[0u8; 231]).unwrap();
 
         let bytes_written = parameter.encode_parameter_data(&mut parameter_data)?;
+
+        parameter_data.truncate(bytes_written);
 
         Ok(Self {
             destination_uid,
@@ -1464,10 +1473,10 @@ impl RdmRequest {
             port_id,
             sub_device_id,
             parameter: RequestParameter::CustomParameter(CustomRequestParameter {
-                command_class: parameter.command_class(),
+                command_class,
                 parameter_id: parameter.parameter_id(),
                 parameter_data_length: bytes_written as u8,
-                parameter_data: Vec::from_slice(&parameter_data[0..bytes_written]).unwrap(),
+                parameter_data,
             }),
         })
     }
@@ -1545,7 +1554,7 @@ impl RdmRequest {
 
 #[cfg(test)]
 mod tests {
-    use rdm_derive::rdm_request_parameter;
+    use rdm_derive::rdm_parameter;
 
     use super::*;
 
@@ -1677,7 +1686,7 @@ mod tests {
     #[test]
     fn should_encode_decode_derived_manufacturer_specific_request() {
         #[derive(Clone, Debug, PartialEq)]
-        #[rdm_request_parameter(pid = ParameterId::Custom(0x8080), command_class = CommandClass::Set)]
+        #[rdm_parameter(pid = ParameterId::Custom(0x8080), command_class = CommandClass::Set)]
         struct CustomDerivedParameter {
             pub some_field: u32,
         }

@@ -12,7 +12,7 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
-use crate::{error::ParameterCodecError, parameter_traits::RdmParameterData};
+use crate::{error::ParameterDataError, parameter_traits::RdmParameterData};
 use core::time::Duration;
 
 pub const DISCOVERY_COMMAND: u8 = 0x10;
@@ -52,7 +52,7 @@ impl CommandClass {
 }
 
 impl TryFrom<u8> for CommandClass {
-    type Error = ParameterCodecError;
+    type Error = ParameterDataError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -62,7 +62,7 @@ impl TryFrom<u8> for CommandClass {
             0x21 => Ok(Self::GetResponse),
             0x30 => Ok(Self::Set),
             0x31 => Ok(Self::SetResponse),
-            _ => Err(ParameterCodecError::MalformedData), // TODO consider a better error type
+            _ => Err(ParameterDataError::MalformedData), // TODO consider a better error type
         }
     }
 }
@@ -438,9 +438,9 @@ impl RdmParameterData for ParameterId {
         2
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         if buf.len() < 2 {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: 2,
             });
@@ -451,9 +451,9 @@ impl RdmParameterData for ParameterId {
         Ok(2)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         if buf.len() < 2 {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: 2,
             });
@@ -554,9 +554,9 @@ impl RdmParameterData for DeviceUID {
         6
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         if buf.len() < 6 {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: 6,
             });
@@ -567,9 +567,9 @@ impl RdmParameterData for DeviceUID {
         Ok(6)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         if buf.len() < 6 {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: 6,
             });
@@ -614,15 +614,15 @@ impl RdmParameterData for SubDeviceId {
         2
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let value: u16 = (*self).into();
         buf[0..2].copy_from_slice(&value.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         if buf.len() < 2 {
-            return Err(ParameterCodecError::MalformedData);
+            return Err(ParameterDataError::MalformedData);
         }
         let value = u16::from_be_bytes([buf[0], buf[1]]);
         Ok(SubDeviceId::from(value))
@@ -744,14 +744,14 @@ impl RdmParameterData for NackReasonCode {
         2
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0..2].copy_from_slice(&u16::from(*self).to_be_bytes());
         Ok(2)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         if buf.len() < 2 {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: 2,
             });
@@ -771,7 +771,7 @@ pub enum ResponseType {
 }
 
 impl TryFrom<u8> for ResponseType {
-    type Error = ParameterCodecError;
+    type Error = ParameterDataError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
@@ -779,7 +779,7 @@ impl TryFrom<u8> for ResponseType {
             0x01 => Ok(Self::AckTimer),
             0x02 => Ok(Self::Nack),
             0x03 => Ok(Self::AckOverflow),
-            _ => Err(ParameterCodecError::MalformedData),
+            _ => Err(ParameterDataError::MalformedData),
         }
     }
 }
@@ -789,12 +789,12 @@ impl RdmParameterData for Duration {
         2
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0..2].copy_from_slice(&(self.as_millis().saturating_div(100) as u16).to_be_bytes());
         Ok(2)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let estimated_response_time = u16::from_be_bytes([buf[0], buf[1]]);
         Ok(Duration::from_millis(
             (estimated_response_time as u64).saturating_mul(100),
@@ -829,7 +829,7 @@ impl<T: RdmParameterData> ResponseResult<T> {
         }
     }
 
-    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    pub fn encode(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         match self {
             Self::Ack(data) | Self::AckOverflow(data) => data.encode_parameter_data(buf),
             Self::AckTimer(data) => data.encode_parameter_data(buf),
@@ -837,17 +837,17 @@ impl<T: RdmParameterData> ResponseResult<T> {
         }
     }
 
-    pub fn decode(response_type: ResponseType, buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    pub fn decode(response_type: ResponseType, buf: &[u8]) -> Result<Self, ParameterDataError> {
         // TODO consider how we handle parameter data length checks here
         // if buf.len() < 8 {
-        //     return Err(ParameterCodecError::BufferTooSmall {
+        //     return Err(ParameterDataError::BufferTooSmall {
         //         provided: buf.len(),
         //         required: 8,
         //     });
         // }
 
         // if buf.len() < 8 + parameter_data_length as usize {
-        //     return Err(ParameterCodecError::BufferTooSmall {
+        //     return Err(ParameterDataError::BufferTooSmall {
         //         provided: buf.len(),
         //         required: 8 + parameter_data_length as usize,
         //     });

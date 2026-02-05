@@ -1,4 +1,4 @@
-use crate::parameter_traits::{ParameterCodecError, RdmParameterData};
+use crate::parameter_traits::{ParameterDataError, RdmParameterData};
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasher, Hash};
 
@@ -14,11 +14,11 @@ where
             .sum::<usize>()
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let size = self.size_of();
 
         if buf.len() < size {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: size,
             });
@@ -34,7 +34,7 @@ where
         Ok(offset)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let size = core::mem::size_of::<K>() + core::mem::size_of::<V>();
 
         let count = buf.len() / size;
@@ -65,11 +65,11 @@ where
         self.iter().map(|v| v.size_of()).sum::<usize>()
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let size = self.size_of();
 
         if buf.len() < size {
-            return Err(ParameterCodecError::BufferTooSmall {
+            return Err(ParameterDataError::BufferTooSmall {
                 provided: buf.len(),
                 required: size,
             });
@@ -84,7 +84,7 @@ where
         Ok(offset)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let size = core::mem::size_of::<T>();
 
         let count = buf.len() / size;

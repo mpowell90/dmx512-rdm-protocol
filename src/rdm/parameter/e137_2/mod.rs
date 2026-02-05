@@ -6,10 +6,10 @@ use core::net::{Ipv4Addr, Ipv6Addr};
 use heapless::String;
 use macaddr::MacAddr6;
 use rdm_core::{
-    error::{ParameterCodecError, RdmError},
+    error::{ParameterDataError, RdmError},
     parameter_traits::RdmParameterData,
 };
-use rdm_derive::RdmParameterData;
+use rdm_derive::ParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DhcpMode {
@@ -36,14 +36,14 @@ impl RdmParameterData for DhcpMode {
         1
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let dhcp_mode =
-            DhcpMode::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+            DhcpMode::try_from(buf[0]).map_err(|_| ParameterDataError::MalformedData)?;
         Ok(dhcp_mode)
     }
 }
@@ -103,13 +103,13 @@ impl RdmParameterData for Ipv4Address {
         4
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let bytes: [u8; 4] = (*self).into();
         buf[0..4].copy_from_slice(&bytes);
         Ok(4)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let address = Ipv4Address::from([buf[0], buf[1], buf[2], buf[3]]);
         Ok(address)
     }
@@ -170,13 +170,13 @@ impl RdmParameterData for Ipv6Address {
         16
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let bytes: [u8; 16] = (*self).into();
         buf[0..16].copy_from_slice(&bytes);
         Ok(16)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let address = Ipv6Address::from([
             buf[0], buf[1], buf[2], buf[3], buf[4], buf[5], buf[6], buf[7], buf[8], buf[9],
             buf[10], buf[11], buf[12], buf[13], buf[14], buf[15],
@@ -240,13 +240,13 @@ impl RdmParameterData for Ipv4Route {
         4
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let bytes: [u8; 4] = (*self).into();
         buf[0..4].copy_from_slice(&bytes);
         Ok(4)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let route = Ipv4Route::from([buf[0], buf[1], buf[2], buf[3]]);
         Ok(route)
     }
@@ -403,17 +403,17 @@ impl RdmParameterData for HardwareType {
         2
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0..2].copy_from_slice(&u16::from(*self).to_be_bytes());
         Ok(2)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         Ok(u16::from_be_bytes([buf[0], buf[1]]).into())
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, RdmParameterData)]
+#[derive(Copy, Clone, Debug, PartialEq, ParameterData)]
 pub struct NetworkInterface {
     pub interface_id: u32,
     pub hardware_type: HardwareType,
@@ -454,13 +454,107 @@ impl RdmParameterData for MacAddress {
         6
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0..6].copy_from_slice(self.0.as_bytes());
         Ok(6)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let address = MacAddress::from([buf[0], buf[1], buf[2], buf[3], buf[4], buf[5]]);
         Ok(address)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::net::Ipv4Addr;
+
+    #[test]
+    fn should_encode_decode_dhcp_mode() {
+        let mut buf = [0u8; 1];
+        let m = DhcpMode::Active;
+        m.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(buf[0], 0x01);
+        assert_eq!(DhcpMode::decode_parameter_data(&buf).unwrap(), m);
+    }
+
+    #[test]
+    fn should_encode_decode_ipv4_address() {
+        let ip = Ipv4Addr::new(1, 2, 3, 4);
+        let addr = Ipv4Address::from(ip);
+        let mut buf = [0u8; 4];
+        addr.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &[1, 2, 3, 4]);
+        let decoded = Ipv4Address::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, addr);
+
+        // unconfigured
+        let un = Ipv4Address::from([0u8; 4]);
+        let mut bufu = [0u8; 4];
+        un.encode_parameter_data(&mut bufu).unwrap();
+        assert_eq!(&bufu, &[0, 0, 0, 0]);
+        assert_eq!(Ipv4Address::decode_parameter_data(&bufu).unwrap(), un);
+    }
+
+    #[test]
+    fn should_encode_decode_ipv6_address() {
+        let octets = [
+            0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e,
+            0x0f, 0x10,
+        ];
+        let addr = Ipv6Address::from(octets);
+        let mut buf = [0u8; 16];
+        let bytes_written = addr.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &octets);
+        assert_eq!(bytes_written, 16);
+        let decoded = Ipv6Address::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, addr);
+    }
+
+    #[test]
+    fn should_encode_decode_ipv4_route() {
+        let r = Ipv4Route::from(Ipv4Addr::new(10, 0, 0, 1));
+        let mut buf = [0u8; 4];
+        r.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &[10, 0, 0, 1]);
+        assert_eq!(Ipv4Route::decode_parameter_data(&buf).unwrap(), r);
+
+        let nr = Ipv4Route::from(0u32);
+        let mut bufn = [0u8; 4];
+        nr.encode_parameter_data(&mut bufn).unwrap();
+        assert_eq!(&bufn, &[0, 0, 0, 0]);
+        assert_eq!(Ipv4Route::decode_parameter_data(&bufn).unwrap(), nr);
+    }
+
+    #[test]
+    fn should_encode_decode_hardware_type() {
+        let mut buf = [0u8; 2];
+        let hw = HardwareType::Ethernet;
+        hw.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &[0x00, 0x01]);
+        assert_eq!(HardwareType::decode_parameter_data(&buf).unwrap(), hw);
+    }
+
+    #[test]
+    fn should_encode_decode_mac() {
+        let mac = MacAddress::from([1, 2, 3, 4, 5, 6]);
+        let mut buf = [0u8; 6];
+        mac.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &[1, 2, 3, 4, 5, 6]);
+        assert_eq!(MacAddress::decode_parameter_data(&buf).unwrap(), mac);
+    }
+
+    #[test]
+    fn should_encode_decode_interface() {
+        // NetworkInterface (u32 + hardware type)
+        let net = NetworkInterface {
+            interface_id: 0x01020304,
+            hardware_type: HardwareType::Ethernet,
+        };
+        let mut buf = [0u8; 6];
+        net.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &[0x01, 0x02, 0x03, 0x04, 0x00, 0x01]);
+        assert_eq!(NetworkInterface::decode_parameter_data(&buf).unwrap(), net);
     }
 }

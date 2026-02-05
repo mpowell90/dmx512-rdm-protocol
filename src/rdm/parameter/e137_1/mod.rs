@@ -2,10 +2,10 @@ pub mod request;
 pub mod response;
 
 use rdm_core::{
-    error::{ParameterCodecError, RdmError},
+    error::{ParameterDataError, RdmError},
     parameter_traits::RdmParameterData,
 };
-use rdm_derive::RdmParameterData;
+use rdm_derive::ParameterData;
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum IdentifyMode {
@@ -50,14 +50,14 @@ impl RdmParameterData for PresetProgrammed {
         1
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let programmed =
-            PresetProgrammed::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+            PresetProgrammed::try_from(buf[0]).map_err(|_| ParameterDataError::MalformedData)?;
         Ok(programmed)
     }
 }
@@ -91,19 +91,19 @@ impl RdmParameterData for MergeMode {
         1
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let merge_mode =
-            MergeMode::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+            MergeMode::try_from(buf[0]).map_err(|_| ParameterDataError::MalformedData)?;
         Ok(merge_mode)
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, RdmParameterData)]
+#[derive(Copy, Clone, Debug, PartialEq, ParameterData)]
 pub struct PinCode(pub u16);
 
 impl TryFrom<u16> for PinCode {
@@ -147,13 +147,13 @@ impl RdmParameterData for SupportedTimes {
         2
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let value: u16 = (*self).into();
         buf[0..2].copy_from_slice(&value.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let value = u16::from_be_bytes([buf[0], buf[1]]);
         Ok(SupportedTimes::from(value))
     }
@@ -188,14 +188,99 @@ impl RdmParameterData for TimeMode {
         2
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let value: u16 = (*self).into();
         buf[0..2].copy_from_slice(&value.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let value = u16::from_be_bytes([buf[0], buf[1]]);
         Ok(TimeMode::from(value))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use core::convert::TryFrom;
+
+    #[test]
+    fn should_encode_decode_preset_programmed() {
+        let mut buf = [0u8; 1];
+        let val = PresetProgrammed::Programmed;
+        let n = val.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(buf[0], 0x01);
+        let decoded = PresetProgrammed::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, val);
+    }
+
+    #[test]
+    fn should_encode_decode_merge_mode() {
+        let mut buf = [0u8; 1];
+        let val = MergeMode::Ltp;
+        let n = val.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n, 1);
+        assert_eq!(buf[0], 0x02);
+        let decoded = MergeMode::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, val);
+    }
+
+    #[test]
+    fn should_encode_decode_pin_code_and_validate_range() {
+        let mut buf = [0u8; 2];
+        let pin = PinCode(1234);
+        let n = pin.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n, 2);
+        assert_eq!(&buf, &1234u16.to_be_bytes());
+        let decoded = PinCode::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, pin);
+
+        // invalid pin should error on TryFrom
+        assert!(PinCode::try_from(10_000u16).is_err());
+    }
+
+    #[test]
+    fn should_encode_decode_supported_times() {
+        let mut buf = [0u8; 2];
+        let st = SupportedTimes::Time(0x0102);
+        let n = st.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n, 2);
+        assert_eq!(&buf, &0x0102u16.to_be_bytes());
+        let decoded = SupportedTimes::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, st);
+
+        let ns = SupportedTimes::NotSupported;
+        let n2 = ns.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n2, 2);
+        assert_eq!(&buf, &0xffffu16.to_be_bytes());
+        let decoded2 = SupportedTimes::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded2, ns);
+    }
+
+    #[test]
+    fn should_encode_decode_time_mode() {
+        let mut buf = [0u8; 2];
+        let tm = TimeMode::TenthOfSeconds(0x0203);
+        let n = tm.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n, 2);
+        assert_eq!(&buf, &0x0203u16.to_be_bytes());
+        let decoded = TimeMode::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded, tm);
+
+        let inf = TimeMode::Infinite;
+        let n2 = inf.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(n2, 2);
+        assert_eq!(&buf, &0xffffu16.to_be_bytes());
+        let decoded2 = TimeMode::decode_parameter_data(&buf).unwrap();
+        assert_eq!(decoded2, inf);
+    }
+
+    #[test]
+    fn identify_mode_try_from() {
+        let m = IdentifyMode::try_from(0x00).unwrap();
+        assert_eq!(m, IdentifyMode::Quiet);
+        assert!(IdentifyMode::try_from(0x10).is_err());
     }
 }

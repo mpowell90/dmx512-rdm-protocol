@@ -1,4 +1,4 @@
-use crate::{CommandClass, ParameterId, error::ParameterCodecError};
+use crate::{CommandClass, ParameterId, error::ParameterDataError};
 
 #[cfg(feature = "alloc")]
 pub mod alloc_impl;
@@ -10,9 +10,9 @@ pub mod std_impl;
 pub trait RdmParameterData: Sized {
     fn size_of(&self) -> usize;
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError>;
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError>;
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError>;
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError>;
 }
 
 pub trait RdmParameter: RdmParameterData {

@@ -11,7 +11,7 @@
 // };
 // use heapless::Vec;
 // use rdm_derive::rdm_parameter;
-// use rdm_core::parameter_traits::{RdmParameterCodec, RdmParameterData};
+// use rdm_core::parameter_traits::{RdmParameterCodec, ParameterData};
 
 // #[derive(Clone, Debug, PartialEq)]
 // #[rdm_parameter(pid = 0x8001, command_class = 0x01)]

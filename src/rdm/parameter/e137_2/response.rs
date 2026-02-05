@@ -3,44 +3,44 @@ use crate::rdm::parameter::e137_2::{
     NetworkInterface,
 };
 use rdm_core::{CommandClass, ParameterId};
-use rdm_derive::rdm_response_parameter;
+use rdm_derive::rdm_parameter;
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::ListInterfaces, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::ListInterfaces, command_class = CommandClass::GetResponse)]
 pub struct GetListInterfacesResponse {
     pub interface_list: heapless::Vec<NetworkInterface, 38>,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::InterfaceLabel, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::InterfaceLabel, command_class = CommandClass::GetResponse)]
 pub struct GetInterfaceLabelResponse {
     pub interface_id: u32,
     pub interface_label: InterfaceLabel,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::InterfaceHardwareAddressType1, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::InterfaceHardwareAddressType1, command_class = CommandClass::GetResponse)]
 pub struct GetInterfaceHardwareAddressType1Response {
     pub interface_id: u32,
     pub hardware_address: MacAddress,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::IpV4DhcpMode, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::IpV4DhcpMode, command_class = CommandClass::GetResponse)]
 pub struct GetIpV4DhcpModeResponse {
     pub interface_id: u32,
     pub dhcp_mode: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::IpV4ZeroConfMode, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::IpV4ZeroConfMode, command_class = CommandClass::GetResponse)]
 pub struct GetIpV4ZeroConfModeResponse {
     pub interface_id: u32,
     pub zero_conf_mode: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::IpV4CurrentAddress, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::IpV4CurrentAddress, command_class = CommandClass::GetResponse)]
 pub struct GetIpV4CurrentAddressResponse {
     pub interface_id: u32,
     pub address: Ipv4Address,
@@ -49,7 +49,7 @@ pub struct GetIpV4CurrentAddressResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::IpV4StaticAddress, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::IpV4StaticAddress, command_class = CommandClass::GetResponse)]
 pub struct GetIpV4StaticAddressResponse {
     pub interface_id: u32,
     pub address: Ipv4Address,
@@ -57,27 +57,27 @@ pub struct GetIpV4StaticAddressResponse {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::IpV4DefaultRoute, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::IpV4DefaultRoute, command_class = CommandClass::GetResponse)]
 pub struct GetIpV4DefaultRouteResponse {
     pub interface_id: u32,
     pub address: Ipv4Route,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::DnsIpV4NameServer, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::DnsIpV4NameServer, command_class = CommandClass::GetResponse)]
 pub struct GetDnsIpV4NameServerResponse {
     pub name_server_index: u8,
     pub address: Ipv4Address,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::DnsHostName, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::DnsHostName, command_class = CommandClass::GetResponse)]
 pub struct GetDnsHostNameResponse {
     pub dns_host_name: DnsHostName,
 }
 
 #[derive(Clone, Debug, PartialEq)]
-#[rdm_response_parameter(pid = ParameterId::DnsDomainName, command_class = CommandClass::GetResponse)]
+#[rdm_parameter(pid = ParameterId::DnsDomainName, command_class = CommandClass::GetResponse)]
 pub struct GetDnsDomainNameResponse {
     pub dns_domain_name: DnsDomainName,
 }

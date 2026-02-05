@@ -4,9 +4,56 @@ pub mod response;
 use crate::impl_rdm_string;
 use heapless::String;
 use rdm_core::{
-    error::{ParameterCodecError, RdmError},
+    error::{ParameterDataError, RdmError},
     parameter_traits::RdmParameterData,
 };
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum EndpointId {
+    Null,
+    Device(u16),
+    Reserved(u16),
+    Broadcast,
+}
+
+impl From<u16> for EndpointId {
+    fn from(value: u16) -> Self {
+        match value {
+            0 => EndpointId::Null,
+            0xffff => EndpointId::Broadcast,
+            value if (0xfa00..=0xfffe).contains(&value) => EndpointId::Reserved(value),
+            value => EndpointId::Device(value),
+        }
+    }
+}
+
+impl From<EndpointId> for u16 {
+    fn from(value: EndpointId) -> Self {
+        match value {
+            EndpointId::Broadcast => 0xffff,
+            EndpointId::Null => 0,
+            EndpointId::Device(value) => value,
+            EndpointId::Reserved(value) => value,
+        }
+    }
+}
+
+impl RdmParameterData for EndpointId {
+    fn size_of(&self) -> usize {
+        2
+    }
+
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
+        let value: u16 = (*self).into();
+        buf[0..2].copy_from_slice(&value.to_be_bytes());
+        Ok(2)
+    }
+
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
+        let value = u16::from_be_bytes([buf[0], buf[1]]);
+        Ok(EndpointId::from(value))
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DiscoveryState {
@@ -49,14 +96,14 @@ impl RdmParameterData for DiscoveryState {
         1
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0] = (*self).into();
         Ok(1)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let discovery_state =
-            DiscoveryState::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+            DiscoveryState::try_from(buf[0]).map_err(|_| ParameterDataError::MalformedData)?;
         Ok(discovery_state)
     }
 }
@@ -93,13 +140,13 @@ impl RdmParameterData for DiscoveryCountStatus {
         2
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         let value: u16 = (*self).into();
         buf[0..2].copy_from_slice(&value.to_be_bytes());
         Ok(2)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let value = u16::from_be_bytes([buf[0], buf[1]]);
         Ok(DiscoveryCountStatus::from(value))
     }
@@ -130,93 +177,15 @@ impl RdmParameterData for EndpointMode {
         1
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         buf[0] = *self as u8;
         Ok(1)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
         let endpoint_mode =
-            EndpointMode::try_from(buf[0]).map_err(|_| ParameterCodecError::MalformedData)?;
+            EndpointMode::try_from(buf[0]).map_err(|_| ParameterDataError::MalformedData)?;
         Ok(endpoint_mode)
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub struct EndpointIdValue(pub u16);
-
-impl RdmParameterData for EndpointIdValue {
-    fn size_of(&self) -> usize {
-        2
-    }
-
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        buf[0..2].copy_from_slice(&self.0.to_be_bytes());
-        Ok(2)
-    }
-
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-        let endpoint_id_value = EndpointIdValue(u16::from_be_bytes([buf[0], buf[1]]));
-        Ok(endpoint_id_value)
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-pub enum EndpointId {
-    Null,
-    Device(u16),
-    Reserved(u16),
-    Broadcast,
-}
-
-impl From<u16> for EndpointId {
-    fn from(value: u16) -> Self {
-        match value {
-            0 => EndpointId::Null,
-            0xffff => EndpointId::Broadcast,
-            value if (0xfa00..=0xfffe).contains(&value) => EndpointId::Reserved(value),
-            value => EndpointId::Device(value),
-        }
-    }
-}
-
-impl From<EndpointId> for u16 {
-    fn from(value: EndpointId) -> Self {
-        match value {
-            EndpointId::Broadcast => 0xffff,
-            EndpointId::Null => 0,
-            EndpointId::Device(value) => value,
-            EndpointId::Reserved(value) => value,
-        }
-    }
-}
-
-impl From<EndpointIdValue> for EndpointId {
-    fn from(value: EndpointIdValue) -> Self {
-        value.0.into()
-    }
-}
-
-impl From<EndpointId> for EndpointIdValue {
-    fn from(value: EndpointId) -> Self {
-        Self(value.into())
-    }
-}
-
-impl RdmParameterData for EndpointId {
-    fn size_of(&self) -> usize {
-        2
-    }
-
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        let value: u16 = (*self).into();
-        buf[0..2].copy_from_slice(&value.to_be_bytes());
-        Ok(2)
-    }
-
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-        let value = u16::from_be_bytes([buf[0], buf[1]]);
-        Ok(EndpointId::from(value))
     }
 }
 
@@ -240,7 +209,7 @@ impl TryFrom<u8> for EndpointType {
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub struct EndpointEntry {
-    pub endpoint_id: EndpointIdValue,
+    pub endpoint_id: EndpointId,
     pub endpoint_type: EndpointType,
 }
 
@@ -249,16 +218,16 @@ impl RdmParameterData for EndpointEntry {
         3
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
-        buf[0..2].copy_from_slice(&self.endpoint_id.0.to_be_bytes());
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
+        buf[0..2].copy_from_slice(&u16::from(self.endpoint_id).to_be_bytes());
         buf[2] = self.endpoint_type as u8;
         Ok(3)
     }
 
-    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterCodecError> {
-        let endpoint_id = EndpointIdValue::decode_parameter_data(&buf[0..2])?;
+    fn decode_parameter_data(buf: &[u8]) -> Result<Self, ParameterDataError> {
+        let endpoint_id = EndpointId::decode_parameter_data(&buf[0..2])?;
         let endpoint_type =
-            EndpointType::try_from(buf[2]).map_err(|_| ParameterCodecError::MalformedData)?;
+            EndpointType::try_from(buf[2]).map_err(|_| ParameterDataError::MalformedData)?;
         Ok(EndpointEntry {
             endpoint_id,
             endpoint_type,
@@ -282,3 +251,72 @@ pub struct BackgroundQueuedStatusPolicyDescription(
 );
 
 impl_rdm_string!(BackgroundQueuedStatusPolicyDescription, 32);
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_encode_decode_discovery_state() {
+        let mut buf = [0u8; 1];
+        let s = DiscoveryState::Full;
+        s.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(buf[0], 0x02);
+        assert_eq!(DiscoveryState::decode_parameter_data(&buf).unwrap(), s);
+
+        let ms = DiscoveryState::ManufacturerSpecific(0x80);
+        ms.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(buf[0], 0x80);
+        assert_eq!(DiscoveryState::decode_parameter_data(&buf).unwrap(), ms);
+    }
+
+    #[test]
+    fn should_encode_decode_discovery_count_status() {
+        let mut buf = [0u8; 2];
+        let c = DiscoveryCountStatus::Count(0x0102);
+        c.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &[0x01, 0x02]);
+        assert_eq!(DiscoveryCountStatus::decode_parameter_data(&buf).unwrap(), c);
+
+        let u = DiscoveryCountStatus::Unknown;
+        u.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &0xffffu16.to_be_bytes());
+        assert_eq!(DiscoveryCountStatus::decode_parameter_data(&buf).unwrap(), u);
+    }
+
+    #[test]
+    fn should_encode_decode_endpoint_mode() {
+        let mut buf = [0u8; 1];
+        let m = EndpointMode::Input;
+        m.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(buf[0], 0x01);
+        assert_eq!(EndpointMode::decode_parameter_data(&buf).unwrap(), m);
+    }
+
+    #[test]
+    fn should_encode_decode_endpoint_id_and_value() {
+        let mut buf = [0u8; 2];
+
+        let d = EndpointId::Device(0x0102);
+        d.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &[0x01, 0x02]);
+        assert_eq!(EndpointId::decode_parameter_data(&buf).unwrap(), d);
+
+        let bc = EndpointId::Broadcast;
+        bc.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &0xffffu16.to_be_bytes());
+        assert_eq!(EndpointId::decode_parameter_data(&buf).unwrap(), bc);
+    }
+
+    #[test]
+    fn should_encode_decode_endpoint_entry() {
+        let entry = EndpointEntry {
+            endpoint_id: EndpointId::Device(0x0102),
+            endpoint_type: EndpointType::Physical,
+        };
+        let mut buf = [0u8; 3];
+        entry.encode_parameter_data(&mut buf).unwrap();
+        assert_eq!(&buf, &[0x01, 0x02, 0x01]);
+        assert_eq!(EndpointEntry::decode_parameter_data(&buf).unwrap(), entry);
+    }
+}

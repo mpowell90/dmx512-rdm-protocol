@@ -120,7 +120,7 @@ use rdm_core::{
 };
 use rdm_core::{
     ResponseType,
-    error::{ParameterCodecError, RdmError},
+    error::{ParameterDataError, RdmError},
 };
 
 #[allow(clippy::large_enum_variant)]
@@ -996,7 +996,7 @@ Self::SetDnsHostName(_) |
         }
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterCodecError> {
+    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         match self {
             // E1.20
             Self::DiscMute(param) => param.encode_parameter_data(buf),
@@ -1177,7 +1177,7 @@ Self::SetDnsHostName(_) |
         command_class: CommandClass,
         parameter_id: ParameterId,
         buf: &[u8],
-    ) -> Result<Self, ParameterCodecError> {
+    ) -> Result<Self, ParameterDataError> {
         match (command_class, parameter_id) {
             // E1.20
             (CommandClass::DiscoveryResponse, ParameterId::DiscMute) => Ok(Self::DiscMute(
