@@ -15,15 +15,7 @@ pub trait RdmParameterData: Sized {
 }
 
 pub trait RdmParameter: RdmParameterData {
-    const COMMAND_CLASS: CommandClass;
+    fn command_class(&self) -> CommandClass;
 
-    const PID: ParameterId;
-
-    fn command_class(&self) -> CommandClass {
-        Self::COMMAND_CLASS
-    }
-
-    fn parameter_id(&self) -> ParameterId {
-        Self::PID
-    }
+    fn parameter_id(&self) -> ParameterId;
 }

@@ -153,8 +153,12 @@ pub fn rdm_parameter(args: TokenStream, input: TokenStream) -> TokenStream {
         #input
 
         impl rdm_core::parameter_traits::RdmParameter for #name {
-            const COMMAND_CLASS: rdm_core::CommandClass = #command_class;
-            const PID: rdm_core::ParameterId = #pid;
+            fn command_class(&self) -> rdm_core::CommandClass {
+                #command_class
+            }
+            fn parameter_id(&self) -> rdm_core::ParameterId {
+                #pid
+            }
         }
     };
 

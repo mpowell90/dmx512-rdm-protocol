@@ -109,6 +109,7 @@ impl<'a> RdmFrameView<'a> {
     }
 }
 
+
 #[macro_export]
 macro_rules! impl_rdm_string {
     ($t:ty, $e:expr) => {
@@ -127,6 +128,12 @@ macro_rules! impl_rdm_string {
         impl core::ops::DerefMut for $t {
             fn deref_mut(&mut self) -> &mut Self::Target {
                 self.0.as_mut_str()
+            }
+        }
+
+        impl core::fmt::Display for $t {
+            fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+                self.0.fmt(f)
             }
         }
 

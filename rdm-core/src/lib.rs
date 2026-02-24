@@ -75,7 +75,7 @@ impl From<CommandClass> for u8 {
 }
 
 #[non_exhaustive]
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ParameterId {
     // E1.20
     DiscUniqueBranch,

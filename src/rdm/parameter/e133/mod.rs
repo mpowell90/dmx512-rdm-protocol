@@ -8,11 +8,13 @@ use crate::{
         parameter_traits::RdmParameterData,
     },
 };
-use core::time::Duration;
+use core::{str::FromStr, time::Duration};
 use heapless::String;
 
 pub const E133_TCP_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);
 pub const E133_HEARTBEAT_TIMEOUT: Duration = Duration::from_secs(45);
+pub const E133_DEFAULT_SCOPE: &str = "default";
+pub const E133_DEFAULT_DOMAIN: &str = "local.";
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StaticConfigType {
@@ -88,15 +90,27 @@ impl RdmParameterData for BrokerState {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Hash)]
+#[derive(Clone, Debug, PartialEq, Hash)]
 pub struct SearchDomain(String<{ SearchDomain::MAX_LENGTH }>);
 
 impl_rdm_string!(SearchDomain, 231);
+
+impl Default for SearchDomain {
+    fn default() -> Self {
+        Self::from_str(E133_DEFAULT_DOMAIN).unwrap()
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Hash)]
 pub struct Scope(String<{ Scope::MAX_LENGTH }>);
 
 impl_rdm_string!(Scope, 63);
+
+impl Default for Scope {
+    fn default() -> Self {
+        Self::from_str(E133_DEFAULT_SCOPE).unwrap()
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -11,11 +11,11 @@ use crate::rdm::{
 #[rdm_parameter(pid = ParameterId::ComponentScope, command_class = CommandClass::GetResponse)]
 pub struct GetComponentScopeResponse {
     pub scope_slot: u16,
-    pub scope_string: Scope,
+    pub scope: Scope,
     pub static_config_type: StaticConfigType,
-    pub static_ipv4_address: Ipv4Address,
-    pub static_ipv6_address: Ipv6Address,
-    pub static_port: u16,
+    pub static_broker_ipv4_address: Ipv4Address,
+    pub static_broker_ipv6_address: Ipv6Address,
+    pub static_broker_port: u16,
 }
 
 #[derive(Clone, Debug, PartialEq)]

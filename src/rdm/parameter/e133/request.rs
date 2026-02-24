@@ -17,11 +17,11 @@ pub struct GetComponentScopeRequest {
 #[rdm_parameter(pid = ParameterId::ComponentScope, command_class = CommandClass::Set)]
 pub struct SetComponentScopeRequest {
     pub scope_slot: u16,
-    pub scope_string: Scope,
+    pub scope: Scope,
     pub static_config_type: StaticConfigType,
-    pub static_broker_ipv4_address: Ipv4Address,
-    pub static_broker_ipv6_address: Ipv6Address,
-    pub static_broker_port: u16,
+    pub broker_static_broker_ipv4_address: Ipv4Address,
+    pub broker_static_broker_ipv6_address: Ipv6Address,
+    pub broker_static_broker_port: u16,
 }
 
 #[derive(Clone, Debug, PartialEq)]

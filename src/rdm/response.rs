@@ -192,6 +192,7 @@ pub enum ResponseParameter {
     SetRealTimeClock(ResponseResult<()>),
     GetIdentifyDevice(ResponseResult<GetIdentifyDeviceResponse>),
     SetIdentifyDevice(ResponseResult<()>),
+    SetResetDevice(ResponseResult<()>),
     GetPowerState(ResponseResult<GetPowerStateResponse>),
     SetPowerState(ResponseResult<()>),
     GetPerformSelfTest(ResponseResult<GetPerformSelfTestResponse>),
@@ -301,7 +302,7 @@ pub enum ResponseParameter {
 }
 
 impl ResponseParameter {
-    fn response_type(&self) -> ResponseType {
+    pub fn response_type(&self) -> ResponseType {
         match self {
             // E1.20
             Self::DiscMute(_) => ResponseType::Ack,
@@ -370,6 +371,7 @@ impl ResponseParameter {
             Self::SetRealTimeClock(param) => param.response_type(),
             Self::GetIdentifyDevice(param) => param.response_type(),
             Self::SetIdentifyDevice(param) => param.response_type(),
+            Self::SetResetDevice(param) => param.response_type(),
             Self::GetPowerState(param) => param.response_type(),
             Self::SetPowerState(param) => param.response_type(),
             Self::GetPerformSelfTest(param) => param.response_type(),
@@ -477,7 +479,7 @@ impl ResponseParameter {
         }
     }
 
-    fn command_class(&self) -> CommandClass {
+    pub fn command_class(&self) -> CommandClass {
         match self {
             // E1.20
             Self::DiscMute(_) | Self::DiscUnMute(_) => CommandClass::DiscoveryResponse,
@@ -582,10 +584,7 @@ impl ResponseParameter {
             Self::GetComponentScope(_) |
             Self::GetTcpCommsStatus(_) |
             Self::GetBrokerStatus(_)
-
-
             => CommandClass::GetResponse,
-
             Self::SetCommsStatus(_) |
             Self::SetClearStatusId(_) |
             Self::SetSubDeviceIdStatusReportThreshold(_)
@@ -603,6 +602,7 @@ impl ResponseParameter {
             | Self::SetPanTiltSwap(_)
             | Self::SetRealTimeClock(_)
             | Self::SetIdentifyDevice(_)
+            | Self::SetResetDevice(_)
             | Self::SetPowerState(_)
             | Self::SetPerformSelfTest(_)
             | Self::SetPresetPlayback(_)
@@ -655,7 +655,7 @@ Self::SetDnsHostName(_) |
         }
     }
 
-    fn parameter_id(&self) -> ParameterId {
+    pub fn parameter_id(&self) -> ParameterId {
         match self {
             // E1.20
             Self::DiscMute(_) => ParameterId::DiscMute,
@@ -714,6 +714,7 @@ Self::SetDnsHostName(_) |
             Self::GetRealTimeClock(_) | Self::SetRealTimeClock(_) => ParameterId::RealTimeClock,
             Self::GetIdentifyDevice(_) | Self::SetIdentifyDevice(_) => ParameterId::IdentifyDevice,
             Self::GetPowerState(_) | Self::SetPowerState(_) => ParameterId::PowerState,
+            Self::SetResetDevice(_) => ParameterId::ResetDevice,
             Self::GetPerformSelfTest(_) | Self::SetPerformSelfTest(_) => {
                 ParameterId::PerformSelfTest
             }
@@ -816,7 +817,7 @@ Self::SetDnsHostName(_) |
         }
     }
 
-    fn size_of(&self) -> usize {
+    pub fn size_of(&self) -> usize {
         match self {
             // E1.20
             Self::DiscMute(param) => param.size_of(),
@@ -885,6 +886,7 @@ Self::SetDnsHostName(_) |
             Self::SetRealTimeClock(param) => param.size_of(),
             Self::GetIdentifyDevice(param) => param.size_of(),
             Self::SetIdentifyDevice(param) => param.size_of(),
+            Self::SetResetDevice(param) => param.size_of(),
             Self::GetPowerState(param) => param.size_of(),
             Self::SetPowerState(param) => param.size_of(),
             Self::GetPerformSelfTest(param) => param.size_of(),
@@ -992,7 +994,7 @@ Self::SetDnsHostName(_) |
         }
     }
 
-    fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
+    pub fn encode_parameter_data(&self, buf: &mut [u8]) -> Result<usize, ParameterDataError> {
         match self {
             // E1.20
             Self::DiscMute(param) => param.encode_parameter_data(buf),
@@ -1061,6 +1063,7 @@ Self::SetDnsHostName(_) |
             Self::SetRealTimeClock(param) => param.encode(buf),
             Self::GetIdentifyDevice(param) => param.encode(buf),
             Self::SetIdentifyDevice(param) => param.encode(buf),
+            Self::SetResetDevice(param) => param.encode(buf),
             Self::GetPowerState(param) => param.encode(buf),
             Self::SetPowerState(param) => param.encode(buf),
             Self::GetPerformSelfTest(param) => param.encode(buf),
@@ -1168,7 +1171,7 @@ Self::SetDnsHostName(_) |
         }
     }
 
-    fn decode_parameter_data(
+    pub fn decode_parameter_data(
         response_type: ResponseType,
         command_class: CommandClass,
         parameter_id: ParameterId,
