@@ -35,7 +35,7 @@ pub fn decode_string_bytes<const N: usize>(bytes: &[u8]) -> Result<String<N>, Rd
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterId {
-    // E1.20
+    // E1.20 2025 Table A-3
     DiscUniqueBranch,
     DiscMute,
     DiscUnMute,
@@ -88,7 +88,7 @@ pub enum ParameterId {
     SelfTestDescription,
     CapturePreset,
     PresetPlayback,
-    // E1.37-1
+    // E1.37-1 2012r2022 Table A-1
     DmxBlockAddress,
     DmxFailMode,
     DmxStartupMode,
@@ -110,7 +110,7 @@ pub enum ParameterId {
     PresetStatus,
     PresetMergeMode,
     PowerOnSelfTest,
-    // E1.37-2
+    // E1.37-2 2015r2021 Table A-1
     ListInterfaces,
     InterfaceLabel,
     InterfaceHardwareAddressType1,
@@ -125,7 +125,7 @@ pub enum ParameterId {
     DnsIpV4NameServer,
     DnsHostName,
     DnsDomainName,
-    // E1.37-7
+    // E1.37-7 2019 Table A-1
     EndpointList,
     EndpointListChange,
     IdentifyEndpoint,
@@ -142,7 +142,7 @@ pub enum ParameterId {
     BindingControlFields,
     BackgroundQueuedStatusPolicy,
     BackgroundQueuedStatusPolicyDescription,
-    // E1.33
+    // E1.33 2019 Table A-15
     ComponentScope,
     SearchDomain,
     TcpCommsStatus,
@@ -395,8 +395,8 @@ impl From<ParameterId> for u16 {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct ProtocolVersion {
-    major: u8,
-    minor: u8,
+    pub major: u8,
+    pub minor: u8,
 }
 
 impl ProtocolVersion {
@@ -417,6 +417,7 @@ impl fmt::Display for ProtocolVersion {
     }
 }
 
+// E1.20 2025 Table A-6
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ProductDetail {
     NotDeclared,
@@ -451,7 +452,7 @@ pub enum ProductDetail {
     Bubble,
     FlamePropane,
     FlameOther,
-    OlefactoryStimulator,
+    OlfactoryStimulator,
     Snow,
     WaterJet,
     Wind,
@@ -466,7 +467,7 @@ pub enum ProductDetail {
     HfHvNeonBallast,
     HfHvEl,
     MhrBallast,
-    BitangleModulation,
+    BitAngleModulation,
     FrequencyModulation,
     HighFrequency12V,
     RelayMechanical,
@@ -538,7 +539,7 @@ impl From<u16> for ProductDetail {
             0x0305 => Self::Bubble,
             0x0306 => Self::FlamePropane,
             0x0307 => Self::FlameOther,
-            0x0308 => Self::OlefactoryStimulator,
+            0x0308 => Self::OlfactoryStimulator,
             0x0309 => Self::Snow,
             0x030a => Self::WaterJet,
             0x030b => Self::Wind,
@@ -553,7 +554,7 @@ impl From<u16> for ProductDetail {
             0x0406 => Self::HfHvNeonBallast,
             0x0407 => Self::HfHvEl,
             0x0408 => Self::MhrBallast,
-            0x0409 => Self::BitangleModulation,
+            0x0409 => Self::BitAngleModulation,
             0x040a => Self::FrequencyModulation,
             0x040b => Self::HighFrequency12V,
             0x040c => Self::RelayMechanical,
@@ -627,7 +628,7 @@ impl From<ProductDetail> for u16 {
             ProductDetail::Bubble => 0x0305,
             ProductDetail::FlamePropane => 0x0306,
             ProductDetail::FlameOther => 0x0307,
-            ProductDetail::OlefactoryStimulator => 0x0308,
+            ProductDetail::OlfactoryStimulator => 0x0308,
             ProductDetail::Snow => 0x0309,
             ProductDetail::WaterJet => 0x030a,
             ProductDetail::Wind => 0x030b,
@@ -642,7 +643,7 @@ impl From<ProductDetail> for u16 {
             ProductDetail::HfHvNeonBallast => 0x0406,
             ProductDetail::HfHvEl => 0x0407,
             ProductDetail::MhrBallast => 0x0408,
-            ProductDetail::BitangleModulation => 0x0409,
+            ProductDetail::BitAngleModulation => 0x0409,
             ProductDetail::FrequencyModulation => 0x040a,
             ProductDetail::HighFrequency12V => 0x040b,
             ProductDetail::RelayMechanical => 0x040c,
@@ -681,6 +682,7 @@ impl From<ProductDetail> for u16 {
     }
 }
 
+// E1.20 2025 Table A-16
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ImplementedCommandClass {
     Get = 0x01,
@@ -701,6 +703,7 @@ impl TryFrom<u8> for ImplementedCommandClass {
     }
 }
 
+// E1.20 2025 Table A-15
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterDataType {
     NotDefined,
@@ -752,12 +755,8 @@ impl From<ParameterDataType> for u8 {
     }
 }
 
+// E1.20 2025 Section 10.4.2
 pub enum ConvertedParameterValue {
-    BitField(u8),
-    Ascii(
-        #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<4>,
-    ),
     UnsignedByte(u8),
     SignedByte(i8),
     UnsignedWord(u16),
@@ -790,10 +789,6 @@ impl ParameterDescription {
         value: [u8; 4],
     ) -> Result<ConvertedParameterValue, RdmError> {
         match parameter_data_type {
-            ParameterDataType::BitField => Ok(ConvertedParameterValue::BitField(value[3])),
-            ParameterDataType::Ascii => {
-                Ok(ConvertedParameterValue::Ascii(decode_string_bytes(&value)?))
-            }
             ParameterDataType::UnsignedByte => Ok(ConvertedParameterValue::UnsignedByte(value[3])),
             ParameterDataType::SignedByte => {
                 Ok(ConvertedParameterValue::SignedByte(value[3] as i8))
@@ -814,6 +809,7 @@ impl ParameterDescription {
             ParameterDataType::SignedDWord => Ok(ConvertedParameterValue::SignedDWord(
                 i32::from_be_bytes(value),
             )),
+            ParameterDataType::BitField | ParameterDataType::Ascii |
             ParameterDataType::NotDefined | ParameterDataType::ManufacturerSpecific(..) => {
                 Ok(ConvertedParameterValue::Raw(value))
             }
@@ -831,6 +827,7 @@ impl ParameterDescription {
     }
 }
 
+// E1.20 2025 Table A-4
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StatusType {
     None = 0x00,
@@ -861,7 +858,7 @@ impl TryFrom<u8> for StatusType {
     }
 }
 
-// Product Categories - Page 105 RDM Spec
+// E1.20 2025 Table A-5
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ProductCategory {
     NotDeclared,
@@ -876,7 +873,7 @@ pub enum ProductCategory {
     FixtureAccessoryMirror,
     FixtureAccessoryEffect,
     FixtureAccessoryBeam,
-    AccessoryOther,
+    FixtureAccessoryOther,
     Projector,
     ProjectorFixed,
     ProjectorMovingYoke,
@@ -944,7 +941,7 @@ impl From<u16> for ProductCategory {
             0x0203 => Self::FixtureAccessoryMirror,
             0x0204 => Self::FixtureAccessoryEffect,
             0x0205 => Self::FixtureAccessoryBeam,
-            0x02ff => Self::AccessoryOther,
+            0x02ff => Self::FixtureAccessoryOther,
             0x0300 => Self::Projector,
             0x0301 => Self::ProjectorFixed,
             0x0302 => Self::ProjectorMovingYoke,
@@ -1014,7 +1011,7 @@ impl From<ProductCategory> for u16 {
             ProductCategory::FixtureAccessoryMirror => 0x0203,
             ProductCategory::FixtureAccessoryEffect => 0x0204,
             ProductCategory::FixtureAccessoryBeam => 0x0205,
-            ProductCategory::AccessoryOther => 0x02ff,
+            ProductCategory::FixtureAccessoryOther => 0x02ff,
             ProductCategory::Projector => 0x0300,
             ProductCategory::ProjectorFixed => 0x0301,
             ProductCategory::ProjectorMovingYoke => 0x0302,
@@ -1069,6 +1066,7 @@ impl From<ProductCategory> for u16 {
     }
 }
 
+// E1.20 2025 Table A-8
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LampState {
     LampOff,
@@ -1111,6 +1109,7 @@ impl From<LampState> for u8 {
     }
 }
 
+// E1.20 2025 Table A-9
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum LampOnMode {
     OffMode,
@@ -1147,6 +1146,7 @@ impl From<LampOnMode> for u8 {
     }
 }
 
+// E1.20 2025 Table A-11
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PowerState {
     FullOff = 0x00,
@@ -1163,11 +1163,12 @@ impl TryFrom<u8> for PowerState {
             0x00 => Ok(Self::FullOff),
             0x01 => Ok(Self::Shutdown),
             0x02 => Ok(Self::Standby),
-            0x03 => Ok(Self::Normal),
+            0xff => Ok(Self::Normal),
             _ => Err(RdmError::InvalidPowerState(value)),
         }
     }
 }
+
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum OnOffStates {
@@ -1187,6 +1188,7 @@ impl TryFrom<u8> for OnOffStates {
     }
 }
 
+// E1.20 2025 Section 10.9.1
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DisplayInvertMode {
     Off = 0x00,
@@ -1207,6 +1209,7 @@ impl TryFrom<u8> for DisplayInvertMode {
     }
 }
 
+// E1.20 2025 Section 10.11.2
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResetDeviceMode {
     Warm = 0x01,
@@ -1225,6 +1228,7 @@ impl TryFrom<u8> for ResetDeviceMode {
     }
 }
 
+// E1.20 2025 Table A-10
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SelfTest {
     Off,
@@ -1252,6 +1256,7 @@ impl From<SelfTest> for u8 {
     }
 }
 
+// E1.20 2025 Table A-7
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PresetPlaybackMode {
     Off,
@@ -1286,6 +1291,7 @@ pub struct FadeTimes {
     pub wait_time: u16,
 }
 
+// E1.20 2025 Table B-2
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StatusMessageIdDefinition {
@@ -1589,8 +1595,9 @@ impl StatusMessage {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+// E1.20 2025 Table C-1
 #[non_exhaustive]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SlotType {
     Primary,
     SecondaryFine,
@@ -1655,6 +1662,7 @@ impl SlotInfo {
     }
 }
 
+// E1.20 2025 Table C-2
 #[non_exhaustive]
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SlotIdDefinition {
@@ -1833,8 +1841,9 @@ impl DefaultSlotValue {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+// E1.20 2025 Table A-12
 #[non_exhaustive]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SensorType {
     Temperature,
     Voltage,
@@ -1959,8 +1968,9 @@ impl From<SensorType> for u8 {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+// E1.20 2025 Table A-13
 #[non_exhaustive]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SensorUnit {
     None,
     Centigrade,
@@ -2071,6 +2081,7 @@ impl From<SensorUnit> for u8 {
     }
 }
 
+// E1.20 2025 Table A-14
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SensorUnitPrefix {
     None = 0x00,
@@ -2172,6 +2183,7 @@ impl SensorValue {
     }
 }
 
+// E1.31-1 2012r2022 Section 3.2
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum IdentifyMode {
     Quiet = 0x00,
@@ -2190,6 +2202,7 @@ impl TryFrom<u8> for IdentifyMode {
     }
 }
 
+// E1.37-1 2012r2022 Table A-2
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PresetProgrammed {
     NotProgrammed = 0x00,
@@ -2210,6 +2223,7 @@ impl TryFrom<u8> for PresetProgrammed {
     }
 }
 
+// E1.37-1 2012r2022 Table A-3
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum MergeMode {
     Default = 0x00,
@@ -2249,6 +2263,7 @@ impl TryFrom<u16> for PinCode {
     }
 }
 
+// E1.37-1 2012r2022 Section 5.2
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum SupportedTimes {
     NotSupported,
@@ -2273,6 +2288,7 @@ impl From<SupportedTimes> for u16 {
     }
 }
 
+// E1.37-1 2012r2022 Section 3.4, 3.5
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum TimeMode {
     Infinite,
@@ -2297,6 +2313,7 @@ impl From<TimeMode> for u16 {
     }
 }
 
+// E1.37-2 2015r2021 Table A-3
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DhcpMode {
     Inactive = 0x00,
@@ -2417,6 +2434,7 @@ impl From<Ipv6Address> for u128 {
     }
 }
 
+// E1.37-2 2015r2021 Section 4.11
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum Ipv4Route {
     NoDefault,
@@ -2619,6 +2637,7 @@ pub struct NetworkInterface {
     pub hardware_type: HardwareType,
 }
 
+// E1.33 2019 Table A-17
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum StaticConfigType {
     NoStaticConfig = 0x00,
@@ -2639,6 +2658,7 @@ impl TryFrom<u8> for StaticConfigType {
     }
 }
 
+// E1.33 2019 Table A-18
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum BrokerState {
     Disabled = 0x00,
@@ -2659,6 +2679,7 @@ impl TryFrom<u8> for BrokerState {
     }
 }
 
+// E1.37-7 2019 Table A-2
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DiscoveryState {
     Incomplete,
@@ -2695,6 +2716,7 @@ impl From<DiscoveryState> for u8 {
     }
 }
 
+// E1.37-7 2019 Table A-3
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum DiscoveryCountStatus {
     Incomplete,
@@ -2722,6 +2744,7 @@ impl From<DiscoveryCountStatus> for u16 {
     }
 }
 
+// E1.37-7 2019 Table A-4
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum EndpointMode {
     Disabled = 0x00, // Does not pass any DMX512-A/RDM traffic on a local RDM Command Port or DMX512-A Data Link
@@ -2742,6 +2765,7 @@ impl TryFrom<u8> for EndpointMode {
     }
 }
 
+// E1.33 2019
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum EndpointId {
     Null,
@@ -2772,6 +2796,7 @@ impl From<EndpointId> for u16 {
     }
 }
 
+// E1.37-7 2019 Table A-5
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum EndpointType {
     Virtual = 0x00,
@@ -2786,6 +2811,31 @@ impl TryFrom<u8> for EndpointType {
             0x00 => Ok(Self::Virtual),
             0x01 => Ok(Self::Physical),
             value => Err(RdmError::InvalidEndpointType(value)),
+        }
+    }
+}
+
+// E1.37-5 2024 Section 4.1
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum IdentifyTimeout {
+    Disabled,
+    Seconds(u16)
+}
+
+impl From<u16> for IdentifyTimeout {
+    fn from(value: u16) -> Self {
+        match value {
+            0 => Self::Disabled,
+            _ => Self::Seconds(value)
+        }
+    }
+}
+
+impl From<IdentifyTimeout> for u16 {
+    fn from(value: IdentifyTimeout) -> Self {
+        match value {
+            IdentifyTimeout::Disabled => 0,
+            IdentifyTimeout::Seconds(s) => s,
         }
     }
 }

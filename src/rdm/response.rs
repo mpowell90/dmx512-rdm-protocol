@@ -49,7 +49,7 @@ use super::{
     bsd_16_crc,
     parameter::{
         decode_string_bytes, BrokerState, DefaultSlotValue, DhcpMode, DiscoveryCountStatus,
-        DiscoveryState, DisplayInvertMode, EndpointId, EndpointMode, EndpointType, Ipv4Address,
+        DiscoveryState, DisplayInvertMode, EndpointId, EndpointMode, EndpointType, IdentifyMode, Ipv4Address,
         Ipv4Route, Ipv6Address, LampOnMode, LampState, MergeMode, NetworkInterface,
         ParameterDescription, ParameterId, PinCode, PowerState, PresetPlaybackMode,
         PresetProgrammed, ProductCategory, ProductDetail, ProtocolVersion, SelfTest,
@@ -66,6 +66,7 @@ use macaddr::MacAddr6;
 #[cfg(not(feature = "alloc"))]
 use heapless::{String, Vec};
 
+// E1.20 2025 Table A-17
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResponseNackReasonCode {
     UnknownPid = 0x0000,
@@ -134,6 +135,7 @@ impl Display for ResponseNackReasonCode {
     }
 }
 
+// E1.20 Table A-2
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResponseType {
     Ack = 0x00,
@@ -160,6 +162,7 @@ impl TryFrom<u8> for ResponseType {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ResponseData {
     ParameterData(Option<ResponseParameterData>),
+    /// Estimated response time in 10ths of a second (100ms)
     EstimateResponseTime(u16),
     NackReason(ResponseNackReasonCode),
 }
@@ -385,6 +388,7 @@ pub enum ResponseParameterData {
         level: u8,
     },
     // E1.37-1
+    GetIdentifyMode(IdentifyMode),
     GetDmxBlockAddress {
         total_sub_device_footprint: u16,
         base_dmx_address: u16,
@@ -542,7 +546,7 @@ pub enum ResponseParameterData {
     ),
     GetDnsDomainName(
         #[cfg(feature = "alloc")] String,
-        #[cfg(not(feature = "alloc"))] String<32>,
+        #[cfg(not(feature = "alloc"))] String<231>,
     ),
     // E1.37-7
     GetEndpointList {
@@ -1282,6 +1286,15 @@ impl ResponseParameterData {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*level).unwrap();
             }
+            Self::GetIdentifyMode(identify_mode) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1);
+
+                #[cfg(feature = "alloc")]
+                buf.push(*identify_mode as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*identify_mode as u8).unwrap();
+            },
             Self::GetDmxBlockAddress {
                 total_sub_device_footprint,
                 base_dmx_address,
@@ -2118,7 +2131,8 @@ impl ResponseParameterData {
     ) -> Result<Self, RdmError> {
         match (command_class, parameter_id) {
             (CommandClass::DiscoveryCommandResponse, ParameterId::DiscMute) => {
-                let binding_uid = if bytes.len() > 2 {
+                check_msg_len!(bytes, 2);
+                let binding_uid = if bytes.len() >= 8 {
                     Some(DeviceUID::from(<[u8; 6]>::try_from(&bytes[2..=7])?))
                 } else {
                     None
@@ -2130,7 +2144,8 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::DiscoveryCommandResponse, ParameterId::DiscUnMute) => {
-                let binding_uid = if bytes.len() > 2 {
+                check_msg_len!(bytes, 2);
+                let binding_uid = if bytes.len() >= 8 {
                     Some(DeviceUID::from(<[u8; 6]>::try_from(&bytes[2..=7])?))
                 } else {
                     None
@@ -2142,6 +2157,7 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ProxiedDeviceCount) => {
+                check_msg_len!(bytes, 3);
                 Ok(Self::GetProxiedDeviceCount {
                     device_count: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     list_change: bytes[2] == 1,
@@ -2162,6 +2178,7 @@ impl ResponseParameterData {
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::CommsStatus) => {
+                check_msg_len!(bytes, 6);
                 Ok(Self::GetCommsStatus {
                     short_message: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     length_mismatch: u16::from_be_bytes(bytes[2..=3].try_into()?),
@@ -2199,9 +2216,10 @@ impl ResponseParameterData {
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::StatusIdDescription) => {
-                Ok(Self::GetStatusIdDescription(decode_string_bytes(bytes)?))
+                Ok(Self::GetStatusIdDescription(decode_string_bytes(&bytes[..bytes.len().min(32)])?))
             }
             (CommandClass::GetCommandResponse, ParameterId::SubDeviceIdStatusReportThreshold) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetSubDeviceIdStatusReportThreshold(
                     bytes[0].try_into()?,
                 ))
@@ -2220,6 +2238,7 @@ impl ResponseParameterData {
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::ParameterDescription) => {
+                check_msg_len!(bytes, 20);
                 Ok(Self::GetParameterDescription(ParameterDescription {
                     parameter_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     parameter_data_length: bytes[2],
@@ -2230,10 +2249,11 @@ impl ResponseParameterData {
                     raw_minimum_valid_value: bytes[8..=11].try_into()?,
                     raw_maximum_valid_value: bytes[12..=15].try_into()?,
                     raw_default_value: bytes[16..=19].try_into()?,
-                    description: decode_string_bytes(&bytes[20..])?,
+                    description: decode_string_bytes(&bytes[20..bytes.len().min(20+32)])?,
                 }))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => {
+                check_msg_len!(bytes, 19);
                 Ok(Self::GetDeviceInfo {
                     protocol_version: ProtocolVersion::new(bytes[0], bytes[1]),
                     model_id: u16::from_be_bytes(bytes[2..=3].try_into()?),
@@ -2262,15 +2282,16 @@ impl ResponseParameterData {
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceModelDescription) => {
-                Ok(Self::GetDeviceModelDescription(decode_string_bytes(bytes)?))
+                Ok(Self::GetDeviceModelDescription(decode_string_bytes(&bytes[..bytes.len().min(32)])?))
             }
             (CommandClass::GetCommandResponse, ParameterId::ManufacturerLabel) => {
-                Ok(Self::GetManufacturerLabel(decode_string_bytes(bytes)?))
+                Ok(Self::GetManufacturerLabel(decode_string_bytes(&bytes[..bytes.len().min(32)])?))
             }
             (CommandClass::GetCommandResponse, ParameterId::DeviceLabel) => {
-                Ok(Self::GetDeviceLabel(decode_string_bytes(bytes)?))
+                Ok(Self::GetDeviceLabel(decode_string_bytes(&bytes[..bytes.len().min(32)])?))
             }
             (CommandClass::GetCommandResponse, ParameterId::FactoryDefaults) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetFactoryDefaults(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::LanguageCapabilities) => {
@@ -2289,37 +2310,48 @@ impl ResponseParameterData {
                         .collect::<Result<Vec<String<2>, 115>, RdmError>>()?,
                 ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::Language) => Ok(Self::GetLanguage(
-                #[cfg(feature = "alloc")]
-                core::str::from_utf8(&bytes[0..=1])?.to_string(),
-                #[cfg(not(feature = "alloc"))]
-                String::from_utf8(Vec::<u8, 2>::from_slice(&bytes[0..=1]).unwrap())?,
-            )),
-            (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => {
-                Ok(Self::GetSoftwareVersionLabel(decode_string_bytes(bytes)?))
+            (CommandClass::GetCommandResponse, ParameterId::Language) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetLanguage(
+                    #[cfg(feature = "alloc")]
+                    core::str::from_utf8(&bytes[0..=1])?.to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::from_utf8(Vec::<u8, 2>::from_slice(&bytes[0..=1]).unwrap())?,
+                ))
             }
-            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => Ok(
-                Self::GetBootSoftwareVersionId(u32::from_be_bytes(bytes.try_into()?)),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionLabel) => Ok(
-                Self::GetBootSoftwareVersionLabel(decode_string_bytes(bytes)?),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::SoftwareVersionLabel) => {
+                Ok(Self::GetSoftwareVersionLabel(decode_string_bytes(&bytes[..bytes.len().min(32)])?))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionId) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::GetBootSoftwareVersionId(
+                    u32::from_be_bytes(bytes[0..=3].try_into()?)
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::BootSoftwareVersionLabel) => {
+                Ok(Self::GetBootSoftwareVersionLabel(decode_string_bytes(&bytes[..bytes.len().min(32)])?))
+            }
             (CommandClass::GetCommandResponse, ParameterId::DmxPersonality) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::GetDmxPersonality {
                     current_personality: bytes[0],
                     personality_count: bytes[1],
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxPersonalityDescription) => {
+                check_msg_len!(bytes, 3);
                 Ok(Self::GetDmxPersonalityDescription {
                     id: bytes[0],
                     dmx_slots_required: u16::from_be_bytes(bytes[1..=2].try_into()?),
-                    description: decode_string_bytes(&bytes[3..])?,
+                    description: decode_string_bytes(&bytes[3..bytes.len().min(3+32)])?,
                 })
             }
-            (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => Ok(
-                Self::GetDmxStartAddress(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::DmxStartAddress) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetDmxStartAddress(
+                    u16::from_be_bytes(bytes[0..=1].try_into()?)
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::SlotInfo) => Ok(Self::GetSlotInfo(
                 #[cfg(feature = "alloc")]
                 bytes
@@ -2345,9 +2377,10 @@ impl ResponseParameterData {
                     .collect::<Result<Vec<SlotInfo, 46>, RdmError>>()?,
             )),
             (CommandClass::GetCommandResponse, ParameterId::SlotDescription) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::GetSlotDescription {
                     slot_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
-                    description: decode_string_bytes(&bytes[2..])?,
+                    description: decode_string_bytes(&bytes[2..bytes.len().min(2+32)])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DefaultSlotValue) => {
@@ -2375,6 +2408,7 @@ impl ResponseParameterData {
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorDefinition) => {
+                check_msg_len!(bytes, 13);
                 Ok(Self::GetSensorDefinition(SensorDefinition {
                     id: bytes[0],
                     kind: bytes[1].try_into()?,
@@ -2386,10 +2420,11 @@ impl ResponseParameterData {
                     normal_maximum_value: i16::from_be_bytes(bytes[10..=11].try_into()?),
                     is_lowest_highest_detected_value_supported: bytes[12] >> 1 & 1 == 1,
                     is_recorded_value_supported: bytes[12] & 1 == 1,
-                    description: decode_string_bytes(&bytes[13..])?,
+                    description: decode_string_bytes(&bytes[13..bytes.len().min(13+32)])?,
                 }))
             }
             (CommandClass::GetCommandResponse, ParameterId::SensorValue) => {
+                check_msg_len!(bytes, 9);
                 Ok(Self::GetSensorValue(SensorValue::new(
                     bytes[0],
                     i16::from_be_bytes(bytes[1..=2].try_into()?),
@@ -2399,6 +2434,7 @@ impl ResponseParameterData {
                 )))
             }
             (CommandClass::SetCommandResponse, ParameterId::SensorValue) => {
+                check_msg_len!(bytes, 9);
                 Ok(Self::SetSensorValue(SensorValue::new(
                     bytes[0],
                     i16::from_be_bytes(bytes[1..=2].try_into()?),
@@ -2407,40 +2443,60 @@ impl ResponseParameterData {
                     i16::from_be_bytes(bytes[7..=8].try_into()?),
                 )))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DeviceHours) => Ok(
-                Self::GetDeviceHours(u32::from_be_bytes(bytes[0..=3].try_into()?)),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::LampHours) => Ok(Self::GetLampHours(
-                u32::from_be_bytes(bytes[0..=3].try_into()?),
-            )),
-            (CommandClass::GetCommandResponse, ParameterId::LampStrikes) => Ok(
-                Self::GetLampStrikes(u32::from_be_bytes(bytes[0..=3].try_into()?)),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::DeviceHours) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::GetDeviceHours(
+                    u32::from_be_bytes(bytes[0..=3].try_into()?)
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::LampHours) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::GetLampHours(
+                    u32::from_be_bytes(bytes[0..=3].try_into()?),
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::LampStrikes) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::GetLampStrikes(
+                    u32::from_be_bytes(bytes[0..=3].try_into()?)
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::LampState) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetLampState(bytes[0].try_into()?))
             }
             (CommandClass::GetCommandResponse, ParameterId::LampOnMode) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetLampOnMode(bytes[0].try_into()?))
             }
-            (CommandClass::GetCommandResponse, ParameterId::DevicePowerCycles) => Ok(
-                Self::GetDevicePowerCycles(u32::from_be_bytes(bytes[0..=3].try_into()?)),
-            ),
+            (CommandClass::GetCommandResponse, ParameterId::DevicePowerCycles) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::GetDevicePowerCycles(
+                    u32::from_be_bytes(bytes[0..=3].try_into()?)
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::DisplayInvert) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetDisplayInvert(bytes[0].try_into()?))
             }
             (CommandClass::GetCommandResponse, ParameterId::DisplayLevel) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetDisplayLevel(bytes[0]))
             }
             (CommandClass::GetCommandResponse, ParameterId::PanInvert) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetPanInvert(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::TiltInvert) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetTiltInvert(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::PanTiltSwap) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetPanTiltSwap(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::RealTimeClock) => {
+                check_msg_len!(bytes, 7);
                 Ok(Self::GetRealTimeClock {
                     year: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     month: bytes[2],
@@ -2451,34 +2507,47 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::IdentifyDevice) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetIdentifyDevice(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::PowerState) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetPowerState(bytes[0].try_into()?))
             }
             (CommandClass::GetCommandResponse, ParameterId::PerformSelfTest) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetPerformSelfTest(bytes[0] == 1))
             }
             (CommandClass::GetCommandResponse, ParameterId::SelfTestDescription) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetSelfTestDescription {
                     self_test_id: bytes[0].into(),
-                    description: decode_string_bytes(&bytes[1..])?,
+                    description: decode_string_bytes(&bytes[1..bytes.len().min(1+32)])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetPlayback) => {
+                check_msg_len!(bytes, 3);
                 Ok(Self::GetPresetPlayback {
                     mode: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     level: bytes[2],
                 })
             }
             // E1.37-1
+            (CommandClass::GetCommandResponse, ParameterId::IdentifyMode) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::GetIdentifyMode(
+                    bytes[0].try_into()?
+                ))
+            },
             (CommandClass::GetCommandResponse, ParameterId::DmxBlockAddress) => {
+                check_msg_len!(bytes, 4);
                 Ok(Self::GetDmxBlockAddress {
                     total_sub_device_footprint: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     base_dmx_address: u16::from_be_bytes(bytes[2..=3].try_into()?),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxFailMode) => {
+                check_msg_len!(bytes, 7);
                 Ok(Self::GetDmxFailMode {
                     scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     loss_of_signal_delay: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
@@ -2487,6 +2556,7 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DmxStartupMode) => {
+                check_msg_len!(bytes, 7);
                 Ok(Self::GetDmxStartupMode {
                     scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     startup_delay: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
@@ -2495,25 +2565,35 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PowerOnSelfTest) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetPowerOnSelfTest(bytes[0] == 1))
             }
-            (CommandClass::GetCommandResponse, ParameterId::LockState) => Ok(Self::GetLockState {
-                lock_state_id: bytes[0],
-                lock_state_count: bytes[1],
-            }),
-            (CommandClass::GetCommandResponse, ParameterId::LockStateDescription) => {
-                Ok(Self::GetLockStateDescription {
+            (CommandClass::GetCommandResponse, ParameterId::LockState) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetLockState {
                     lock_state_id: bytes[0],
-                    description: decode_string_bytes(&bytes[1..])?,
+                    lock_state_count: bytes[1],
                 })
             }
-            (CommandClass::GetCommandResponse, ParameterId::LockPin) => Ok(Self::GetLockPin(
-                PinCode::try_from(u16::from_be_bytes(bytes[0..=1].try_into()?))?,
-            )),
+            (CommandClass::GetCommandResponse, ParameterId::LockStateDescription) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::GetLockStateDescription {
+                    lock_state_id: bytes[0],
+                    description: decode_string_bytes(&bytes[1..bytes.len().min(1+32)])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::LockPin) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetLockPin(
+                    PinCode::try_from(u16::from_be_bytes(bytes[0..=1].try_into()?))?,
+                ))
+            }
             (CommandClass::GetCommandResponse, ParameterId::BurnIn) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetBurnIn(bytes[0]))
             }
             (CommandClass::GetCommandResponse, ParameterId::DimmerInfo) => {
+                check_msg_len!(bytes, 11);
                 Ok(Self::GetDimmerInfo {
                     minimum_level_lower_limit: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     minimum_level_upper_limit: u16::from_be_bytes(bytes[2..=3].try_into()?),
@@ -2525,51 +2605,64 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::MinimumLevel) => {
+                check_msg_len!(bytes, 5);
                 Ok(Self::GetMinimumLevel {
                     minimum_level_increasing: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     minimum_level_decreasing: u16::from_be_bytes(bytes[2..=3].try_into()?),
                     on_below_minimum: bytes[4] == 1,
                 })
             }
-            (CommandClass::GetCommandResponse, ParameterId::MaximumLevel) => Ok(
-                Self::GetMaximumLevel(u16::from_be_bytes(bytes[0..=1].try_into()?)),
-            ),
-            (CommandClass::GetCommandResponse, ParameterId::Curve) => Ok(Self::GetCurve {
-                curve_id: bytes[0],
-                curve_count: bytes[1],
-            }),
+            (CommandClass::GetCommandResponse, ParameterId::MaximumLevel) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetMaximumLevel(
+                    u16::from_be_bytes(bytes[0..=1].try_into()?)
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::Curve) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetCurve {
+                    curve_id: bytes[0],
+                    curve_count: bytes[1],
+                })
+            }
             (CommandClass::GetCommandResponse, ParameterId::CurveDescription) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetCurveDescription {
                     curve_id: bytes[0],
-                    description: decode_string_bytes(&bytes[1..])?,
+                    description: decode_string_bytes(&bytes[1..bytes.len().min(1+32)])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::OutputResponseTime) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::GetOutputResponseTime {
                     response_time_id: bytes[0],
                     response_time_count: bytes[1],
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::OutputResponseTimeDescription) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetOutputResponseTimeDescription {
                     response_time_id: bytes[0],
-                    description: decode_string_bytes(&bytes[1..])?,
+                    description: decode_string_bytes(&bytes[1..bytes.len().min(1+32)])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ModulationFrequency) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::GetModulationFrequency {
                     modulation_frequency_id: bytes[0],
                     modulation_frequency_count: bytes[1],
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::ModulationFrequencyDescription) => {
+                check_msg_len!(bytes, 5);
                 Ok(Self::GetModulationFrequencyDescription {
                     modulation_frequency_id: bytes[0],
                     frequency: u32::from_be_bytes(bytes[1..=4].try_into()?),
-                    description: decode_string_bytes(&bytes[5..])?,
+                    description: decode_string_bytes(&bytes[5..bytes.len().min(5+32)])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetInfo) => {
+                check_msg_len!(bytes, 32);
                 Ok(Self::GetPresetInfo {
                     level_field_supported: bytes[0] == 1,
                     preset_sequence_supported: bytes[1] == 1,
@@ -2617,6 +2710,7 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetStatus) => {
+                check_msg_len!(bytes, 9);
                 Ok(Self::GetPresetStatus {
                     scene_id: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     up_fade_time: u16::from_be_bytes(bytes[2..=3].try_into()?),
@@ -2626,6 +2720,7 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::PresetMergeMode) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetPresetMergeMode(MergeMode::try_from(bytes[0])?))
             }
             // E1.37-2
@@ -2654,30 +2749,35 @@ impl ResponseParameterData {
                 ))
             }
             (CommandClass::GetCommandResponse, ParameterId::InterfaceLabel) => {
+                check_msg_len!(bytes, 4);
                 Ok(Self::GetInterfaceLabel {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                    interface_label: decode_string_bytes(&bytes[4..])?,
+                    interface_label: decode_string_bytes(&bytes[4..bytes.len().min(4+32)])?,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::InterfaceHardwareAddressType1) => {
+                check_msg_len!(bytes, 10);
                 Ok(Self::GetInterfaceHardwareAddressType1 {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
                     hardware_address: <[u8; 6]>::try_from(&bytes[4..=9])?.into(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::IpV4DhcpMode) => {
+                check_msg_len!(bytes, 5);
                 Ok(Self::GetIpV4DhcpMode {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
                     dhcp_mode: bytes[4] == 1,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::IpV4ZeroConfMode) => {
+                check_msg_len!(bytes, 5);
                 Ok(Self::GetIpV4ZeroConfMode {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
                     zero_conf_mode: bytes[4] == 1,
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::IpV4CurrentAddress) => {
+                check_msg_len!(bytes, 10);
                 Ok(Self::GetIpV4CurrentAddress {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
                     address: <[u8; 4]>::try_from(&bytes[4..=7])?.into(),
@@ -2686,6 +2786,7 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::IpV4StaticAddress) => {
+                check_msg_len!(bytes, 9);
                 Ok(Self::GetIpV4StaticAddress {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
                     address: <[u8; 4]>::try_from(&bytes[4..=7])?.into(),
@@ -2693,135 +2794,173 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::IpV4DefaultRoute) => {
+                check_msg_len!(bytes, 8);
                 Ok(Self::GetIpV4DefaultRoute {
                     interface_id: u32::from_be_bytes(bytes[0..=3].try_into()?),
                     address: <[u8; 4]>::try_from(&bytes[4..=7])?.into(),
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::DnsIpV4NameServer) => {
+                check_msg_len!(bytes, 5);
                 Ok(Self::GetDnsIpV4NameServer {
                     name_server_index: bytes[0],
                     address: <[u8; 4]>::try_from(&bytes[1..=4])?.into(),
                 })
             }
+            (CommandClass::GetCommandResponse, ParameterId::DnsHostName) => {
+                Ok(Self::GetDnsHostName(decode_string_bytes(&bytes[..bytes.len().min(63)])?))
+            },
+            (CommandClass::GetCommandResponse, ParameterId::DnsDomainName) => {
+                Ok(Self::GetDnsHostName(decode_string_bytes(&bytes[..bytes.len().min(231)])?))
+            },
             // E1.37-7
-            (CommandClass::GetCommand, ParameterId::EndpointList) => Ok(Self::GetEndpointList {
-                list_change_number: u32::from_be_bytes(bytes[0..=3].try_into()?),
-                #[cfg(feature = "alloc")]
-                endpoint_list: bytes[4..]
-                    .chunks(3)
-                    .map(|chunk| {
-                        Ok((
-                            u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
-                            chunk[1].try_into()?,
-                        ))
-                    })
-                    .collect::<Result<Vec<(EndpointId, EndpointType)>, RdmError>>()?,
-                #[cfg(not(feature = "alloc"))]
-                endpoint_list: bytes[4..]
-                    .chunks(6)
-                    .map(|chunk| {
-                        Ok((
-                            u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
-                            chunk[1].try_into()?,
-                        ))
-                    })
-                    .collect::<Result<Vec<(EndpointId, EndpointType), 75>, RdmError>>()?,
-            }),
-            (CommandClass::GetCommand, ParameterId::EndpointListChange) => {
+            (CommandClass::GetCommandResponse, ParameterId::EndpointList) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::GetEndpointList {
+                    list_change_number: u32::from_be_bytes(bytes[0..=3].try_into()?),
+                    #[cfg(feature = "alloc")]
+                    endpoint_list: bytes[4..]
+                        .chunks(3)
+                        .map(|chunk| {
+                            Ok((
+                                u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
+                                chunk[1].try_into()?,
+                            ))
+                        })
+                        .collect::<Result<Vec<(EndpointId, EndpointType)>, RdmError>>()?,
+                    #[cfg(not(feature = "alloc"))]
+                    endpoint_list: bytes[4..]
+                        .chunks(6)
+                        .map(|chunk| {
+                            Ok((
+                                u16::from_be_bytes(chunk[0..=1].try_into()?).into(),
+                                chunk[1].try_into()?,
+                            ))
+                        })
+                        .collect::<Result<Vec<(EndpointId, EndpointType), 75>, RdmError>>()?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::EndpointListChange) => {
+                check_msg_len!(bytes, 4);
                 Ok(Self::GetEndpointListChange {
                     list_change_number: u32::from_be_bytes(bytes[0..=3].try_into()?),
                 })
             }
-            (CommandClass::GetCommand, ParameterId::IdentifyEndpoint) => {
+            (CommandClass::GetCommandResponse, ParameterId::IdentifyEndpoint) => {
+                check_msg_len!(bytes, 3);
                 Ok(Self::GetIdentifyEndpoint {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     identify: bytes[2] == 1,
                 })
             }
-            (CommandClass::SetCommand, ParameterId::IdentifyEndpoint) => {
+            (CommandClass::SetCommandResponse, ParameterId::IdentifyEndpoint) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::SetIdentifyEndpoint {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                 })
             }
-            (CommandClass::GetCommand, ParameterId::EndpointToUniverse) => {
+            (CommandClass::GetCommandResponse, ParameterId::EndpointToUniverse) => {
+                check_msg_len!(bytes, 4);
                 Ok(Self::GetEndpointToUniverse {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     universe: u16::from_be_bytes(bytes[2..=3].try_into()?),
                 })
             }
-            (CommandClass::SetCommand, ParameterId::EndpointToUniverse) => {
+            (CommandClass::SetCommandResponse, ParameterId::EndpointToUniverse) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::SetEndpointToUniverse {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                 })
             }
-            (CommandClass::GetCommand, ParameterId::EndpointMode) => Ok(Self::GetEndpointMode {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                mode: bytes[2].try_into()?,
-            }),
-            (CommandClass::SetCommand, ParameterId::EndpointMode) => Ok(Self::SetEndpointMode {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-            }),
-            (CommandClass::GetCommand, ParameterId::EndpointLabel) => Ok(Self::GetEndpointLabel {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-                label: decode_string_bytes(&bytes[2..])?,
-            }),
-            (CommandClass::SetCommand, ParameterId::EndpointLabel) => Ok(Self::SetEndpointLabel {
-                endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
-            }),
-            (CommandClass::GetCommand, ParameterId::RdmTrafficEnable) => {
+            (CommandClass::GetCommandResponse, ParameterId::EndpointMode) => {
+                check_msg_len!(bytes, 3);
+                Ok(Self::GetEndpointMode {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    mode: bytes[2].try_into()?,
+                })
+            }
+            (CommandClass::SetCommandResponse, ParameterId::EndpointMode) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::SetEndpointMode {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::EndpointLabel) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetEndpointLabel {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                    label: decode_string_bytes(&bytes[2..bytes.len().min(1+32)])?,
+                })
+            }
+            (CommandClass::SetCommandResponse, ParameterId::EndpointLabel) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::SetEndpointLabel {
+                    endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::RdmTrafficEnable) => {
+                check_msg_len!(bytes, 3);
                 Ok(Self::GetRdmTrafficEnable {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     enable: bytes[2] == 1,
                 })
             }
-            (CommandClass::SetCommand, ParameterId::RdmTrafficEnable) => {
+            (CommandClass::SetCommandResponse, ParameterId::RdmTrafficEnable) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::SetRdmTrafficEnable {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                 })
             }
-            (CommandClass::GetCommand, ParameterId::DiscoveryState) => {
+            (CommandClass::GetCommandResponse, ParameterId::DiscoveryState) => {
+                check_msg_len!(bytes, 5);
                 Ok(Self::GetDiscoveryState {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     device_count: u16::from_be_bytes(bytes[2..=3].try_into()?).into(),
                     discovery_state: bytes[4].try_into()?,
                 })
             }
-            (CommandClass::SetCommand, ParameterId::DiscoveryState) => {
+            (CommandClass::SetCommandResponse, ParameterId::DiscoveryState) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::SetDiscoveryState {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                 })
             }
-            (CommandClass::GetCommand, ParameterId::BackgroundDiscovery) => {
+            (CommandClass::GetCommandResponse, ParameterId::BackgroundDiscovery) => {
+                check_msg_len!(bytes, 3);
                 Ok(Self::GetBackgroundDiscovery {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     enabled: bytes[2] == 1,
                 })
             }
-            (CommandClass::SetCommand, ParameterId::BackgroundDiscovery) => {
+            (CommandClass::SetCommandResponse, ParameterId::BackgroundDiscovery) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::SetBackgroundDiscovery {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                 })
             }
-            (CommandClass::GetCommand, ParameterId::EndpointTiming) => {
+            (CommandClass::GetCommandResponse, ParameterId::EndpointTiming) => {
+                check_msg_len!(bytes, 4);
                 Ok(Self::GetEndpointTiming {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     current_setting_id: bytes[2],
                     setting_count: bytes[3],
                 })
             }
-            (CommandClass::SetCommand, ParameterId::EndpointTiming) => {
+            (CommandClass::SetCommandResponse, ParameterId::EndpointTiming) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::SetEndpointTiming {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                 })
             }
-            (CommandClass::GetCommand, ParameterId::EndpointTimingDescription) => {
+            (CommandClass::GetCommandResponse, ParameterId::EndpointTimingDescription) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetEndpointTimingDescription {
                     setting_id: bytes[0],
-                    description: decode_string_bytes(&bytes[1..])?,
+                    description: decode_string_bytes(&bytes[1..bytes.len().min(1+32)])?,
                 })
             }
-            (CommandClass::GetCommand, ParameterId::EndpointResponders) => {
+            (CommandClass::GetCommandResponse, ParameterId::EndpointResponders) => {
+                check_msg_len!(bytes, 6);
                 Ok(Self::GetEndpointResponders {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     list_change_number: u32::from_be_bytes(bytes[2..=5].try_into()?),
@@ -2847,13 +2986,15 @@ impl ResponseParameterData {
                         .collect::<Result<Vec<DeviceUID, 37>, RdmError>>()?,
                 })
             }
-            (CommandClass::GetCommand, ParameterId::EndpointResponderListChange) => {
+            (CommandClass::GetCommandResponse, ParameterId::EndpointResponderListChange) => {
+                check_msg_len!(bytes, 6);
                 Ok(Self::GetEndpointResponderListChange {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     list_change_number: u32::from_be_bytes(bytes[2..=5].try_into()?),
                 })
             }
-            (CommandClass::GetCommand, ParameterId::BindingControlFields) => {
+            (CommandClass::GetCommandResponse, ParameterId::BindingControlFields) => {
+                check_msg_len!(bytes, 16);
                 Ok(Self::GetBindingControlFields {
                     endpoint_id: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     uid: DeviceUID::new(
@@ -2867,13 +3008,15 @@ impl ResponseParameterData {
                     ),
                 })
             }
-            (CommandClass::GetCommand, ParameterId::BackgroundQueuedStatusPolicy) => {
+            (CommandClass::GetCommandResponse, ParameterId::BackgroundQueuedStatusPolicy) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::GetBackgroundQueuedStatusPolicy {
                     current_policy_id: bytes[0],
                     policy_count: bytes[1],
                 })
             }
-            (CommandClass::GetCommand, ParameterId::BackgroundQueuedStatusPolicyDescription) => {
+            (CommandClass::GetCommandResponse, ParameterId::BackgroundQueuedStatusPolicyDescription) => {
+                check_msg_len!(bytes, 1);
                 Ok(Self::GetBackgroundQueuedStatusPolicyDescription {
                     policy_id: bytes[0],
                     description: decode_string_bytes(&bytes[1..])?,
@@ -2881,6 +3024,7 @@ impl ResponseParameterData {
             }
             // E1.33
             (CommandClass::GetCommandResponse, ParameterId::ComponentScope) => {
+                check_msg_len!(bytes, 86);
                 Ok(Self::GetComponentScope {
                     scope_slot: u16::from_be_bytes(bytes[0..=1].try_into()?),
                     scope_string: decode_string_bytes(&bytes[2..=64])?,
@@ -2891,9 +3035,10 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::SearchDomain) => {
-                Ok(Self::GetSearchDomain(decode_string_bytes(bytes)?))
+                Ok(Self::GetSearchDomain(decode_string_bytes(&bytes[..bytes.len().min(231)])?))
             }
             (CommandClass::GetCommandResponse, ParameterId::TcpCommsStatus) => {
+                check_msg_len!(bytes, 87);
                 Ok(Self::GetTcpCommsStatus {
                     scope_string: decode_string_bytes(&bytes[0..=62])?,
                     broker_ipv4_address: <[u8; 4]>::try_from(&bytes[63..=66])?.into(),
@@ -2903,6 +3048,7 @@ impl ResponseParameterData {
                 })
             }
             (CommandClass::GetCommandResponse, ParameterId::BrokerStatus) => {
+                check_msg_len!(bytes, 2);
                 Ok(Self::GetBrokerStatus {
                     is_allowing_set_commands: bytes[0] == 1,
                     broker_state: bytes[1].try_into()?,
@@ -2910,15 +3056,15 @@ impl ResponseParameterData {
             }
             (_, ParameterId::ManufacturerSpecific(_)) => Ok(Self::ManufacturerSpecific(
                 #[cfg(feature = "alloc")]
-                bytes.to_vec(),
+                bytes[..bytes.len().min(231)].to_vec(),
                 #[cfg(not(feature = "alloc"))]
-                Vec::<u8, 231>::from_slice(bytes).unwrap(),
+                Vec::<u8, 231>::from_slice(&bytes[..bytes.len().min(231)]).unwrap(),
             )),
             (_, _) => Ok(Self::Unsupported(
                 #[cfg(feature = "alloc")]
-                bytes.to_vec(),
+                bytes[..bytes.len().min(231)].to_vec(),
                 #[cfg(not(feature = "alloc"))]
-                Vec::<u8, 231>::from_slice(bytes).unwrap(),
+                Vec::<u8, 231>::from_slice(&bytes[..bytes.len().min(231)]).unwrap(),
             )),
         }
     }
