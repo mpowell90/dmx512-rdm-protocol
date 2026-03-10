@@ -5,6 +5,7 @@
 //! ```rust
 //! use dmx512_rdm_protocol::rdm::{
 //!     request::{RdmRequest, RequestParameter},
+//!     parameter::ControllerFlags,
 //!     DeviceUID, SubDeviceId,
 //! };
 //!
@@ -13,6 +14,7 @@
 //!     DeviceUID::new(0x0605, 0x04030201),
 //!     0x00,
 //!     0x01,
+//!     ControllerFlags::new(),
 //!     SubDeviceId::RootDevice,
 //!     RequestParameter::GetIdentifyDevice,
 //! )
@@ -43,11 +45,12 @@ use super::{
     bsd_16_crc,
     error::RdmError,
     parameter::{
-        decode_string_bytes, BrokerState, DiscoveryState, DisplayInvertMode, EndpointId,
-        EndpointMode, FadeTimes, IdentifyMode, Ipv4Address, Ipv4Route, Ipv6Address, LampOnMode, LampState,
-        MergeMode, ParameterId, PinCode, PowerState, PresetPlaybackMode, ResetDeviceMode, SelfTest,
-        StaticConfigType, StatusType, TimeMode,
+        decode_string_bytes, BrokerState, ControllerFlags, DiscoveryState, DisplayInvertMode, EndpointId,
+        EndpointMode, FadeTimes, IdentifyMode, IdentifyTimeout, Ipv4Address, Ipv4Route, Ipv6Address,
+        LampOnMode, LampState, MergeMode, ParameterId, PinCode, PowerState, PresetPlaybackMode,
+        ResetDeviceMode, SelfTest, StaticConfigType, StatusType, SubscriptionAction, TimeMode,
     },
+    utils::VecExt,
     CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, SubDeviceId, RDM_START_CODE_BYTE,
     RDM_SUB_START_CODE_BYTE,
 };
@@ -82,10 +85,40 @@ pub enum RequestParameter {
     SetSubDeviceIdStatusReportThreshold {
         status_type: StatusType,
     },
+    GetQueuedMessageSensorSubscribe,
+    SetQueuedMessageSensorSubscribe {
+        action: SubscriptionAction,
+        #[cfg(feature = "alloc")]
+        sensors: Vec<u8>,
+        #[cfg(not(feature = "alloc"))]
+        sensors: Vec<u8, 228>,
+    },
     GetSupportedParameters,
     GetParameterDescription {
         parameter_id: u16,
     },
+    GetEnumLabel {
+        parameter_id: ParameterId,
+        enum_index: u32,
+    },
+    GetSupportedParametersEnhanced,
+    GetControllerFlagSupport,
+    GetNackDescription {
+        reason_code: u16,
+    },
+    GetPackedPidSub {
+        pid: ParameterId,
+        index: u16,
+        first_sub_device: u16,
+        sub_device_count: u16,
+    },
+    // SetPackedPidSub, // TODO
+    GetPackedPidIndex {
+        pid: ParameterId,
+        first_item: u16,
+        item_count: u16,
+    },
+    // SetPackedPidIndex, // TODO
     GetDeviceInfo,
     GetProductDetailIdList,
     GetDeviceModelDescription,
@@ -218,6 +251,7 @@ pub enum RequestParameter {
         mode: PresetPlaybackMode,
         level: u8,
     },
+    GetSelfTestEnhanced,
     // E1.37-1
     GetIdentifyMode,
     SetIdentifyMode {
@@ -377,6 +411,76 @@ pub enum RequestParameter {
         #[cfg(not(feature = "alloc"))]
         domain_name: String<231>,
     },
+    // E1.37-5
+    GetIdentifyTimeout,
+    SetIdentifyTimeout {
+        timeout: IdentifyTimeout
+    },
+    GetManufacturerUrl,
+    GetProductUrl,
+    GetFirmwareUrl,
+    GetShippingLock,
+    SetShippingLock {
+        locked: bool
+    },
+    GetPowerOffReady,
+    GetSerialNumber,
+    GetTestData {
+        pattern_length: u16,
+    },
+    SetTestData {
+        #[cfg(feature = "alloc")]
+        loopback_data: Vec<u8>,
+        #[cfg(not(feature = "alloc"))]
+        loopback_data: Vec<u8, 231>,
+    },
+    GetCommsStatusNsc,
+    SetCommsStatusNsc,
+    GetResponderTags,
+    SetAddTag {
+        #[cfg(feature = "alloc")]
+        tag: String,
+        #[cfg(not(feature = "alloc"))]
+        tag: String<32>,
+    },
+    SetRemoveTag {
+        #[cfg(feature = "alloc")]
+        tag: String,
+        #[cfg(not(feature = "alloc"))]
+        tag: String<32>,
+    },
+    GetCheckTag {
+        #[cfg(feature = "alloc")]
+        tag: String,
+        #[cfg(not(feature = "alloc"))]
+        tag: String<32>,
+    },
+    SetClearTags,
+    GetDeviceUnitNumber,
+    SetDeviceUnitNumber {
+        unit_number: u32,
+    },
+    GetDmxPersonalityId {
+        personality_number: u8,
+    },
+    GetDeviceInfoOffstage {
+        root_personality: u8,
+        sub_device: SubDeviceId,
+        sub_device_personality: u8,
+    },
+    GetSensorTypeCustom {
+        sensor_type: u8,
+    },
+    GetSensorUnitCustom {
+        sensor_unit: u8,
+    },
+    GetMetadataParameterVersion {
+        parameter_id: ParameterId,
+    },
+    GetMetadataJson {
+        parameter_id: ParameterId,
+    },
+    GetMetadataJsonUrl,
     // E1.37-7
     GetEndpointList,
     GetEndpointListChange,
@@ -522,8 +626,15 @@ impl RequestParameter {
             | Self::GetStatusMessages { .. }
             | Self::GetStatusIdDescription { .. }
             | Self::GetSubDeviceIdStatusReportThreshold
+            | Self::GetQueuedMessageSensorSubscribe
             | Self::GetSupportedParameters
             | Self::GetParameterDescription { .. }
+            | Self::GetEnumLabel { .. }
+            | Self::GetSupportedParametersEnhanced
+            | Self::GetControllerFlagSupport
+            | Self::GetNackDescription { .. }
+            | Self::GetPackedPidSub { .. }
+            | Self::GetPackedPidIndex { .. }
             | Self::GetDeviceInfo
             | Self::GetProductDetailIdList
             | Self::GetDeviceModelDescription
@@ -560,6 +671,7 @@ impl RequestParameter {
             | Self::GetPerformSelfTest
             | Self::GetSelfTestDescription { .. }
             | Self::GetPresetPlayback
+            | Self::GetSelfTestEnhanced
             // E1.37-1
             | Self::GetIdentifyMode
             | Self::GetDmxBlockAddress
@@ -594,6 +706,26 @@ impl RequestParameter {
             | Self::GetDnsIpV4NameServer { .. }
             | Self::GetDnsHostName
             | Self::GetDnsDomainName
+            // E1.37-5
+            | Self::GetIdentifyTimeout
+            | Self::GetManufacturerUrl
+            | Self::GetProductUrl
+            | Self::GetFirmwareUrl
+            | Self::GetShippingLock
+            | Self::GetPowerOffReady
+            | Self::GetSerialNumber
+            | Self::GetTestData { .. }
+            | Self::GetCommsStatusNsc
+            | Self::GetResponderTags
+            | Self::GetCheckTag { .. }
+            | Self::GetDeviceUnitNumber
+            | Self::GetDmxPersonalityId { .. }
+            | Self::GetDeviceInfoOffstage { .. }
+            | Self::GetSensorTypeCustom { .. }
+            | Self::GetSensorUnitCustom { .. }
+            | Self::GetMetadataParameterVersion { .. }
+            | Self::GetMetadataJson { .. }
+            | Self::GetMetadataJsonUrl
             // E1.37-7
             | Self::GetEndpointList
             | Self::GetEndpointListChange
@@ -621,6 +753,9 @@ impl RequestParameter {
             Self::SetCommsStatus
             | Self::SetClearStatusId
             | Self::SetSubDeviceIdStatusReportThreshold { .. }
+            | Self::SetQueuedMessageSensorSubscribe { .. }
+            // | Self::SetPackedPidSub { .. }
+            // | Self::SetPackedPidIndex { .. }
             | Self::SetDeviceLabel { .. }
             | Self::SetFactoryDefaults
             | Self::SetLanguage { .. }
@@ -673,6 +808,15 @@ impl RequestParameter {
             | Self::SetDnsIpV4NameServer { .. }
             | Self::SetDnsHostName { .. }
             | Self::SetDnsDomainName { .. }
+            // E1.37-5
+            | Self::SetIdentifyTimeout { .. }
+            | Self::SetShippingLock { .. }
+            | Self::SetTestData { .. }
+            | Self::SetCommsStatusNsc
+            | Self::SetAddTag { .. }
+            | Self::SetRemoveTag { .. }
+            | Self::SetClearTags
+            | Self::SetDeviceUnitNumber { .. }
             // E1.37-7
             | Self::SetIdentifyEndpoint { .. }
             | Self::SetEndpointToUniverse { .. }
@@ -711,8 +855,18 @@ impl RequestParameter {
             | Self::SetSubDeviceIdStatusReportThreshold { .. } => {
                 ParameterId::SubDeviceIdStatusReportThreshold
             }
+            Self::GetQueuedMessageSensorSubscribe
+            | Self::SetQueuedMessageSensorSubscribe { .. } => ParameterId::QueuedMessageSensorSubscribe,
             Self::GetSupportedParameters => ParameterId::SupportedParameters,
             Self::GetParameterDescription { .. } => ParameterId::ParameterDescription,
+            Self::GetEnumLabel { .. } => ParameterId::EnumLabel,
+            Self::GetSupportedParametersEnhanced => ParameterId::SupportedParametersEnhanced,
+            Self::GetControllerFlagSupport => ParameterId::ControllerFlagSupport,
+            Self::GetNackDescription { .. } => ParameterId::NackDescription,
+            Self::GetPackedPidSub { .. } => ParameterId::PackedPidSub,
+            // Self::SetPackedPidSub { .. }
+            Self::GetPackedPidIndex { .. } => ParameterId::PackedPidIndex,
+            // Self::SetPackedPidIndex { .. }
             Self::GetDeviceInfo => ParameterId::DeviceInfo,
             Self::GetProductDetailIdList => ParameterId::ProductDetailIdList,
             Self::GetDeviceModelDescription => ParameterId::DeviceModelDescription,
@@ -758,6 +912,7 @@ impl RequestParameter {
             Self::GetSelfTestDescription { .. } => ParameterId::SelfTestDescription,
             Self::SetCapturePreset { .. } => ParameterId::CapturePreset,
             Self::GetPresetPlayback | Self::SetPresetPlayback { .. } => ParameterId::PresetPlayback,
+            Self::GetSelfTestEnhanced => ParameterId::SelfTestEnhanced,
             // E1.37-1
             Self::GetIdentifyMode | Self::SetIdentifyMode { .. } => ParameterId::IdentifyMode,
             Self::GetDmxBlockAddress | Self::SetDmxBlockAddress { .. } => {
@@ -823,6 +978,29 @@ impl RequestParameter {
             }
             Self::GetDnsHostName | Self::SetDnsHostName { .. } => ParameterId::DnsHostName,
             Self::GetDnsDomainName | Self::SetDnsDomainName { .. } => ParameterId::DnsDomainName,
+            // E1.37-5
+            Self::GetIdentifyTimeout | Self::SetIdentifyTimeout { .. } => ParameterId::IdentifyTimeout,
+            Self::GetManufacturerUrl => ParameterId::ManufacturerUrl,
+            Self::GetProductUrl => ParameterId::ProductUrl,
+            Self::GetFirmwareUrl => ParameterId::FirmwareUrl,
+            Self::GetShippingLock | Self::SetShippingLock { .. } => ParameterId::ShippingLock,
+            Self::GetPowerOffReady => ParameterId::PowerOffReady,
+            Self::GetSerialNumber => ParameterId::SerialNumber,
+            Self::GetTestData { .. } | Self::SetTestData { .. } => ParameterId::TestData,
+            Self::GetCommsStatusNsc | Self::SetCommsStatusNsc => ParameterId::CommsStatusNsc,
+            Self::GetResponderTags => ParameterId::ListTags,
+            Self::SetAddTag { .. } => ParameterId::AddTag,
+            Self::SetRemoveTag { .. } => ParameterId::RemoveTag,
+            Self::GetCheckTag { .. } => ParameterId::CheckTag,
+            Self::SetClearTags => ParameterId::ClearTags,
+            Self::GetDeviceUnitNumber | Self::SetDeviceUnitNumber { .. } => ParameterId::DeviceUnitNumber,
+            Self::GetDmxPersonalityId { .. } => ParameterId::DmxPersonalityId,
+            Self::GetDeviceInfoOffstage { .. } => ParameterId::DeviceInfoOffstage,
+            Self::GetSensorTypeCustom { .. } => ParameterId::SensorTypeCustom,
+            Self::GetSensorUnitCustom { .. } => ParameterId::SensorUnitCustom,
+            Self::GetMetadataParameterVersion { .. } => ParameterId::MetadataParameterVersion,
+            Self::GetMetadataJson { .. } => ParameterId::MetadataJson,
+            Self::GetMetadataJsonUrl => ParameterId::MetadataJsonUrl,
             // E1.37-7
             Self::GetEndpointList => ParameterId::EndpointList,
             Self::GetEndpointListChange => ParameterId::EndpointListChange,
@@ -937,12 +1115,55 @@ impl RequestParameter {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*status_type as u8).unwrap();
             }
+            Self::GetQueuedMessageSensorSubscribe => {}
+            Self::SetQueuedMessageSensorSubscribe { action, sensors } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1 + sensors.len());
+
+                buf.push_u8(*action as u8);
+                #[cfg(feature = "alloc")]
+                buf.extend(sensors);
+                #[cfg(not(feature = "alloc"))]
+                buf.extend_from_slice(sensors).unwrap();
+            }
             Self::GetSupportedParameters => {}
             Self::GetParameterDescription { parameter_id } => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(0x02);
 
                 buf.extend((*parameter_id).to_be_bytes());
+            }
+            Self::GetEnumLabel { parameter_id, enum_index } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x06);
+
+                buf.push_u16_be((*parameter_id).into());
+                buf.push_u32_be(*enum_index);
+            }
+            Self::GetSupportedParametersEnhanced => {}
+            Self::GetControllerFlagSupport => {}
+            Self::GetNackDescription { reason_code } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.push_u16_be((*reason_code).into());
+            },
+            Self::GetPackedPidSub { pid, index, first_sub_device, sub_device_count } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x08);
+
+                buf.push_u16_be((*pid).into());
+                buf.push_u16_be(*index);
+                buf.push_u16_be(*first_sub_device);
+                buf.push_u16_be(*sub_device_count);
+            }
+            Self::GetPackedPidIndex { pid, first_item, item_count } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x06);
+
+                buf.push_u16_be((*pid).into());
+                buf.push_u16_be(*first_item);
+                buf.push_u16_be(*item_count);
             }
             Self::GetDeviceInfo => {}
             Self::GetProductDetailIdList => {}
@@ -1248,6 +1469,7 @@ impl RequestParameter {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*level).unwrap();
             }
+            Self::GetSelfTestEnhanced => {}
             // E1.37-1
             Self::GetIdentifyMode => {}
             Self::SetIdentifyMode { identify_mode } => {
@@ -1634,6 +1856,94 @@ impl RequestParameter {
 
                 buf.extend(domain_name.bytes())
             }
+            // E1.37-5
+            Self::GetIdentifyTimeout => {}
+            Self::SetIdentifyTimeout { timeout } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.push_u16_be((*timeout).into());
+            }
+            Self::GetManufacturerUrl => {}
+            Self::GetProductUrl => {}
+            Self::GetFirmwareUrl => {}
+            Self::GetShippingLock => {}
+            Self::SetShippingLock { locked } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x01);
+
+                buf.push_u8(if *locked {1} else {0});
+            }
+            Self::GetPowerOffReady => {}
+            Self::GetSerialNumber => {}
+            Self::GetTestData { pattern_length } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.push_u16_be(*pattern_length);
+            }
+            Self::SetTestData { loopback_data } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(loopback_data.len());
+
+                #[cfg(feature = "alloc")]
+                buf.extend(loopback_data);
+                #[cfg(not(feature = "alloc"))]
+                buf.extend_from_slice(loopback_data).unwrap();
+            }
+            Self::GetCommsStatusNsc => {}
+            Self::SetCommsStatusNsc => {}
+            Self::GetResponderTags => {}
+            Self::SetAddTag { tag } |
+            Self::SetRemoveTag { tag } |
+            Self::GetCheckTag { tag } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(tag.len());
+
+                buf.extend(tag.bytes())
+            }
+            Self::SetClearTags => {}
+            Self::GetDeviceUnitNumber => {}
+            Self::SetDeviceUnitNumber { unit_number } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(4);
+
+                buf.push_u32_be(*unit_number);
+            }
+            Self::GetDmxPersonalityId { personality_number } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1);
+
+                buf.push_u8(*personality_number);
+            }
+            Self::GetDeviceInfoOffstage { root_personality, sub_device, sub_device_personality } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(4);
+
+                buf.push_u8(*root_personality);
+                buf.push_u16_be((*sub_device).into());
+                buf.push_u8(*sub_device_personality);
+            }
+            Self::GetSensorTypeCustom { sensor_type } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1);
+
+                buf.push_u8((*sensor_type).into());
+            }
+            Self::GetSensorUnitCustom { sensor_unit } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1);
+
+                buf.push_u8((*sensor_unit).into());
+            }
+            Self::GetMetadataParameterVersion { parameter_id } |
+            Self::GetMetadataJson { parameter_id } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(2);
+
+                buf.push_u16_be((*parameter_id).into());
+            }
+            Self::GetMetadataJsonUrl => {}
             // E1.37-7
             Self::GetEndpointList => {}
             Self::GetEndpointListChange => {}
@@ -1951,6 +2261,18 @@ impl RequestParameter {
                     status_type: bytes[0].try_into()?,
                 })
             }
+            (CommandClass::GetCommand, ParameterId::QueuedMessageSensorSubscribe) => Ok(Self::GetQueuedMessageSensorSubscribe),
+            (CommandClass::SetCommand, ParameterId::QueuedMessageSensorSubscribe) => {
+                check_msg_len!(bytes, 1);
+                #[cfg(feature = "alloc")]
+                let sensors = bytes[1..bytes.len().min(1+228)].into();
+                #[cfg(not(feature = "alloc"))]
+                let sensors = Vec::<u8, 228>::from_slice(&bytes[1..bytes.len().min(1+228)]).unwrap();
+                Ok(Self::SetQueuedMessageSensorSubscribe {
+                    action: bytes[0].try_into()?,
+                    sensors 
+                })
+            }
             (CommandClass::GetCommand, ParameterId::SupportedParameters) => {
                 Ok(Self::GetSupportedParameters)
             }
@@ -1958,6 +2280,38 @@ impl RequestParameter {
                 check_msg_len!(bytes, 2);
                 Ok(Self::GetParameterDescription {
                     parameter_id: u16::from_be_bytes([bytes[0], bytes[1]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::EnumLabel) => {
+                check_msg_len!(bytes, 6);
+                Ok(Self::GetEnumLabel {
+                    parameter_id: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    enum_index: u32::from_be_bytes([bytes[2], bytes[3], bytes[4], bytes[5]])
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::SupportedParametersEnhanced) => Ok(Self::GetSupportedParametersEnhanced),
+            (CommandClass::GetCommand, ParameterId::ControllerFlagSupport) => Ok(Self::GetControllerFlagSupport),
+            (CommandClass::GetCommand, ParameterId::NackDescription) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetNackDescription {
+                    reason_code: u16::from_be_bytes([bytes[0], bytes[1]])
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PackedPidSub) => {
+                check_msg_len!(bytes, 8);
+                Ok(Self::GetPackedPidSub {
+                    pid: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    index: u16::from_be_bytes([bytes[2], bytes[3]]),
+                    first_sub_device: u16::from_be_bytes([bytes[4], bytes[5]]),
+                    sub_device_count: u16::from_be_bytes([bytes[6], bytes[7]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PackedPidIndex) => {
+                check_msg_len!(bytes, 6);
+                Ok(Self::GetPackedPidIndex {
+                    pid: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    first_item: u16::from_be_bytes([bytes[2], bytes[3]]),
+                    item_count: u16::from_be_bytes([bytes[4], bytes[5]]),
                 })
             }
             (CommandClass::GetCommand, ParameterId::DeviceInfo) => Ok(Self::GetDeviceInfo),
@@ -2217,6 +2571,7 @@ impl RequestParameter {
                     level: bytes[2],
                 })
             }
+            (CommandClass::GetCommand, ParameterId::SelfTestEnhanced) => Ok(Self::GetSelfTestEnhanced),
             // E1.37-1
             (CommandClass::GetCommand, ParameterId::IdentifyMode) => Ok(Self::GetIdentifyMode),
             (CommandClass::SetCommand, ParameterId::IdentifyMode) => {
@@ -2485,6 +2840,104 @@ impl RequestParameter {
             (CommandClass::SetCommand, ParameterId::DnsDomainName) => Ok(Self::SetDnsDomainName {
                 domain_name: decode_string_bytes(bytes)?,
             }),
+            // E1.37-5
+            (CommandClass::GetCommand, ParameterId::IdentifyTimeout) => Ok(Self::GetIdentifyTimeout),
+            (CommandClass::SetCommand, ParameterId::IdentifyTimeout) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::SetIdentifyTimeout {
+                    timeout: u16::from_be_bytes([bytes[0], bytes[1]]).into()
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::ManufacturerUrl) => Ok(Self::GetManufacturerUrl),
+            (CommandClass::GetCommand, ParameterId::ProductUrl) => Ok(Self::GetProductUrl),
+            (CommandClass::GetCommand, ParameterId::FirmwareUrl) => Ok(Self::GetFirmwareUrl),
+            (CommandClass::GetCommand, ParameterId::ShippingLock) => Ok(Self::GetShippingLock),
+            (CommandClass::SetCommand, ParameterId::ShippingLock) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::SetShippingLock {
+                    locked: bytes[0] != 0
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PowerOffReady) => Ok(Self::GetPowerOffReady),
+            (CommandClass::GetCommand, ParameterId::SerialNumber) => Ok(Self::GetSerialNumber),
+            (CommandClass::GetCommand, ParameterId::TestData) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetTestData {
+                    pattern_length: u16::from_be_bytes([bytes[0], bytes[1]]).into()
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::TestData) => {
+                #[cfg(feature = "alloc")]
+                let loopback_data = bytes[..bytes.len().min(231)].into();
+                #[cfg(not(feature = "alloc"))]
+                let loopback_data = Vec::<u8, 231>::from_slice(&bytes[..bytes.len().min(231)]).unwrap();
+                Ok(Self::SetTestData{ loopback_data })
+            }
+            (CommandClass::GetCommand, ParameterId::CommsStatusNsc) => Ok(Self::GetCommsStatusNsc),
+            (CommandClass::SetCommand, ParameterId::CommsStatusNsc) => Ok(Self::SetCommsStatusNsc),
+            (CommandClass::GetCommand, ParameterId::ListTags) => Ok(Self::GetResponderTags),
+            (CommandClass::SetCommand, ParameterId::AddTag) => {
+                Ok(Self::SetAddTag {
+                    tag: decode_string_bytes(&bytes[..bytes.len().min(32)])?,
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::RemoveTag) => {
+                Ok(Self::SetRemoveTag {
+                    tag: decode_string_bytes(&bytes[..bytes.len().min(32)])?,
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::CheckTag) => {
+                Ok(Self::GetCheckTag {
+                    tag: decode_string_bytes(&bytes[..bytes.len().min(32)])?,
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::ClearTags) => Ok(Self::SetClearTags),
+            (CommandClass::GetCommand, ParameterId::DeviceUnitNumber) => Ok(Self::GetDeviceUnitNumber),
+            (CommandClass::SetCommand, ParameterId::DeviceUnitNumber) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::SetDeviceUnitNumber {
+                    unit_number: u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DmxPersonalityId) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::GetDmxPersonalityId {
+                    personality_number: bytes[0]
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::DeviceInfoOffstage) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::GetDeviceInfoOffstage {
+                    root_personality: bytes[0],
+                    sub_device: u16::from_be_bytes([bytes[1], bytes[2]]).into(),
+                    sub_device_personality: bytes[3]
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::SensorTypeCustom) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::GetSensorTypeCustom {
+                    sensor_type: bytes[0]
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::SensorUnitCustom) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::GetSensorUnitCustom {
+                    sensor_unit: bytes[0]
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::MetadataParameterVersion) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetMetadataParameterVersion {
+                    parameter_id: u16::from_be_bytes([bytes[0], bytes[1]]).into()
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::MetadataJson) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetMetadataJson {
+                    parameter_id: u16::from_be_bytes([bytes[0], bytes[1]]).into()
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::MetadataJsonUrl) => Ok(Self::GetMetadataJsonUrl),
             // E1.37-7
             (CommandClass::GetCommand, ParameterId::EndpointList) => Ok(Self::GetEndpointList),
             (CommandClass::GetCommand, ParameterId::EndpointListChange) => {
@@ -2710,6 +3163,7 @@ pub struct RdmRequest {
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub port_id: u8,
+    pub controller_flags: ControllerFlags,
     pub sub_device_id: SubDeviceId,
     pub parameter: RequestParameter,
 }
@@ -2720,6 +3174,7 @@ impl RdmRequest {
         source_uid: DeviceUID,
         transaction_number: u8,
         port_id: u8,
+        controller_flags: ControllerFlags,
         sub_device_id: SubDeviceId,
         parameter: RequestParameter,
     ) -> Self {
@@ -2728,6 +3183,7 @@ impl RdmRequest {
             source_uid,
             transaction_number,
             port_id,
+            controller_flags,
             sub_device_id,
             parameter,
         }
@@ -2781,11 +3237,10 @@ impl RdmRequest {
         #[cfg(not(feature = "alloc"))]
         buf.push(self.port_id).unwrap();
 
-        // Message Count shall be set to 0x00 in all controller generated requests
         #[cfg(feature = "alloc")]
-        buf.push(0x00);
+        buf.push(self.controller_flags.0);
         #[cfg(not(feature = "alloc"))]
-        buf.push(0x00).unwrap();
+        buf.push(self.controller_flags.0).unwrap();
 
         buf.extend(u16::from(self.sub_device_id).to_be_bytes());
 
@@ -2817,6 +3272,7 @@ impl RdmRequest {
 
         let transaction_number = bytes[15];
         let port_id = bytes[16];
+        let controller_flags = bytes[17].into();
         let sub_device_id = u16::from_be_bytes([bytes[18], bytes[19]]).into();
         let command_class = bytes[20].try_into()?;
         let parameter_id = u16::from_be_bytes([bytes[21], bytes[22]]).into();
@@ -2835,6 +3291,7 @@ impl RdmRequest {
             source_uid,
             transaction_number,
             port_id,
+            controller_flags,
             sub_device_id,
             parameter,
         ))
@@ -2866,6 +3323,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
             SubDeviceId::Id(0x01),
             RequestParameter::DiscUniqueBranch {
                 lower_bound_uid: DeviceUID::new(0x0000, 0x00000000),
@@ -2921,6 +3379,8 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
+
             SubDeviceId::Id(0x01),
             RequestParameter::DiscUniqueBranch {
                 lower_bound_uid: DeviceUID::new(0x0000, 0x00000000),
@@ -2938,6 +3398,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
             SubDeviceId::RootDevice,
             RequestParameter::GetIdentifyDevice,
         )
@@ -2986,6 +3447,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
             SubDeviceId::RootDevice,
             RequestParameter::GetIdentifyDevice,
         );
@@ -3000,6 +3462,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
             SubDeviceId::RootDevice,
             RequestParameter::ManufacturerSpecific {
                 command_class: CommandClass::SetCommand,
@@ -3057,6 +3520,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
             SubDeviceId::RootDevice,
             RequestParameter::ManufacturerSpecific {
                 command_class: CommandClass::SetCommand,

@@ -48,14 +48,15 @@
 use super::{
     bsd_16_crc,
     parameter::{
-        decode_string_bytes, BrokerState, DefaultSlotValue, DhcpMode, DiscoveryCountStatus,
-        DiscoveryState, DisplayInvertMode, EndpointId, EndpointMode, EndpointType, IdentifyMode, Ipv4Address,
+        decode_string_bytes, BrokerState, ControllerFlags, DefaultSlotValue, DeviceInfo, DhcpMode, DiscoveryCountStatus,
+        DiscoveryState, DisplayInvertMode, EndpointId, EndpointMode, EndpointType, IdentifyMode, IdentifyTimeout, Ipv4Address,
         Ipv4Route, Ipv6Address, LampOnMode, LampState, MergeMode, NetworkInterface,
-        ParameterDescription, ParameterId, PinCode, PowerState, PresetPlaybackMode,
-        PresetProgrammed, ProductCategory, ProductDetail, ProtocolVersion, SelfTest,
-        SensorDefinition, SensorValue, SlotInfo, StaticConfigType, StatusMessage, StatusType,
+        ParameterDescription, ParameterId, PidSupport, PinCode, PowerState, PresetPlaybackMode,
+        PresetProgrammed, ProductDetail, SelfTest, SelfTestCapability, SelfTestStatus,
+        SensorDefinition, SensorType, SensorUnit, SensorValue, ShippingLockState, SlotInfo, StaticConfigType, StatusMessage, StatusType,
         SupportedTimes, TimeMode,
     },
+    utils::VecExt,
     CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, RdmError, SubDeviceId,
     DISCOVERY_UNIQUE_BRANCH_PREAMBLE_BYTE, DISCOVERY_UNIQUE_BRANCH_PREAMBLE_SEPARATOR_BYTE,
     RDM_START_CODE_BYTE, RDM_SUB_START_CODE_BYTE,
@@ -69,21 +70,34 @@ use heapless::{String, Vec};
 // E1.20 2025 Table A-17
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ResponseNackReasonCode {
-    UnknownPid = 0x0000,
-    FormatError = 0x0001,
-    HardwareFault = 0x0002,
-    ProxyReject = 0x0003,
-    WriteProtect = 0x0004,
-    UnsupportedCommandClass = 0x0005,
-    DataOutOfRange = 0x0006,
-    BufferFull = 0x0007,
-    PacketSizeUnsupported = 0x0008,
-    SubDeviceIdOutOfRange = 0x0009,
-    ProxyBufferFull = 0x000a,
-    ActionNotSupported = 0x000b,
-    EndpointNumberInvalid = 0x000c,
-    InvalidEndpointMode = 0x000d,
-    UnknownUid = 0x000e,
+    UnknownPid,
+    FormatError,
+    HardwareFault,
+    ProxyReject,
+    WriteProtect,
+    UnsupportedCommandClass,
+    DataOutOfRange,
+    BufferFull,
+    PacketSizeUnsupported,
+    SubDeviceIdOutOfRange,
+    ProxyBufferFull,
+    ActionNotSupported,
+    EndpointNumberInvalid,
+    InvalidEndpointMode,
+    UnknownUid,
+    UnknownScope,
+    InvalidStaticConfigType,
+    InvalidIpv4Address,
+    InvalidIpv6Address,
+    InvalidPort,
+    DeviceAbsent,
+    SensorOutOfRange,
+    SensorFault,
+    PackingNotSupported,
+    ErrorInPackedListTransaction,
+    ProxyDrop,
+    AllCallSetFail,
+    ManufacturerSpecific(u16),
 }
 
 impl TryFrom<u16> for ResponseNackReasonCode {
@@ -106,7 +120,55 @@ impl TryFrom<u16> for ResponseNackReasonCode {
             0x000c => Ok(Self::EndpointNumberInvalid),
             0x000d => Ok(Self::InvalidEndpointMode),
             0x000e => Ok(Self::UnknownUid),
+            0x000f => Ok(Self::UnknownScope),
+            0x0010 => Ok(Self::InvalidStaticConfigType),
+            0x0011 => Ok(Self::InvalidIpv4Address),
+            0x0012 => Ok(Self::InvalidIpv6Address),
+            0x0013 => Ok(Self::InvalidPort),
+            0x0014 => Ok(Self::DeviceAbsent),
+            0x0015 => Ok(Self::SensorOutOfRange),
+            0x0016 => Ok(Self::SensorFault),
+            0x0017 => Ok(Self::PackingNotSupported),
+            0x0018 => Ok(Self::ErrorInPackedListTransaction),
+            0x0019 => Ok(Self::ProxyDrop),
+            0x0020 => Ok(Self::AllCallSetFail),
+            n if n&0x8000 != 0 => Ok(Self::ManufacturerSpecific(n)),
             value => Err(RdmError::InvalidNackReasonCode(value)),
+        }
+    }
+}
+
+impl From<ResponseNackReasonCode> for u16 {
+    fn from(value: ResponseNackReasonCode) -> Self {
+        match value {
+            ResponseNackReasonCode::UnknownPid => 0x0000,
+            ResponseNackReasonCode::FormatError => 0x0001,
+            ResponseNackReasonCode::HardwareFault => 0x0002,
+            ResponseNackReasonCode::ProxyReject => 0x0003,
+            ResponseNackReasonCode::WriteProtect => 0x0004,
+            ResponseNackReasonCode::UnsupportedCommandClass => 0x0005,
+            ResponseNackReasonCode::DataOutOfRange => 0x0006,
+            ResponseNackReasonCode::BufferFull => 0x0007,
+            ResponseNackReasonCode::PacketSizeUnsupported => 0x0008,
+            ResponseNackReasonCode::SubDeviceIdOutOfRange => 0x0009,
+            ResponseNackReasonCode::ProxyBufferFull => 0x000a,
+            ResponseNackReasonCode::ActionNotSupported => 0x000b,
+            ResponseNackReasonCode::EndpointNumberInvalid => 0x000c,
+            ResponseNackReasonCode::InvalidEndpointMode => 0x000d,
+            ResponseNackReasonCode::UnknownUid => 0x000e,
+            ResponseNackReasonCode::UnknownScope => 0x000f,
+            ResponseNackReasonCode::InvalidStaticConfigType => 0x0010,
+            ResponseNackReasonCode::InvalidIpv4Address => 0x0011,
+            ResponseNackReasonCode::InvalidIpv6Address => 0x0012,
+            ResponseNackReasonCode::InvalidPort => 0x0013,
+            ResponseNackReasonCode::DeviceAbsent => 0x0014,
+            ResponseNackReasonCode::SensorOutOfRange => 0x0015,
+            ResponseNackReasonCode::SensorFault => 0x0016,
+            ResponseNackReasonCode::PackingNotSupported => 0x0017,
+            ResponseNackReasonCode::ErrorInPackedListTransaction => 0x0018,
+            ResponseNackReasonCode::ProxyDrop => 0x0019,
+            ResponseNackReasonCode::AllCallSetFail => 0x0020,
+            ResponseNackReasonCode::ManufacturerSpecific(value) => value,
         }
     }
 }
@@ -129,6 +191,19 @@ impl Display for ResponseNackReasonCode {
             Self::EndpointNumberInvalid => "The Endpoint Number is invalid.",
             Self::InvalidEndpointMode => "The Endpoint Mode is invalid.",
             Self::UnknownUid => "The UID is not known to the responder.",
+            Self::UnknownScope => "The Component is not participating in the given Scope.",
+            Self::InvalidStaticConfigType => "The Static Config Type is invalid.",
+            Self::InvalidIpv4Address => "The IPv4 Address is invalid.",
+            Self::InvalidIpv6Address => "The IPv6 Address is invalid.",
+            Self::InvalidPort => "The transport layer port is invalid.",
+            Self::DeviceAbsent => "The addressed sub-device or sensor is absent.",
+            Self::SensorOutOfRange => "The addressed sensor is out of range.",
+            Self::SensorFault => "The sensor is faulty.",
+            Self::PackingNotSupported => "The specified PID is not supported in packed messages.",
+            Self::ErrorInPackedListTransaction => "Error attempting to action an item in a packed list.",
+            Self::ProxyDrop => "The response to the proxy was lost.",
+            Self::AllCallSetFail => "A SET to SUB_DEVICE_ALL_CALL failed.",
+            Self::ManufacturerSpecific(_) => "Manufacturer specific NACK Code",
         };
 
         f.write_str(message)
@@ -142,6 +217,7 @@ pub enum ResponseType {
     AckTimer = 0x01,
     NackReason = 0x02,
     AckOverflow = 0x03,
+    AckTimerHiRes = 0x04,
 }
 
 impl TryFrom<u8> for ResponseType {
@@ -153,6 +229,7 @@ impl TryFrom<u8> for ResponseType {
             0x01 => Ok(Self::AckTimer),
             0x02 => Ok(Self::NackReason),
             0x03 => Ok(Self::AckOverflow),
+            0x04 => Ok(Self::AckTimerHiRes),
             _ => Err(RdmError::InvalidResponseType(value)),
         }
     }
@@ -164,6 +241,8 @@ pub enum ResponseData {
     ParameterData(Option<ResponseParameterData>),
     /// Estimated response time in 10ths of a second (100ms)
     EstimateResponseTime(u16),
+    /// Estimated response time in milliseconds
+    EstimateResponseTimeHiRes(u16),
     NackReason(ResponseNackReasonCode),
 }
 
@@ -185,7 +264,8 @@ impl ResponseData {
                 buf.extend(data);
             }
             Self::ParameterData(None) => {}
-            Self::EstimateResponseTime(time) => {
+            Self::EstimateResponseTime(time) |
+            Self::EstimateResponseTimeHiRes(time) => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(2);
 
@@ -195,7 +275,7 @@ impl ResponseData {
                 #[cfg(feature = "alloc")]
                 buf.reserve(2);
 
-                buf.extend((*reason as u16).to_be_bytes());
+                buf.extend(u16::from(*reason).to_be_bytes());
             }
         }
 
@@ -224,11 +304,19 @@ impl ResponseData {
                 Ok(ResponseData::ParameterData(parameter_data))
             }
             ResponseType::AckTimer => {
+                check_msg_len!(bytes, 2);
                 let estimated_response_time = u16::from_be_bytes(bytes[0..=1].try_into()?);
 
                 Ok(ResponseData::EstimateResponseTime(estimated_response_time))
             }
+            ResponseType::AckTimerHiRes => {
+                check_msg_len!(bytes, 2);
+                let estimated_response_time = u16::from_be_bytes(bytes[0..=1].try_into()?);
+
+                Ok(ResponseData::EstimateResponseTimeHiRes(estimated_response_time))
+            }
             ResponseType::NackReason => {
+                check_msg_len!(bytes, 2);
                 let nack_reason = u16::from_be_bytes(bytes[0..=1].try_into()?).try_into()?;
 
                 Ok(ResponseData::NackReason(nack_reason))
@@ -272,23 +360,39 @@ pub enum ResponseParameterData {
         #[cfg(not(feature = "alloc"))] String<32>,
     ),
     GetSubDeviceIdStatusReportThreshold(StatusType),
+    GetQueuedMessageSensorSubscribe(
+        #[cfg(feature = "alloc")] Vec<u8>,
+        #[cfg(not(feature = "alloc"))] Vec<u8, 228>,
+    ),
     GetSupportedParameters(
         #[cfg(feature = "alloc")] Vec<u16>,
         #[cfg(not(feature = "alloc"))] Vec<u16, 115>,
     ),
     GetParameterDescription(ParameterDescription),
-    GetDeviceInfo {
-        protocol_version: ProtocolVersion,
-        model_id: u16,
-        product_category: ProductCategory,
-        software_version_id: u32,
-        footprint: u16,
-        current_personality: u8,
-        personality_count: u8,
-        start_address: u16,
-        sub_device_count: u16,
-        sensor_count: u8,
+    GetEnumLabel {
+        pid_requested: u16,
+        enum_index: u32,
+        max_enum_index: u32,
+        #[cfg(feature = "alloc")]
+        label: String,
+        #[cfg(not(feature = "alloc"))]
+        label: String<32>,
     },
+    GetSupportedParametersEnhanced(
+        #[cfg(feature = "alloc")] Vec<(ParameterId, PidSupport)>,
+        #[cfg(not(feature = "alloc"))] Vec<(ParameterId, PidSupport), 57>,
+    ),
+    GetControllerFlagSupport(ControllerFlags),
+    GetNackDescription {
+        nack_reason_code: ResponseNackReasonCode,
+        #[cfg(feature = "alloc")]
+        description: String,
+        #[cfg(not(feature = "alloc"))]
+        description: String<32>,
+    },
+    // GetPackedPidSub // TODO
+    // GetPackedPidIndex // TODO
+    GetDeviceInfo(DeviceInfo),
     GetProductDetailIdList(
         #[cfg(feature = "alloc")] Vec<ProductDetail>,
         #[cfg(not(feature = "alloc"))] Vec<ProductDetail, 115>,
@@ -386,6 +490,13 @@ pub enum ResponseParameterData {
     GetPresetPlayback {
         mode: PresetPlaybackMode,
         level: u8,
+    },
+    GetSelfTestEnhanced {
+        result_code_enum: Option<ParameterId>,
+        #[cfg(feature = "alloc")]
+        tests: Vec<(SelfTest, SelfTestStatus, SelfTestCapability, u16)>,
+        #[cfg(not(feature = "alloc"))]
+        tests: Vec<(SelfTest, SelfTestStatus, SelfTestCapability, u16), 38>,
     },
     // E1.37-1
     GetIdentifyMode(IdentifyMode),
@@ -545,6 +656,83 @@ pub enum ResponseParameterData {
         #[cfg(not(feature = "alloc"))] String<63>,
     ),
     GetDnsDomainName(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<32>,
+    ),
+    // E1.37-5
+    GetIdentifyTimeout(IdentifyTimeout),
+    GetManufacturerUrl(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<231>,
+    ),
+    GetProductUrl(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<231>,
+    ),
+    GetFirmwareUrl(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<231>,
+    ),
+    GetShippingLock(ShippingLockState),
+    GetPowerOffReady(bool),
+    GetSerialNumber(
+        #[cfg(feature = "alloc")] String,
+        #[cfg(not(feature = "alloc"))] String<231>,
+    ),
+    GetTestData(
+        #[cfg(feature = "alloc")] Vec<u8>,
+        #[cfg(not(feature = "alloc"))] Vec<u8, 231>,
+    ),
+    SetTestData(
+        #[cfg(feature = "alloc")] Vec<u8>,
+        #[cfg(not(feature = "alloc"))] Vec<u8, 231>,
+    ),
+    GetCommsStatusNSC {
+        checksum: Option<u32>,
+        packet_count: Option<u32>,
+        most_recent_slot_count: Option<u16>,
+        minimum_slot_count: Option<u16>,
+        maximum_slot_count: Option<u16>,
+        packet_error_count: Option<u32>,
+    },
+    // GetResponderTags // TODO
+    CheckResponderTag(bool),
+    GetDeviceUnitNumber(u32), // NOTE: 0 is unset
+    GetDmxPersonalityId {
+        personality: u8,
+        major_id: u16,
+        minor_id: u16
+    },
+    GetDeviceInfoOffstage {
+        root_personality: u8,
+        sub_device_id: SubDeviceId,
+        sub_device_personality: u8,
+        info: DeviceInfo,
+    },
+    GetSensorTypeCustom {
+        sensor_type: SensorType, // Should be manufacturer specific
+        #[cfg(feature = "alloc")]
+        label: String,
+        #[cfg(not(feature = "alloc"))]
+        label: String<32>,
+    },
+    GetSensorUnitCustom {
+        sensor_unit: SensorUnit, // Should be manufacturer specific
+        #[cfg(feature = "alloc")]
+        label: String,
+        #[cfg(not(feature = "alloc"))]
+        label: String<32>,
+    },
+    GetMetadataParameterVersion {
+        parameter_id: ParameterId,
+        version: u16,
+    },
+    GetMetadataJson {
+        parameter_id: Option<ParameterId>,
+        #[cfg(feature = "alloc")] json_text: String,
+        #[cfg(not(feature = "alloc"))] json_text: String<231>,
+    },
+    GetMetadataJsonUrl(
         #[cfg(feature = "alloc")] String,
         #[cfg(not(feature = "alloc"))] String<231>,
     ),
@@ -801,6 +989,15 @@ impl ResponseParameterData {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*status as u8).unwrap();
             }
+            Self::GetQueuedMessageSensorSubscribe(subs) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1);
+
+                #[cfg(feature = "alloc")]
+                buf.extend(subs);
+                #[cfg(not(feature = "alloc"))]
+                buf.extend_from_slice(subs).unwrap();
+            }
             Self::GetSupportedParameters(parameters) => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(parameters.len() * 2);
@@ -854,45 +1051,47 @@ impl ResponseParameterData {
                 #[cfg(not(feature = "alloc"))]
                 buf.extend(description.description.bytes());
             }
-            Self::GetDeviceInfo {
-                protocol_version,
-                model_id,
-                product_category,
-                software_version_id,
-                footprint,
-                current_personality,
-                personality_count,
-                start_address,
-                sub_device_count,
-                sensor_count,
+            Self::GetEnumLabel {
+                pid_requested,
+                enum_index,
+                max_enum_index,
+                label
             } => {
                 #[cfg(feature = "alloc")]
-                buf.reserve(21);
+                buf.reserve(10+label.len());
 
-                buf.extend(u16::from(*protocol_version).to_be_bytes());
-
-                buf.extend(model_id.to_be_bytes());
-                buf.extend(u16::from(*product_category).to_be_bytes());
-                buf.extend(software_version_id.to_be_bytes());
-                buf.extend(footprint.to_be_bytes());
-
+                buf.push_u16_be(*pid_requested);
+                buf.push_u32_be(*enum_index);
+                buf.push_u32_be(*max_enum_index);
+                buf.extend(label.bytes());
+            }
+            Self::GetSupportedParametersEnhanced(params) => {
                 #[cfg(feature = "alloc")]
-                buf.push(*current_personality);
-                #[cfg(not(feature = "alloc"))]
-                buf.push(*current_personality).unwrap();
+                buf.reserve(params.len()*4);
 
+                for (pid, sup) in params {
+                    buf.push_u16_be((*pid).into());
+                    buf.push_u16_be((*sup).into());
+                }
+            }
+            Self::GetControllerFlagSupport(flags) => {
                 #[cfg(feature = "alloc")]
-                buf.push(*personality_count);
-                #[cfg(not(feature = "alloc"))]
-                buf.push(*personality_count).unwrap();
+                buf.reserve(1);
 
-                buf.extend(start_address.to_be_bytes());
-                buf.extend(sub_device_count.to_be_bytes());
-
+                buf.push_u8((*flags).into());
+            }
+            Self::GetNackDescription {
+                nack_reason_code,
+                description
+            } => {
                 #[cfg(feature = "alloc")]
-                buf.push(*sensor_count);
-                #[cfg(not(feature = "alloc"))]
-                buf.push(*sensor_count).unwrap();
+                buf.reserve(2+description.len());
+
+                buf.push_u16_be((*nack_reason_code).into());
+                buf.extend(description.bytes());
+            }
+            Self::GetDeviceInfo(info) => {
+                info.encode(&mut buf);
             }
             Self::GetProductDetailIdList(details) => {
                 #[cfg(feature = "alloc")]
@@ -1285,6 +1484,24 @@ impl ResponseParameterData {
                 buf.push(*level);
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*level).unwrap();
+            }
+            Self::GetSelfTestEnhanced { result_code_enum, tests } => {
+                if let Some(rc) = *result_code_enum {
+                    #[cfg(feature = "alloc")]
+                    buf.reserve(2+tests.len()*6);
+
+                    buf.push_u16_be(rc.into());
+                } else {
+                    #[cfg(feature = "alloc")]
+                    buf.reserve(2+tests.len()*6);
+                }
+
+                for (tst, stat, capa, res) in tests {
+                    buf.push_u8((*tst).into());
+                    buf.push_u8(*stat as u8);
+                    buf.push_u16_be((*capa).into());
+                    buf.push_u16_be((*res).into());
+                }
             }
             Self::GetIdentifyMode(identify_mode) => {
                 #[cfg(feature = "alloc")]
@@ -1774,6 +1991,153 @@ impl ResponseParameterData {
 
                 buf.extend(domain_name.bytes());
             }
+            // E1.37-5
+            Self::GetIdentifyTimeout(identify_timeout) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(2);
+
+                buf.push_u16_be((*identify_timeout).into());
+            }
+            Self::GetManufacturerUrl(url) |
+            Self::GetProductUrl(url) |
+            Self::GetFirmwareUrl(url) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(url.len());
+
+                buf.extend(url.bytes());
+            }
+            Self::GetShippingLock(lock) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1);
+
+                buf.push_u8((*lock) as u8);
+            }
+            Self::GetPowerOffReady(ready) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1);
+
+                buf.push_u8(if *ready {1} else {0});
+            }
+            Self::GetSerialNumber(num) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(num.len());
+
+                buf.extend(num.bytes());
+            }
+            Self::GetTestData(data) | Self::SetTestData(data) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(data.len());
+
+                #[cfg(feature = "alloc")]
+                buf.extend(data);
+                #[cfg(not(feature = "alloc"))]
+                buf.extend_from_slice(data).unwrap();
+            }
+            Self::GetCommsStatusNSC {
+                checksum,
+                packet_count,
+                most_recent_slot_count,
+                minimum_slot_count,
+                maximum_slot_count,
+                packet_error_count
+            } => {
+                let supported: u8 = 
+                    if checksum.is_some() {0x01} else {0} |
+                    if packet_count.is_some() {0x02} else {0} |
+                    if most_recent_slot_count.is_some() {0x04} else {0} |
+                    if minimum_slot_count.is_some() {0x08} else {0} |
+                    if maximum_slot_count.is_some() {0x10} else {0} |
+                    if packet_error_count.is_some() {0x20} else {0};
+                
+                #[cfg(feature = "alloc")]
+                buf.reserve(19);
+
+                buf.push_u8(supported);
+                buf.push_u32_be(checksum.unwrap_or(0));
+                buf.push_u32_be(packet_count.unwrap_or(0));
+                buf.push_u16_be(most_recent_slot_count.unwrap_or(0));
+                buf.push_u16_be(minimum_slot_count.unwrap_or(0));
+                buf.push_u16_be(maximum_slot_count.unwrap_or(0));
+                buf.push_u32_be(packet_error_count.unwrap_or(0));
+            }
+            Self::CheckResponderTag(present) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1);
+
+                buf.push_u8(if *present {1} else {0});
+            }
+            Self::GetDeviceUnitNumber(num) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(4);
+
+                buf.push_u32_be(*num);
+            }
+            Self::GetDmxPersonalityId {
+                personality,
+                major_id,
+                minor_id
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(5);
+
+                buf.push_u8(*personality);
+                buf.push_u16_be(*major_id);
+                buf.push_u16_be(*minor_id);
+            }
+            Self::GetDeviceInfoOffstage {
+                root_personality,
+                sub_device_id,
+                sub_device_personality,
+                info
+            } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(4+19);
+
+                buf.push_u8(*root_personality);
+                buf.push_u16_be((*sub_device_id).into());
+                buf.push_u8(*sub_device_personality);
+                info.encode(&mut buf);
+            }
+            Self::GetSensorTypeCustom { sensor_type, label } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1+label.len());
+
+                buf.push_u8((*sensor_type).into());
+                buf.extend(label.bytes());
+            }
+            Self::GetSensorUnitCustom { sensor_unit, label } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1+label.len());
+
+                buf.push_u8((*sensor_unit).into());
+                buf.extend(label.bytes());
+            }
+            Self::GetMetadataParameterVersion { parameter_id, version } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(4);
+
+                buf.push_u16_be((*parameter_id).into());
+                buf.push_u16_be(*version);
+            }
+            Self::GetMetadataJson { parameter_id, json_text } => {
+                if let Some(pid) = parameter_id {
+                    #[cfg(feature = "alloc")]
+                    buf.reserve(2+json_text.len());
+
+                    buf.push_u16_be((*pid).into());
+                } else {
+                    #[cfg(feature = "alloc")]
+                    buf.reserve(json_text.len());
+                }
+
+                buf.extend(json_text.bytes());
+            }
+            Self::GetMetadataJsonUrl(url) => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(url.len());
+
+                buf.extend(url.bytes());
+            }
             // E1.37-7
             Self::GetEndpointList {
                 list_change_number,
@@ -2224,6 +2588,13 @@ impl ResponseParameterData {
                     bytes[0].try_into()?,
                 ))
             }
+            (CommandClass::GetCommandResponse, ParameterId::QueuedMessageSensorSubscribe) => {
+                #[cfg(feature = "alloc")]
+                let sensors = bytes[..bytes.len().min(228)].into();
+                #[cfg(not(feature = "alloc"))]
+                let sensors = Vec::<u8, 228>::from_slice(&bytes[..bytes.len().min(228)]).unwrap();
+                Ok(Self::GetQueuedMessageSensorSubscribe(sensors))
+            }
             (CommandClass::GetCommandResponse, ParameterId::SupportedParameters) => {
                 let parameters = bytes
                     .chunks(2)
@@ -2252,20 +2623,47 @@ impl ResponseParameterData {
                     description: decode_string_bytes(&bytes[20..bytes.len().min(20+32)])?,
                 }))
             }
+            (CommandClass::GetCommandResponse, ParameterId::EnumLabel) => {
+                check_msg_len!(bytes, 10);
+                Ok(Self::GetEnumLabel {
+                    pid_requested: u16::from_be_bytes([bytes[0], bytes[1]]),
+                    enum_index: u32::from_be_bytes([bytes[2], bytes[3], bytes[4], bytes[5]]),
+                    max_enum_index: u32::from_be_bytes([bytes[6], bytes[7], bytes[8], bytes[9]]),
+                    label: decode_string_bytes(&bytes[10..bytes.len().min(10+32)])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::SupportedParametersEnhanced) => {
+                let pids = bytes
+                    .chunks_exact(4)
+                    .map(|chunk| {
+                        (
+                            u16::from_be_bytes([chunk[0], chunk[1]]).into(),
+                            u16::from_be_bytes([chunk[2], chunk[3]]).into(),
+                        )
+                    });
+                Ok(Self::GetSupportedParametersEnhanced(
+                    #[cfg(feature = "alloc")]
+                    pids.collect::<Vec<(ParameterId, PidSupport)>>(),
+                    #[cfg(not(feature = "alloc"))]
+                    pids.collect::<Vec<(ParameterId, PidSupport), 57>>(),
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::ControllerFlagSupport) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::GetControllerFlagSupport(bytes[0].into()))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::NackDescription) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetNackDescription {
+                    nack_reason_code: u16::from_be_bytes([bytes[0], bytes[1]]).try_into()?,
+                    description: decode_string_bytes(&bytes[2..bytes.len().min(2+32)])?,
+                })
+            }
             (CommandClass::GetCommandResponse, ParameterId::DeviceInfo) => {
                 check_msg_len!(bytes, 19);
-                Ok(Self::GetDeviceInfo {
-                    protocol_version: ProtocolVersion::new(bytes[0], bytes[1]),
-                    model_id: u16::from_be_bytes(bytes[2..=3].try_into()?),
-                    product_category: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
-                    software_version_id: u32::from_be_bytes(bytes[6..=9].try_into()?),
-                    footprint: u16::from_be_bytes(bytes[10..=11].try_into()?),
-                    current_personality: bytes[12],
-                    personality_count: bytes[13],
-                    start_address: u16::from_be_bytes(bytes[14..=15].try_into()?),
-                    sub_device_count: u16::from_be_bytes(bytes[16..=17].try_into()?),
-                    sensor_count: u8::from_be(bytes[18]),
-                })
+                Ok(Self::GetDeviceInfo(
+                    DeviceInfo::decode(bytes)?
+                ))
             }
             (CommandClass::GetCommandResponse, ParameterId::ProductDetailIdList) => {
                 Ok(Self::GetProductDetailIdList(
@@ -2531,6 +2929,30 @@ impl ResponseParameterData {
                     mode: u16::from_be_bytes(bytes[0..=1].try_into()?).into(),
                     level: bytes[2],
                 })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::SelfTestEnhanced) => {
+                let (result_code_enum, off) = if bytes.len() % 6 == 2 {
+                    (Some(u16::from_be_bytes([bytes[0], bytes[1]]).into()), 2)
+                } else {
+                    (None, 0)
+                };
+                let tests = bytes[off..]
+                    .chunks_exact(6)
+                    .map(|chunk| {
+                        Ok((
+                            chunk[0].into(),
+                            chunk[1].try_into()?,
+                            u16::from_be_bytes([chunk[2], chunk[3]]).into(),
+                            u16::from_be_bytes([chunk[4], chunk[5]]).into(),
+                        ))
+                    });
+                Ok(Self::GetSelfTestEnhanced {
+                    result_code_enum,
+                    #[cfg(feature = "alloc")]
+                    tests: tests.collect::<Result<Vec<(SelfTest, SelfTestStatus, SelfTestCapability, u16)>, RdmError>>()?,
+                    #[cfg(not(feature = "alloc"))]
+                    tests: tests.collect::<Result<Vec<(SelfTest, SelfTestStatus, SelfTestCapability, u16), 38>, RdmError>>()?,
+            })
             }
             // E1.37-1
             (CommandClass::GetCommandResponse, ParameterId::IdentifyMode) => {
@@ -2813,6 +3235,125 @@ impl ResponseParameterData {
             (CommandClass::GetCommandResponse, ParameterId::DnsDomainName) => {
                 Ok(Self::GetDnsHostName(decode_string_bytes(&bytes[..bytes.len().min(231)])?))
             },
+            // E1.37-5
+            (CommandClass::GetCommandResponse, ParameterId::IdentifyTimeout) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetIdentifyTimeout(
+                    u16::from_be_bytes([bytes[0], bytes[1]]).into()
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::ManufacturerUrl) => {
+                Ok(Self::GetManufacturerUrl(decode_string_bytes(&bytes[..bytes.len().min(231)])?))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::ProductUrl) => {
+                Ok(Self::GetProductUrl(decode_string_bytes(&bytes[..bytes.len().min(231)])?))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::FirmwareUrl) => {
+                Ok(Self::GetFirmwareUrl(decode_string_bytes(&bytes[..bytes.len().min(231)])?))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::ShippingLock) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::GetShippingLock(
+                    bytes[0].try_into()?
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::PowerOffReady) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::GetPowerOffReady(
+                    bytes[0] != 0
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::SerialNumber) => {
+                Ok(Self::GetSerialNumber(decode_string_bytes(&bytes[..bytes.len().min(231)])?))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::TestData) => {
+                #[cfg(feature = "alloc")]
+                let r = bytes[..bytes.len().min(231)].into();
+                #[cfg(not(feature = "alloc"))]
+                let r = Vec::<u8, 231>::from_slice(&bytes[..bytes.len().min(231)]).unwrap();
+                Ok(Self::GetTestData(r))
+            }
+            (CommandClass::SetCommandResponse, ParameterId::TestData) => {
+                #[cfg(feature = "alloc")]
+                let r = bytes[..bytes.len().min(231)].into();
+                #[cfg(not(feature = "alloc"))]
+                let r = Vec::<u8, 231>::from_slice(&bytes[..bytes.len().min(231)]).unwrap();
+                Ok(Self::SetTestData(r))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::CommsStatusNsc) => {
+                check_msg_len!(bytes, 19);
+                let present = bytes[0];
+                Ok(Self::GetCommsStatusNSC {
+                    checksum: if present & 0x01 != 0 {
+                        Some(u32::from_be_bytes([bytes[1], bytes[2], bytes[3], bytes[4]]))} else {None},
+                    packet_count: if present & 0x02 != 0 {
+                        Some(u32::from_be_bytes([bytes[5], bytes[6], bytes[7], bytes[8]]))} else {None},
+                    most_recent_slot_count: if present & 0x04 != 0 {
+                        Some(u16::from_be_bytes([bytes[9], bytes[10]]))} else {None},
+                    minimum_slot_count: if present & 0x08 != 0 {
+                        Some(u16::from_be_bytes([bytes[11], bytes[12]]))} else {None},
+                    maximum_slot_count: if present & 0x10 != 0 {
+                        Some(u16::from_be_bytes([bytes[13], bytes[14]]))} else {None},
+                    packet_error_count: if present & 0x20 != 0 {
+                        Some(u32::from_be_bytes([bytes[15], bytes[16], bytes[17], bytes[18]]))} else {None},
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::CheckTag) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::CheckResponderTag(
+                    bytes[0] != 0
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DeviceUnitNumber) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::GetDeviceUnitNumber(
+                    u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]])
+                ))
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DmxPersonalityId) => {
+                check_msg_len!(bytes, 5);
+                Ok(Self::GetDmxPersonalityId {
+                    personality: bytes[0],
+                    major_id: u16::from_be_bytes([bytes[1], bytes[2]]),
+                    minor_id: u16::from_be_bytes([bytes[3], bytes[4]]),
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::DeviceInfoOffstage) => {
+                check_msg_len!(bytes, 23);
+                Ok(Self::GetDeviceInfoOffstage {
+                    root_personality: bytes[0],
+                    sub_device_id: u16::from_be_bytes([bytes[1], bytes[2]]).into(),
+                    sub_device_personality: bytes[3],
+                    info: DeviceInfo::decode(&bytes[4..])?
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::SensorTypeCustom) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::GetSensorTypeCustom {
+                    sensor_type: bytes[0].try_into()?,
+                    label: decode_string_bytes(&bytes[1..bytes.len().min(1+32)])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::SensorUnitCustom) => {
+                check_msg_len!(bytes, 1);
+                Ok(Self::GetSensorUnitCustom {
+                    sensor_unit: bytes[0].try_into()?,
+                    label: decode_string_bytes(&bytes[1..bytes.len().min(1+32)])?,
+                })
+            }
+            (CommandClass::GetCommandResponse, ParameterId::MetadataParameterVersion) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::GetMetadataParameterVersion {
+                    parameter_id: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    version: u16::from_be_bytes([bytes[2], bytes[3]])
+                })
+            }
+            // (CommandClass::GetCommandResponse, ParameterId::MetadataJson) => todo!(),
+            (CommandClass::GetCommandResponse, ParameterId::MetadataJsonUrl) => {
+                Ok(Self::GetMetadataJsonUrl(
+                    decode_string_bytes(&bytes[0..bytes.len().min(231)])?
+                ))
+            }
             // E1.37-7
             (CommandClass::GetCommandResponse, ParameterId::EndpointList) => {
                 check_msg_len!(bytes, 4);
