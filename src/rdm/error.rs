@@ -37,6 +37,9 @@ pub enum RdmError {
     InvalidDiscoveryState(u8),
     InvalidEndpointMode(u8),
     InvalidEndpointType(u8),
+    InvalidShippingLockState(u8),
+    InvalidSubscriptionAction(u8),
+    InvalidSelfTestStatus(u8),
     MalformedPacket,
 }
 
@@ -137,6 +140,15 @@ impl fmt::Display for RdmError {
             Self::InvalidDiscoveryState(discovery_state) => write!(f, "Invalid DiscoveryState: {}", discovery_state),
             Self::InvalidEndpointMode(endpoint_mode) => write!(f, "Invalid EndpointMode: {}", endpoint_mode),
             Self::InvalidEndpointType(endpoint_type) => write!(f, "Invalid EndpointType: {}", endpoint_type),
+            Self::InvalidShippingLockState(shipping_lock_state) => {
+                write!(f, "Invalid ShippingLockState: {}", shipping_lock_state)
+            }
+            Self::InvalidSubscriptionAction(sub_action) => {
+                write!(f, "Invalid SubscriptionAction: {}", sub_action)
+            }
+            Self::InvalidSelfTestStatus(status) => {
+                write!(f, "Invalid SelfTestStatus: {}", status)
+            }
             Self::MalformedPacket => write!(f, "Malformed packet"),
         }
     }

@@ -1,3 +1,5 @@
+use crate::rdm::utils::VecExt;
+
 use super::{RdmError, SubDeviceId};
 use core::{
     fmt,
@@ -47,8 +49,15 @@ pub enum ParameterId {
     StatusIdDescription,
     ClearStatusId,
     SubDeviceIdStatusReportThreshold,
+    QueuedMessageSensorSubscribe,
     SupportedParameters,
     ParameterDescription,
+    SupportedParametersEnhanced,
+    ControllerFlagSupport,
+    NackDescription,
+    PackedPidSub,
+    PackedPidIndex,
+    EnumLabel,
     DeviceInfo,
     ProductDetailIdList,
     DeviceModelDescription,
@@ -86,6 +95,7 @@ pub enum ParameterId {
     PowerState,
     PerformSelfTest,
     SelfTestDescription,
+    SelfTestEnhanced,
     CapturePreset,
     PresetPlayback,
     // E1.37-1 2012r2022 Table A-1
@@ -125,6 +135,29 @@ pub enum ParameterId {
     DnsIpV4NameServer,
     DnsHostName,
     DnsDomainName,
+    // E1.37-5 2024 Table A-1
+    ManufacturerUrl,
+    ProductUrl,
+    FirmwareUrl,
+    SerialNumber,
+    DeviceInfoOffstage,
+    TestData,
+    CommsStatusNsc,
+    IdentifyTimeout,
+    PowerOffReady,
+    ShippingLock,
+    ListTags,
+    AddTag,
+    RemoveTag,
+    CheckTag,
+    ClearTags,
+    DeviceUnitNumber,
+    DmxPersonalityId,
+    SensorTypeCustom,
+    SensorUnitCustom,
+    MetadataParameterVersion,
+    MetadataJson,
+    MetadataJsonUrl,
     // E1.37-7 2019 Table A-1
     EndpointList,
     EndpointListChange,
@@ -166,8 +199,15 @@ impl From<u16> for ParameterId {
             0x0031 => Self::StatusIdDescription,
             0x0032 => Self::ClearStatusId,
             0x0033 => Self::SubDeviceIdStatusReportThreshold,
+            0x0034 => Self::QueuedMessageSensorSubscribe,
             0x0050 => Self::SupportedParameters,
             0x0051 => Self::ParameterDescription,
+            0x0055 => Self::SupportedParametersEnhanced,
+            0x0056 => Self::ControllerFlagSupport,
+            0x0057 => Self::NackDescription,
+            0x0058 => Self::PackedPidSub,
+            0x0059 => Self::PackedPidIndex,
+            0x005a => Self::EnumLabel,
             0x0060 => Self::DeviceInfo,
             0x0070 => Self::ProductDetailIdList,
             0x0080 => Self::DeviceModelDescription,
@@ -205,6 +245,7 @@ impl From<u16> for ParameterId {
             0x1010 => Self::PowerState,
             0x1020 => Self::PerformSelfTest,
             0x1021 => Self::SelfTestDescription,
+            0x1022 => Self::SelfTestEnhanced,
             0x1030 => Self::CapturePreset,
             0x1031 => Self::PresetPlayback,
             // E1.37-1
@@ -244,6 +285,29 @@ impl From<u16> for ParameterId {
             0x070b => Self::DnsIpV4NameServer,
             0x070c => Self::DnsHostName,
             0x070d => Self::DnsDomainName,
+            // E1.37-5
+            0x00d0 => Self::ManufacturerUrl,
+            0x00d1 => Self::ProductUrl,
+            0x00d2 => Self::FirmwareUrl,
+            0x00d3 => Self::SerialNumber,
+            0x00d4 => Self::DeviceInfoOffstage,
+            0x0016 => Self::TestData,
+            0x0017 => Self::CommsStatusNsc,
+            0x1050 => Self::IdentifyTimeout,
+            0x1051 => Self::PowerOffReady,
+            0x0650 => Self::ShippingLock,
+            0x0651 => Self::ListTags,
+            0x0652 => Self::AddTag,
+            0x0653 => Self::RemoveTag,
+            0x0654 => Self::CheckTag,
+            0x0655 => Self::ClearTags,
+            0x0656 => Self::DeviceUnitNumber,
+            0x00e2 => Self::DmxPersonalityId,
+            0x0210 => Self::SensorTypeCustom,
+            0x0211 => Self::SensorUnitCustom,
+            0x0052 => Self::MetadataParameterVersion,
+            0x0053 => Self::MetadataJson,
+            0x0054 => Self::MetadataJsonUrl,
             // E1.37-7
             0x0900 => Self::EndpointList,
             0x0901 => Self::EndpointListChange,
@@ -287,8 +351,15 @@ impl From<ParameterId> for u16 {
             ParameterId::StatusIdDescription => 0x0031,
             ParameterId::ClearStatusId => 0x0032,
             ParameterId::SubDeviceIdStatusReportThreshold => 0x0033,
+            ParameterId::QueuedMessageSensorSubscribe => 0x0034,
             ParameterId::SupportedParameters => 0x0050,
             ParameterId::ParameterDescription => 0x0051,
+            ParameterId::SupportedParametersEnhanced => 0x0055,
+            ParameterId::ControllerFlagSupport => 0x0056,
+            ParameterId::NackDescription => 0x0057,
+            ParameterId::PackedPidSub => 0x0058,
+            ParameterId::PackedPidIndex => 0x0059,
+            ParameterId::EnumLabel => 0x005a,
             ParameterId::DeviceInfo => 0x0060,
             ParameterId::ProductDetailIdList => 0x0070,
             ParameterId::DeviceModelDescription => 0x0080,
@@ -326,6 +397,7 @@ impl From<ParameterId> for u16 {
             ParameterId::PowerState => 0x1010,
             ParameterId::PerformSelfTest => 0x1020,
             ParameterId::SelfTestDescription => 0x1021,
+            ParameterId::SelfTestEnhanced => 0x1022,
             ParameterId::CapturePreset => 0x1030,
             ParameterId::PresetPlayback => 0x1031,
             // E1.37-1
@@ -365,6 +437,29 @@ impl From<ParameterId> for u16 {
             ParameterId::DnsIpV4NameServer => 0x070b,
             ParameterId::DnsHostName => 0x070c,
             ParameterId::DnsDomainName => 0x070d,
+            // E1.37-5
+            ParameterId::ManufacturerUrl => 0x00d0,
+            ParameterId::ProductUrl => 0x00d1,
+            ParameterId::FirmwareUrl => 0x00d2,
+            ParameterId::SerialNumber => 0x00d3,
+            ParameterId::DeviceInfoOffstage => 0x00d4,
+            ParameterId::TestData => 0x0016,
+            ParameterId::CommsStatusNsc => 0x0017,
+            ParameterId::IdentifyTimeout => 0x1050,
+            ParameterId::PowerOffReady => 0x1051,
+            ParameterId::ShippingLock => 0x0650,
+            ParameterId::ListTags => 0x0651,
+            ParameterId::AddTag => 0x0652,
+            ParameterId::RemoveTag => 0x0653,
+            ParameterId::CheckTag => 0x0654,
+            ParameterId::ClearTags => 0x0655,
+            ParameterId::DeviceUnitNumber => 0x0656,
+            ParameterId::DmxPersonalityId => 0x00e2,
+            ParameterId::SensorTypeCustom => 0x0210,
+            ParameterId::SensorUnitCustom => 0x0211,
+            ParameterId::MetadataParameterVersion => 0x0052,
+            ParameterId::MetadataJson => 0x0053,
+            ParameterId::MetadataJsonUrl => 0x0054,
             // E1.37-7
             ParameterId::EndpointList => 0x0900,
             ParameterId::EndpointListChange => 0x0901,
@@ -499,6 +594,8 @@ pub enum ProductDetail {
     GfiRcd,
     Battery,
     ControllableBreaker,
+    Input,
+    Sensor,
     Other,
     ManufacturerSpecific(u16),
     Unknown(u16),
@@ -586,6 +683,8 @@ impl From<u16> for ProductDetail {
             0x0a00 => Self::GfiRcd,
             0x0a01 => Self::Battery,
             0x0a02 => Self::ControllableBreaker,
+            0x0b00 => Self::Input,
+            0x0b01 => Self::Sensor,
             0x7fff => Self::Other,
             value if (0x8000..=0xdfff).contains(&value) => Self::ManufacturerSpecific(value),
             value => Self::Unknown(value),
@@ -675,6 +774,8 @@ impl From<ProductDetail> for u16 {
             ProductDetail::GfiRcd => 0x0a00,
             ProductDetail::Battery => 0x0a01,
             ProductDetail::ControllableBreaker => 0x0a02,
+            ProductDetail::Input => 0x0b00,
+            ProductDetail::Sensor => 0x0b01,
             ProductDetail::Other => 0x7fff,
             ProductDetail::ManufacturerSpecific(value) => value,
             ProductDetail::Unknown(value) => value,
@@ -703,18 +804,115 @@ impl TryFrom<u8> for ImplementedCommandClass {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ControllerFlags(pub u8);
+impl ControllerFlags {
+    pub fn new() -> Self {
+        Self(0)
+    }
+    pub fn get_unicode_support(self) -> bool {
+        self.0 & 0x01 != 0
+    }
+    pub fn get_hi_res_ack_timer_support(self) -> bool {
+        self.0 & 0x02 != 0
+    }
+    pub fn set_unicode_support(self, value: bool) -> Self {
+        Self(
+            (self.0 & 0xFE) | if value {0x01} else {0}
+        )
+    }
+    pub fn set_hi_res_ack_timer_support(self, value: bool) -> Self {
+        Self(
+            (self.0 & 0xFD) | if value {0x02} else {0}
+        )
+    }
+}
+
+impl From<u8> for ControllerFlags {
+    fn from(value: u8) -> Self {
+        Self(value)
+    }
+}
+impl From<ControllerFlags> for u8 {
+    fn from(value: ControllerFlags) -> Self {
+        value.0
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DeviceInfo {
+    pub protocol_version: ProtocolVersion,
+    pub model_id: u16,
+    pub product_category: ProductCategory,
+    pub software_version_id: u32,
+    pub footprint: u16,
+    pub current_personality: u8,
+    pub personality_count: u8,
+    pub start_address: u16,
+    pub sub_device_count: u16,
+    pub sensor_count: u8,
+}
+#[cfg(feature = "alloc")]
+type V = Vec<u8>;
+#[cfg(not(feature = "alloc"))]
+type V = Vec<u8, 231>;
+impl DeviceInfo {
+    pub fn encode(&self, buf: &mut V) {
+        #[cfg(feature = "alloc")]
+        buf.reserve(19);
+    
+        buf.push_u16_be(self.protocol_version.into());
+    
+        buf.push_u16_be(self.model_id);
+        buf.push_u16_be(self.product_category.into());
+        buf.push_u32_be(self.software_version_id);
+        buf.push_u16_be(self.footprint);
+        buf.push_u8(self.current_personality);
+        buf.push_u8(self.personality_count);
+        buf.push_u16_be(self.start_address);
+        buf.push_u16_be(self.sub_device_count);
+        buf.push_u8(self.sensor_count);
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, RdmError> {
+        check_msg_len!(bytes, 19);
+        Ok(Self {
+            protocol_version: ProtocolVersion::new(bytes[0], bytes[1]),
+            model_id: u16::from_be_bytes(bytes[2..=3].try_into()?),
+            product_category: u16::from_be_bytes(bytes[4..=5].try_into()?).into(),
+            software_version_id: u32::from_be_bytes(bytes[6..=9].try_into()?),
+            footprint: u16::from_be_bytes(bytes[10..=11].try_into()?),
+            current_personality: bytes[12],
+            personality_count: bytes[13],
+            start_address: u16::from_be_bytes(bytes[14..=15].try_into()?),
+            sub_device_count: u16::from_be_bytes(bytes[16..=17].try_into()?),
+            sensor_count: u8::from_be(bytes[18]),
+        })
+    }
+}
+
 // E1.20 2025 Table A-15
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum ParameterDataType {
     NotDefined,
     BitField,
     Ascii,
-    UnsignedByte,
-    SignedByte,
-    UnsignedWord,
-    SignedWord,
-    UnsignedDWord,
-    SignedDWord,
+    UInt8,
+    Int8,
+    UInt16,
+    Int16,
+    UInt32,
+    Int32,
+    UInt64,
+    Int64,
+    Group,
+    Uid,
+    Boolean,
+    Url,
+    Mac,
+    IpV4,
+    IpV6,
+    Enum,
     ManufacturerSpecific(u8),
 }
 
@@ -726,12 +924,22 @@ impl TryFrom<u8> for ParameterDataType {
             0x00 => Ok(Self::NotDefined),
             0x01 => Ok(Self::BitField),
             0x02 => Ok(Self::Ascii),
-            0x03 => Ok(Self::UnsignedByte),
-            0x04 => Ok(Self::SignedByte),
-            0x05 => Ok(Self::UnsignedWord),
-            0x06 => Ok(Self::SignedWord),
-            0x07 => Ok(Self::UnsignedDWord),
-            0x08 => Ok(Self::SignedDWord),
+            0x03 => Ok(Self::UInt8),
+            0x04 => Ok(Self::Int8),
+            0x05 => Ok(Self::UInt16),
+            0x06 => Ok(Self::Int16),
+            0x07 => Ok(Self::UInt32),
+            0x08 => Ok(Self::Int32),
+            0x09 => Ok(Self::UInt64),
+            0x0a => Ok(Self::Int64),
+            0x0b => Ok(Self::Group),
+            0x0c => Ok(Self::Uid),
+            0x0d => Ok(Self::Boolean),
+            0x0e => Ok(Self::Url),
+            0x0f => Ok(Self::Mac),
+            0x10 => Ok(Self::IpV4),
+            0x11 => Ok(Self::IpV6),
+            0x12 => Ok(Self::Enum),
             n if (0x80..=0xdf).contains(&n) => Ok(Self::ManufacturerSpecific(n)),
             _ => Err(RdmError::InvalidParameterDataType(value)),
         }
@@ -744,12 +952,22 @@ impl From<ParameterDataType> for u8 {
             ParameterDataType::NotDefined => 0x00,
             ParameterDataType::BitField => 0x01,
             ParameterDataType::Ascii => 0x02,
-            ParameterDataType::UnsignedByte => 0x03,
-            ParameterDataType::SignedByte => 0x04,
-            ParameterDataType::UnsignedWord => 0x05,
-            ParameterDataType::SignedWord => 0x06,
-            ParameterDataType::UnsignedDWord => 0x07,
-            ParameterDataType::SignedDWord => 0x08,
+            ParameterDataType::UInt8 => 0x03,
+            ParameterDataType::Int8 => 0x04,
+            ParameterDataType::UInt16 => 0x05,
+            ParameterDataType::Int16 => 0x06,
+            ParameterDataType::UInt32 => 0x07,
+            ParameterDataType::Int32 => 0x08,
+            ParameterDataType::UInt64 => 0x09,
+            ParameterDataType::Int64 => 0x0a,
+            ParameterDataType::Group => 0x0b,
+            ParameterDataType::Uid => 0x0c,
+            ParameterDataType::Boolean => 0x0d,
+            ParameterDataType::Url => 0x0e,
+            ParameterDataType::Mac => 0x0f,
+            ParameterDataType::IpV4 => 0x10,
+            ParameterDataType::IpV6 => 0x11,
+            ParameterDataType::Enum => 0x12,
             ParameterDataType::ManufacturerSpecific(n) => n,
         }
     }
@@ -757,12 +975,12 @@ impl From<ParameterDataType> for u8 {
 
 // E1.20 2025 Section 10.4.2
 pub enum ConvertedParameterValue {
-    UnsignedByte(u8),
-    SignedByte(i8),
-    UnsignedWord(u16),
-    SignedWord(i16),
-    UnsignedDWord(u32),
-    SignedDWord(i32),
+    UInt8(u8),
+    Int8(i8),
+    UInt16(u16),
+    Int16(i16),
+    UInt32(u32),
+    Int32(i32),
     Raw([u8; 4]),
 }
 
@@ -789,27 +1007,32 @@ impl ParameterDescription {
         value: [u8; 4],
     ) -> Result<ConvertedParameterValue, RdmError> {
         match parameter_data_type {
-            ParameterDataType::UnsignedByte => Ok(ConvertedParameterValue::UnsignedByte(value[3])),
-            ParameterDataType::SignedByte => {
-                Ok(ConvertedParameterValue::SignedByte(value[3] as i8))
+            ParameterDataType::UInt8 => Ok(ConvertedParameterValue::UInt8(value[3])),
+            ParameterDataType::Int8 => {
+                Ok(ConvertedParameterValue::Int8(value[3] as i8))
             }
-            ParameterDataType::UnsignedWord => {
-                Ok(ConvertedParameterValue::UnsignedWord(u16::from_be_bytes([
+            ParameterDataType::UInt16 => {
+                Ok(ConvertedParameterValue::UInt16(u16::from_be_bytes([
                     value[2], value[3],
                 ])))
             }
-            ParameterDataType::SignedWord => {
-                Ok(ConvertedParameterValue::SignedWord(i16::from_be_bytes([
+            ParameterDataType::Int16 => {
+                Ok(ConvertedParameterValue::Int16(i16::from_be_bytes([
                     value[2], value[3],
                 ])))
             }
-            ParameterDataType::UnsignedDWord => Ok(ConvertedParameterValue::UnsignedDWord(
+            ParameterDataType::UInt32 => Ok(ConvertedParameterValue::UInt32(
                 u32::from_be_bytes(value),
             )),
-            ParameterDataType::SignedDWord => Ok(ConvertedParameterValue::SignedDWord(
+            ParameterDataType::Int32 => Ok(ConvertedParameterValue::Int32(
                 i32::from_be_bytes(value),
             )),
             ParameterDataType::BitField | ParameterDataType::Ascii |
+            ParameterDataType::UInt64 | ParameterDataType::Int64 |
+            ParameterDataType::Group | ParameterDataType::Uid |
+            ParameterDataType::Boolean | ParameterDataType::Url |
+            ParameterDataType::Mac | ParameterDataType::IpV4 |
+            ParameterDataType::IpV6 | ParameterDataType::Enum |
             ParameterDataType::NotDefined | ParameterDataType::ManufacturerSpecific(..) => {
                 Ok(ConvertedParameterValue::Raw(value))
             }
@@ -1256,6 +1479,94 @@ impl From<SelfTest> for u8 {
     }
 }
 
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum SelfTestStatus {
+    NotSupported = 0x00,
+    NotRun = 0x01,
+    Aborted = 0x02,
+    Active = 0x03,
+    Pass = 0x04,
+    Fail = 0x05,
+    NoAnalysis = 0x06,
+    ResultCode = 0x07,
+    Other = 0xFF,
+}
+
+impl TryFrom<u8> for SelfTestStatus {
+    type Error = RdmError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(SelfTestStatus::NotSupported),
+            0x01 => Ok(SelfTestStatus::NotRun),
+            0x02 => Ok(SelfTestStatus::Aborted),
+            0x03 => Ok(SelfTestStatus::Active),
+            0x04 => Ok(SelfTestStatus::Pass),
+            0x05 => Ok(SelfTestStatus::Fail),
+            0x06 => Ok(SelfTestStatus::NoAnalysis),
+            0x07 => Ok(SelfTestStatus::ResultCode),
+            0xFF => Ok(SelfTestStatus::Other),
+            _ => Err(RdmError::InvalidSelfTestStatus(value)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SelfTestCapability(pub u16);
+impl SelfTestCapability {
+    pub fn new() -> Self {
+        Self(0)
+    }
+
+    pub fn get_auto_terminates(&self) -> bool {
+        self.0 & 0x01 != 0
+    }
+    pub fn get_restricts_dmx(&self) -> bool {
+        self.0 & 0x02 != 0
+    }
+    pub fn get_restricts_rdm(&self) -> bool {
+        self.0 & 0x04 != 0
+    }
+    pub fn get_all_test_ignores_termination(&self) -> bool {
+        self.0 & 0x08 != 0
+    }
+    pub fn get_result_code_available(&self) -> bool {
+        self.0 & 0x10 != 0
+    }
+    pub fn get_generates_status_messages(&self) -> bool {
+        self.0 & 0x20 != 0
+    }
+    pub fn set_auto_terminates(self, value: bool) -> Self {
+        Self(self.0 & !0x01 | if value {0x01} else {0})
+    }
+    pub fn set_restricts_dmx(self, value: bool) -> Self {
+        Self(self.0 & !0x02 | if value {0x02} else {0})
+    }
+    pub fn set_restricts_rdm(self, value: bool) -> Self {
+        Self(self.0 & !0x04 | if value {0x04} else {0})
+    }
+    pub fn set_all_test_ignores_termination(self, value: bool) -> Self {
+        Self(self.0 & !0x08 | if value {0x08} else {0})
+    }
+    pub fn set_result_code_available(self, value: bool) -> Self {
+        Self(self.0 & !0x10 | if value {0x10} else {0})
+    }
+    pub fn set_generates_status_messages(self, value: bool) -> Self {
+        Self(self.0 & !0x20 | if value {0x20} else {0})
+    }
+}
+
+impl From<u16> for SelfTestCapability {
+    fn from(value: u16) -> Self {
+        Self(value)
+    }
+}
+impl From<SelfTestCapability> for u16 {
+    fn from(value: SelfTestCapability) -> Self {
+        value.0
+    }
+}
+
 // E1.20 2025 Table A-7
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PresetPlaybackMode {
@@ -1298,8 +1609,11 @@ pub enum StatusMessageIdDefinition {
     CalibrationFailed = 0x0001,
     SensorNotFound = 0x0002,
     SensorAlwaysOn = 0x0003,
+    FeedbackError = 0x0004,
     LampDoused = 0x0011,
     LampStrike = 0x0012,
+    LampAccessOpen = 0x0013,
+    LampAlwaysOn = 0x0014,
     OverTemperature = 0x0021,
     UnderTemperature = 0x0022,
     SensorOutOfRange = 0x0023,
@@ -1316,9 +1630,20 @@ pub enum StatusMessageIdDefinition {
     Watts = 0x0043,
     DimmerFailure = 0x0044,
     DimmerPanic = 0x0045,
+    LoadFailure = 0x0046,
     Ready = 0x0050,
     NotReady = 0x0051,
     LowFluid = 0x0052,
+    EepromError = 0x0060,
+    RamError = 0x0061,
+    FpgaError = 0x0062,
+    ProxyBroadcastDropped = 0x0070,
+    AscRxOk = 0x0071,
+    AscDropped = 0x0072,
+    DmxNscNone = 0x0080,
+    DmxNscLoss = 0x0081,
+    DmxNscError = 0x0082,
+    DmxNscOk = 0x0083,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -1331,7 +1656,7 @@ pub struct StatusMessage {
     #[cfg(feature = "alloc")]
     pub description: Option<String>,
     #[cfg(not(feature = "alloc"))]
-    pub description: Option<String<32>>,
+    pub description: Option<String<64>>,
 }
 
 impl StatusMessage {
@@ -1348,7 +1673,7 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("{} failed calibration", SlotIdDefinition::from(data_value1)),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("{} failed calibration", SlotIdDefinition::from(data_value1))
                             .as_str()
                             .unwrap(),
@@ -1359,7 +1684,7 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("{} sensor not found", SlotIdDefinition::from(data_value1)),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("{} sensor not found", SlotIdDefinition::from(data_value1))
                             .as_str()
                             .unwrap(),
@@ -1370,8 +1695,19 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("{} sensor always on", SlotIdDefinition::from(data_value1)),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("{} sensor always on", SlotIdDefinition::from(data_value1))
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0004 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("{} feedback error", SlotIdDefinition::from(data_value1)),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str(
+                        format_args!("{} feedback error", SlotIdDefinition::from(data_value1))
                             .as_str()
                             .unwrap(),
                     )
@@ -1381,13 +1717,25 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     "Lamp Doused".to_string(),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("Lamp Doused").unwrap(),
+                    String::<64>::from_str("Lamp Doused").unwrap(),
                 ),
                 0x0012 => Some(
                     #[cfg(feature = "alloc")]
-                    "Lamp Strike".to_string(),
+                    "Lamp failed to strike".to_string(),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("Lamp Strike").unwrap(),
+                    String::<64>::from_str("Lamp failed to strike").unwrap(),
+                ),
+                0x0013 => Some(
+                    #[cfg(feature = "alloc")]
+                    "Lamp access open".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str("Lamp access open").unwrap(),
+                ),
+                0x0014 => Some(
+                    #[cfg(feature = "alloc")]
+                    "Lamp stuck on".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str("Lamp stuck on").unwrap(),
                 ),
                 0x0021 => Some(
                     #[cfg(feature = "alloc")]
@@ -1396,7 +1744,7 @@ impl StatusMessage {
                         data_value1, data_value2
                     ),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!(
                             "Sensor {} over temp at {} degrees C",
                             data_value1, data_value2
@@ -1413,7 +1761,7 @@ impl StatusMessage {
                         data_value1, data_value2
                     ),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!(
                             "Sensor {} under temp at {} degrees C",
                             data_value1, data_value2
@@ -1427,7 +1775,7 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("Sensor {} out of range", data_value1),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("Sensor {} out of range", data_value1)
                             .as_str()
                             .unwrap(),
@@ -1438,7 +1786,7 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("Phase {} over voltage at {} V", data_value1, data_value2),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("Phase {} over voltage at {} V", data_value1, data_value2)
                             .as_str()
                             .unwrap(),
@@ -1449,7 +1797,7 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("Phase {} under voltage at {} V", data_value1, data_value2),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("Phase {} under voltage at {} V", data_value1, data_value2)
                             .as_str()
                             .unwrap(),
@@ -1460,7 +1808,7 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("Phase {} over current at {} A", data_value1, data_value2),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("Phase {} over current at {} A", data_value1, data_value2)
                             .as_str()
                             .unwrap(),
@@ -1471,7 +1819,7 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("Phase {} under current at {} A", data_value1, data_value2),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("Phase {} under current at {} A", data_value1, data_value2)
                             .as_str()
                             .unwrap(),
@@ -1482,7 +1830,7 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("Phase {} is at {} degrees", data_value1, data_value2),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("Phase {} is at {} degrees", data_value1, data_value2)
                             .as_str()
                             .unwrap(),
@@ -1493,7 +1841,7 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("Phase {} Error", data_value1),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("Phase {} Error", data_value1)
                             .as_str()
                             .unwrap(),
@@ -1504,52 +1852,58 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("{} Amps", data_value1),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(format_args!("{} Amps", data_value1).as_str().unwrap())
+                    String::<64>::from_str(format_args!("{} Amps", data_value1).as_str().unwrap())
                         .unwrap(),
                 ),
                 0x0038 => Some(
                     #[cfg(feature = "alloc")]
                     format!("{} Volts", data_value1),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(format_args!("{} Volts", data_value1).as_str().unwrap())
+                    String::<64>::from_str(format_args!("{} Volts", data_value1).as_str().unwrap())
                         .unwrap(),
                 ),
                 0x0041 => Some(
                     #[cfg(feature = "alloc")]
                     "No Dimmer".to_string(),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("No Dimmer").unwrap(),
+                    String::<64>::from_str("No Dimmer").unwrap(),
                 ),
                 0x0042 => Some(
                     #[cfg(feature = "alloc")]
                     "Tripped Breaker".to_string(),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("Tripped Breaker").unwrap(),
+                    String::<64>::from_str("Tripped Breaker").unwrap(),
                 ),
                 0x0043 => Some(
                     #[cfg(feature = "alloc")]
                     format!("{} Watts", data_value1),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(format_args!("{} Watts", data_value1).as_str().unwrap())
+                    String::<64>::from_str(format_args!("{} Watts", data_value1).as_str().unwrap())
                         .unwrap(),
                 ),
                 0x0044 => Some(
                     #[cfg(feature = "alloc")]
                     "Dimmer Failure".to_string(),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("Dimmer Failure").unwrap(),
+                    String::<64>::from_str("Dimmer Failure").unwrap(),
                 ),
                 0x0045 => Some(
                     #[cfg(feature = "alloc")]
                     "Panic Mode".to_string(),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str("Panic Mode").unwrap(),
+                    String::<64>::from_str("Panic Mode").unwrap(),
+                ),
+                0x0046 => Some(
+                    #[cfg(feature = "alloc")]
+                    "Lamp or cable failure".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str("Lamp or cable failure").unwrap(),
                 ),
                 0x0050 => Some(
                     #[cfg(feature = "alloc")]
                     format!("{} ready", SlotIdDefinition::from(data_value1)),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("{} ready", SlotIdDefinition::from(data_value1))
                             .as_str()
                             .unwrap(),
@@ -1560,7 +1914,7 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("{} not ready", SlotIdDefinition::from(data_value1)),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("{} not ready", SlotIdDefinition::from(data_value1))
                             .as_str()
                             .unwrap(),
@@ -1571,12 +1925,87 @@ impl StatusMessage {
                     #[cfg(feature = "alloc")]
                     format!("{} low fluid", SlotIdDefinition::from(data_value1)),
                     #[cfg(not(feature = "alloc"))]
-                    String::<32>::from_str(
+                    String::<64>::from_str(
                         format_args!("{} low fluid", SlotIdDefinition::from(data_value1))
                             .as_str()
                             .unwrap(),
                     )
                     .unwrap(),
+                ),
+                0x0060 => Some(
+                    #[cfg(feature = "alloc")]
+                    "EEPROM error".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str("EEPROM error").unwrap(),
+                ),
+                0x0061 => Some(
+                    #[cfg(feature = "alloc")]
+                    "RAM error".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str("RAM error").unwrap(),
+                ),
+                0x0062 => Some(
+                    #[cfg(feature = "alloc")]
+                    "FPGA programming error".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str("FPGA programming error").unwrap(),
+                ),
+                0x0070 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("Proxy Drop: PID 0x{:04X} at TN {}", data_value1, data_value2),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str(
+                        format_args!("Proxy Drop: PID 0x{:04X} at TN {}", data_value1, data_value2)
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0071 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("DMX ASC 0x{:02X} received OK", data_value1),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str(
+                        format_args!("DMX ASC 0x{:02X} received OK", data_value1)
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0072 => Some(
+                    #[cfg(feature = "alloc")]
+                    format!("DMX ASC 0x{:02X} now dropped", data_value1),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str(
+                        format_args!("DMX ASC 0x{:02X} now dropped", data_value1)
+                            .as_str()
+                            .unwrap(),
+                    )
+                    .unwrap(),
+                ),
+                0x0080 => Some(
+                    #[cfg(feature = "alloc")]
+                    "DMX NSC never received".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str("DMX NSC never received").unwrap(),
+                ),
+                0x0081 => Some(
+                    #[cfg(feature = "alloc")]
+                    "DMX NSC received, now dropped".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str("DMX NSC received, now dropped").unwrap(),
+                ),
+                0x0082 => Some(
+                    #[cfg(feature = "alloc")]
+                    "DMX NSC timing or packet error".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str("DMX NSC timing or packet error").unwrap(),
+                ),
+                0x0083 => Some(
+                    #[cfg(feature = "alloc")]
+                    "DMX NSC received OK".to_string(),
+                    #[cfg(not(feature = "alloc"))]
+                    String::<64>::from_str("DMX NSC received OK").unwrap(),
                 ),
                 _ => None,
             }
@@ -1679,7 +2108,21 @@ pub enum SlotIdDefinition {
     ColorAddBlue,
     ColorCorrection,
     ColorScroll,
+    ColorAddLime,
+    ColorAddIndigo,
+    ColorAddCyan,
+    ColorAddDeepRed,
+    ColorAddDeepBlue,
+    ColorAddNatWhite,
     ColorSemaphore,
+    ColorAddAmber,
+    ColorAddWhite,
+    ColorAddWarmWhite,
+    ColorAddCoolWhite,
+    ColorSubUv,
+    ColorHue,
+    ColorSaturation,
+    ColorAddUv,
     StaticGoboWheel,
     RotoGoboWheel,
     PrismWheel,
@@ -1697,6 +2140,10 @@ pub enum SlotIdDefinition {
     FixtureControl,
     FixtureSpeed,
     Macro,
+    PowerControl,
+    FanControl,
+    HeaterControl,
+    FountainControl,
     Undefined,
     ManufacturerSpecific(u16),
     Unknown(u16),
@@ -1718,7 +2165,21 @@ impl From<u16> for SlotIdDefinition {
             0x0207 => Self::ColorAddBlue,
             0x0208 => Self::ColorCorrection,
             0x0209 => Self::ColorScroll,
+            0x020a => Self::ColorAddLime,
+            0x020b => Self::ColorAddIndigo,
+            0x020c => Self::ColorAddCyan,
+            0x020d => Self::ColorAddDeepRed,
+            0x020e => Self::ColorAddDeepBlue,
+            0x020f => Self::ColorAddNatWhite,
             0x0210 => Self::ColorSemaphore,
+            0x0211 => Self::ColorAddAmber,
+            0x0212 => Self::ColorAddWhite,
+            0x0213 => Self::ColorAddWarmWhite,
+            0x0214 => Self::ColorAddCoolWhite,
+            0x0215 => Self::ColorSubUv,
+            0x0216 => Self::ColorHue,
+            0x0217 => Self::ColorSaturation,
+            0x0218 => Self::ColorAddUv,
             0x0301 => Self::StaticGoboWheel,
             0x0302 => Self::RotoGoboWheel,
             0x0303 => Self::PrismWheel,
@@ -1736,6 +2197,10 @@ impl From<u16> for SlotIdDefinition {
             0x0502 => Self::FixtureControl,
             0x0503 => Self::FixtureSpeed,
             0x0504 => Self::Macro,
+            0x0505 => Self::PowerControl,
+            0x0506 => Self::FanControl,
+            0x0507 => Self::HeaterControl,
+            0x0508 => Self::FountainControl,
             0xffff => Self::Undefined,
             value if (0x8000..=0xffdf).contains(&value) => Self::ManufacturerSpecific(value),
             value => Self::Unknown(value),
@@ -1759,7 +2224,21 @@ impl From<SlotIdDefinition> for u16 {
             SlotIdDefinition::ColorAddBlue => 0x0207,
             SlotIdDefinition::ColorCorrection => 0x0208,
             SlotIdDefinition::ColorScroll => 0x0209,
+            SlotIdDefinition::ColorAddLime => 0x020a,
+            SlotIdDefinition::ColorAddIndigo => 0x020b,
+            SlotIdDefinition::ColorAddCyan => 0x020c,
+            SlotIdDefinition::ColorAddDeepRed => 0x020d,
+            SlotIdDefinition::ColorAddDeepBlue => 0x020e,
+            SlotIdDefinition::ColorAddNatWhite => 0x020f,
             SlotIdDefinition::ColorSemaphore => 0x0210,
+            SlotIdDefinition::ColorAddAmber => 0x0211,
+            SlotIdDefinition::ColorAddWhite => 0x0212,
+            SlotIdDefinition::ColorAddWarmWhite => 0x0213,
+            SlotIdDefinition::ColorAddCoolWhite => 0x0214,
+            SlotIdDefinition::ColorSubUv => 0x0215,
+            SlotIdDefinition::ColorHue => 0x0216,
+            SlotIdDefinition::ColorSaturation => 0x0217,
+            SlotIdDefinition::ColorAddUv => 0x0218,
             SlotIdDefinition::StaticGoboWheel => 0x0301,
             SlotIdDefinition::RotoGoboWheel => 0x0302,
             SlotIdDefinition::PrismWheel => 0x0303,
@@ -1777,6 +2256,10 @@ impl From<SlotIdDefinition> for u16 {
             SlotIdDefinition::FixtureControl => 0x0502,
             SlotIdDefinition::FixtureSpeed => 0x0503,
             SlotIdDefinition::Macro => 0x0504,
+            SlotIdDefinition::PowerControl => 0x0505,
+            SlotIdDefinition::FanControl => 0x0506,
+            SlotIdDefinition::HeaterControl => 0x0507,
+            SlotIdDefinition::FountainControl => 0x0508,
             SlotIdDefinition::Undefined => 0xffff,
             SlotIdDefinition::ManufacturerSpecific(value) => value,
             SlotIdDefinition::Unknown(value) => value,
@@ -1800,7 +2283,21 @@ impl core::fmt::Display for SlotIdDefinition {
             Self::ColorAddBlue => "Color Add Blue",
             Self::ColorCorrection => "Color Correction",
             Self::ColorScroll => "Color Scroll",
+            Self::ColorAddLime => "Color Add Lime",
+            Self::ColorAddIndigo => "Color Add Indigo",
+            Self::ColorAddCyan => "Color Add Cyan",
+            Self::ColorAddDeepRed => "Color Add Deep Red",
+            Self::ColorAddDeepBlue => "Color Add Deep Blue",
+            Self::ColorAddNatWhite => "Color Add Natural White",
             Self::ColorSemaphore => "Color Semaphore",
+            Self::ColorAddAmber => "Color Add Amber",
+            Self::ColorAddWhite => "Color Add White",
+            Self::ColorAddWarmWhite => "Color Add Warm White",
+            Self::ColorAddCoolWhite => "Color Add Cool White",
+            Self::ColorSubUv => "Color Sub UV",
+            Self::ColorHue => "Color Hue",
+            Self::ColorSaturation => "Color Saturation",
+            Self::ColorAddUv => "Color Add UV",
             Self::StaticGoboWheel => "Static Gobo Wheel",
             Self::RotoGoboWheel => "Roto Gobo Wheel",
             Self::PrismWheel => "Prism Wheel",
@@ -1818,6 +2315,10 @@ impl core::fmt::Display for SlotIdDefinition {
             Self::FixtureControl => "Fixture Control",
             Self::FixtureSpeed => "Fixture Speed",
             Self::Macro => "Macro",
+            Self::PowerControl => "Relay or Power Control",
+            Self::FanControl => "Fan Control",
+            Self::HeaterControl => "Heater Control",
+            Self::FountainControl => "Fountain Water Pump Control",
             Self::Undefined => "Undefined",
             Self::ManufacturerSpecific(value) => {
                 return write!(f, "Manufacturer Specific: {}", value)
@@ -1878,6 +2379,14 @@ pub enum SensorType {
     Items,
     Humidity,
     Counter16Bit,
+    CpuLoad,
+    Bandwidth,
+    Concentration,
+    SoundPressureLevel,
+    SolidAngle,
+    LogRatio,
+    LogRatioVolts,
+    LogRatioWatts,
     Other,
     ManufacturerSpecific(u8),
 }
@@ -1919,6 +2428,14 @@ impl TryFrom<u8> for SensorType {
             0x1e => Ok(Self::Items),
             0x1f => Ok(Self::Humidity),
             0x20 => Ok(Self::Counter16Bit),
+            0x21 => Ok(Self::CpuLoad),
+            0x22 => Ok(Self::Bandwidth),
+            0x23 => Ok(Self::Concentration),
+            0x24 => Ok(Self::SoundPressureLevel),
+            0x25 => Ok(Self::SolidAngle),
+            0x26 => Ok(Self::LogRatio),
+            0x27 => Ok(Self::LogRatioVolts),
+            0x28 => Ok(Self::LogRatioWatts),
             0x7f => Ok(Self::Other),
             value if (0x80..=0xff).contains(&value) => Ok(Self::ManufacturerSpecific(value)),
             _ => Err(RdmError::InvalidSensorType(value)),
@@ -1962,6 +2479,14 @@ impl From<SensorType> for u8 {
             SensorType::Items => 0x1e,
             SensorType::Humidity => 0x1f,
             SensorType::Counter16Bit => 0x20,
+            SensorType::CpuLoad => 0x21,
+            SensorType::Bandwidth => 0x22,
+            SensorType::Concentration => 0x23,
+            SensorType::SoundPressureLevel => 0x24,
+            SensorType::SolidAngle => 0x25,
+            SensorType::LogRatio => 0x26,
+            SensorType::LogRatioVolts => 0x27,
+            SensorType::LogRatioWatts => 0x28,
             SensorType::Other => 0x7f,
             SensorType::ManufacturerSpecific(value) => value,
         }
@@ -2001,6 +2526,14 @@ pub enum SensorUnit {
     Lux,
     Ire,
     Byte,
+    Decibel,
+    DecibelVolt,
+    DecibelWatt,
+    DecibelMeter,
+    Percent,
+    MolesPerCubicMeter,
+    Rpm,
+    BytesPerSecond,
     ManufacturerSpecific(u8),
 }
 
@@ -2038,6 +2571,14 @@ impl TryFrom<u8> for SensorUnit {
             0x1a => Ok(Self::Lux),
             0x1b => Ok(Self::Ire),
             0x1c => Ok(Self::Byte),
+            0x1d => Ok(Self::Decibel),
+            0x2e => Ok(Self::DecibelVolt),
+            0x1f => Ok(Self::DecibelWatt),
+            0x20 => Ok(Self::DecibelMeter),
+            0x21 => Ok(Self::Percent),
+            0x22 => Ok(Self::MolesPerCubicMeter),
+            0x23 => Ok(Self::Rpm),
+            0x24 => Ok(Self::BytesPerSecond),
             value if (0x80..=0xff).contains(&value) => Ok(Self::ManufacturerSpecific(value)),
             _ => Err(RdmError::InvalidSensorUnit(value)),
         }
@@ -2076,6 +2617,14 @@ impl From<SensorUnit> for u8 {
             SensorUnit::Lux => 0x1a,
             SensorUnit::Ire => 0x1b,
             SensorUnit::Byte => 0x1c,
+            SensorUnit::Decibel => 0x1d,
+            SensorUnit::DecibelVolt => 0x2e,
+            SensorUnit::DecibelWatt => 0x1f,
+            SensorUnit::DecibelMeter => 0x20,
+            SensorUnit::Percent => 0x21,
+            SensorUnit::MolesPerCubicMeter => 0x22,
+            SensorUnit::Rpm => 0x23,
+            SensorUnit::BytesPerSecond => 0x24,
             SensorUnit::ManufacturerSpecific(value) => value,
         }
     }
@@ -2837,6 +3386,113 @@ impl From<IdentifyTimeout> for u16 {
             IdentifyTimeout::Disabled => 0,
             IdentifyTimeout::Seconds(s) => s,
         }
+    }
+}
+
+// E1.37-5 2024 Table A-2
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ShippingLockState {
+    Unlocked = 0x00,
+    Locked = 0x01,
+    PartiallyLocked = 0x02,
+}
+
+impl TryFrom<u8> for ShippingLockState {
+    type Error = RdmError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::Unlocked),
+            0x01 => Ok(Self::Locked),
+            0x02 => Ok(Self::PartiallyLocked),
+            _ => Err(RdmError::InvalidShippingLockState(value))
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SubscriptionAction {
+    Unsubscribe = 0x00,
+    Subsctibe = 0x01,
+}
+
+impl TryFrom<u8> for SubscriptionAction {
+    type Error = RdmError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0x00 => Ok(Self::Unsubscribe),
+            0x01 => Ok(Self::Subsctibe),
+            _ => Err(RdmError::InvalidSubscriptionAction(value))
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PidSupport(pub u16);
+impl PidSupport {
+    pub fn new() -> Self {
+        Self(0)
+    }
+    
+    pub fn get_supports_get(&self) -> bool {
+        self.0 & 0x01 != 0
+    }
+    pub fn get_supports_set(&self) -> bool {
+        self.0 & 0x02 != 0
+    }
+    pub fn get_supports_packed_sub_get(&self) -> bool {
+        self.0 & 0x04 != 0
+    }
+    pub fn get_supports_packed_sub_set(&self) -> bool {
+        self.0 & 0x08 != 0
+    }
+    pub fn get_supports_packed_idx_get(&self) -> bool {
+        self.0 & 0x10 != 0
+    }
+    pub fn get_supports_packed_idx_set(&self) -> bool {
+        self.0 & 0x20 != 0
+    }
+    pub fn get_supports_non_iddentical_subs(&self) -> bool {
+        self.0 & 0x40 != 0
+    }
+    pub fn get_supports_json_metadata(&self) -> bool {
+        self.0 & 0x80 != 0
+    }
+    pub fn set_supports_get(self, value: bool) -> Self {
+        Self(self.0 & !0x01 | if value {0x01} else {0})
+    }
+    pub fn set_supports_set(self, value: bool) -> Self {
+        Self(self.0 & !0x02 | if value {0x02} else {0})
+    }
+    pub fn set_supports_packed_sub_get(self, value: bool) -> Self {
+        Self(self.0 & !0x04 | if value {0x04} else {0})
+    }
+    pub fn set_supports_packed_sub_set(self, value: bool) -> Self {
+        Self(self.0 & !0x08 | if value {0x08} else {0})
+    }
+    pub fn set_supports_packed_idx_get(self, value: bool) -> Self {
+        Self(self.0 & !0x10 | if value {0x10} else {0})
+    }
+    pub fn set_supports_packed_idx_set(self, value: bool) -> Self {
+        Self(self.0 & !0x20 | if value {0x20} else {0})
+    }
+    pub fn set_supports_non_iddentical_subs(self, value: bool) -> Self {
+        Self(self.0 & !0x40 | if value {0x40} else {0})
+    }
+    pub fn set_supports_json_metadata(self, value: bool) -> Self {
+        Self(self.0 & !0x80 | if value {0x80} else {0})
+    }
+}
+
+impl From<u16> for PidSupport {
+    fn from(value: u16) -> Self {
+        Self(value)
+    }
+}
+impl From<PidSupport> for u16 {
+    fn from(value: PidSupport) -> Self {
+        value.0
     }
 }
 
