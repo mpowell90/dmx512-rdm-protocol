@@ -5,6 +5,7 @@
 //! ```rust
 //! use dmx512_rdm_protocol::rdm::{
 //!     request::{RdmRequest, RequestParameter},
+//!     parameter::ControllerFlags,
 //!     DeviceUID, SubDeviceId,
 //! };
 //!
@@ -13,6 +14,7 @@
 //!     DeviceUID::new(0x0605, 0x04030201),
 //!     0x00,
 //!     0x01,
+//!     ControllerFlags::new(),
 //!     SubDeviceId::RootDevice,
 //!     RequestParameter::GetIdentifyDevice,
 //! )
@@ -43,10 +45,10 @@ use super::{
     bsd_16_crc,
     error::RdmError,
     parameter::{
-        decode_string_bytes, BrokerState, DiscoveryState, DisplayInvertMode, EndpointId, EndpointMode,
-        FadeTimes, IdentifyMode, IdentifyTimeout, Ipv4Address, Ipv4Route, Ipv6Address, LampOnMode, LampState,
-        MergeMode, ParameterId, PinCode, PowerState, PresetPlaybackMode, ResetDeviceMode, SelfTest,
-        StaticConfigType, StatusType, TimeMode,
+        decode_string_bytes, BrokerState, ControllerFlags, DiscoveryState, DisplayInvertMode, EndpointId,
+        EndpointMode, FadeTimes, IdentifyMode, IdentifyTimeout, Ipv4Address, Ipv4Route, Ipv6Address,
+        LampOnMode, LampState, MergeMode, ParameterId, PinCode, PowerState, PresetPlaybackMode,
+        ResetDeviceMode, SelfTest, StaticConfigType, StatusType, SubscriptionAction, TimeMode,
     },
     CommandClass, DeviceUID, EncodedFrame, EncodedParameterData, SubDeviceId, RDM_START_CODE_BYTE,
     RDM_SUB_START_CODE_BYTE,
@@ -82,9 +84,52 @@ pub enum RequestParameter {
     SetSubDeviceIdStatusReportThreshold {
         status_type: StatusType,
     },
+    GetQueuedMessageSensorSubscribe,
+    SetQueuedMessageSensorSubscribe {
+        action: SubscriptionAction,
+        #[cfg(feature = "alloc")]
+        sensors: Vec<u8>,
+        #[cfg(not(feature = "alloc"))]
+        sensors: Vec<u8, 228>,
+    },
     GetSupportedParameters,
     GetParameterDescription {
         parameter_id: u16,
+    },
+    GetEnumLabel {
+        parameter_id: ParameterId,
+        enum_index: u32,
+    },
+    GetSupportedParametersEnhanced,
+    GetControllerFlagSupport,
+    GetNackDescription {
+        reason_code: u16,
+    },
+    GetPackedPidSub {
+        pid: ParameterId,
+        index: u16,
+        first_sub_device: u16,
+        sub_device_count: u16,
+    },
+    SetPackedPidSub {
+        pid: ParameterId,
+        index: u16,
+        #[cfg(feature = "alloc")]
+        packed_data: Vec<u8>,
+        #[cfg(not(feature = "alloc"))]
+        packed_data: Vec<u8, 227>,
+    },
+    GetPackedPidIndex {
+        pid: ParameterId,
+        first_item: u16,
+        item_count: u16,
+    },
+    SetPackedPidIndex {
+        pid: ParameterId,
+        #[cfg(feature = "alloc")]
+        packed_data: Vec<u8>,
+        #[cfg(not(feature = "alloc"))]
+        packed_data: Vec<u8, 229>,
     },
     GetDeviceInfo,
     GetProductDetailIdList,
@@ -218,6 +263,7 @@ pub enum RequestParameter {
         mode: PresetPlaybackMode,
         level: u8,
     },
+    GetSelfTestEnhanced,
     // E1.37-1
     GetIdentifyMode,
     SetIdentifyMode {
@@ -592,8 +638,15 @@ impl RequestParameter {
             | Self::GetStatusMessages { .. }
             | Self::GetStatusIdDescription { .. }
             | Self::GetSubDeviceIdStatusReportThreshold
+            | Self::GetQueuedMessageSensorSubscribe
             | Self::GetSupportedParameters
             | Self::GetParameterDescription { .. }
+            | Self::GetEnumLabel { .. }
+            | Self::GetSupportedParametersEnhanced
+            | Self::GetControllerFlagSupport
+            | Self::GetNackDescription { .. }
+            | Self::GetPackedPidSub { .. }
+            | Self::GetPackedPidIndex { .. }
             | Self::GetDeviceInfo
             | Self::GetProductDetailIdList
             | Self::GetDeviceModelDescription
@@ -630,6 +683,7 @@ impl RequestParameter {
             | Self::GetPerformSelfTest
             | Self::GetSelfTestDescription { .. }
             | Self::GetPresetPlayback
+            | Self::GetSelfTestEnhanced
             // E1.37-1
             | Self::GetIdentifyMode
             | Self::GetDmxBlockAddress
@@ -711,6 +765,9 @@ impl RequestParameter {
             Self::SetCommsStatus
             | Self::SetClearStatusId
             | Self::SetSubDeviceIdStatusReportThreshold { .. }
+            | Self::SetQueuedMessageSensorSubscribe { .. }
+            | Self::SetPackedPidSub { .. }
+            | Self::SetPackedPidIndex { .. }
             | Self::SetDeviceLabel { .. }
             | Self::SetFactoryDefaults
             | Self::SetLanguage { .. }
@@ -810,8 +867,18 @@ impl RequestParameter {
             | Self::SetSubDeviceIdStatusReportThreshold { .. } => {
                 ParameterId::SubDeviceIdStatusReportThreshold
             }
+            Self::GetQueuedMessageSensorSubscribe
+            | Self::SetQueuedMessageSensorSubscribe { .. } => ParameterId::QueuedMessageSensorSubscribe,
             Self::GetSupportedParameters => ParameterId::SupportedParameters,
             Self::GetParameterDescription { .. } => ParameterId::ParameterDescription,
+            Self::GetEnumLabel { .. } => ParameterId::EnumLabel,
+            Self::GetSupportedParametersEnhanced => ParameterId::SupportedParametersEnhanced,
+            Self::GetControllerFlagSupport => ParameterId::ControllerFlagSupport,
+            Self::GetNackDescription { .. } => ParameterId::NackDescription,
+            Self::GetPackedPidSub { .. } |
+            Self::SetPackedPidSub { .. } => ParameterId::PackedPidSub,
+            Self::GetPackedPidIndex { .. } |
+            Self::SetPackedPidIndex { .. } => ParameterId::PackedPidIndex,
             Self::GetDeviceInfo => ParameterId::DeviceInfo,
             Self::GetProductDetailIdList => ParameterId::ProductDetailIdList,
             Self::GetDeviceModelDescription => ParameterId::DeviceModelDescription,
@@ -857,6 +924,7 @@ impl RequestParameter {
             Self::GetSelfTestDescription { .. } => ParameterId::SelfTestDescription,
             Self::SetCapturePreset { .. } => ParameterId::CapturePreset,
             Self::GetPresetPlayback | Self::SetPresetPlayback { .. } => ParameterId::PresetPlayback,
+            Self::GetSelfTestEnhanced => ParameterId::SelfTestEnhanced,
             // E1.37-1
             Self::GetIdentifyMode | Self::SetIdentifyMode { .. } => ParameterId::IdentifyMode,
             Self::GetDmxBlockAddress | Self::SetDmxBlockAddress { .. } => {
@@ -1059,12 +1127,80 @@ impl RequestParameter {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*status_type as u8).unwrap();
             }
+            Self::GetQueuedMessageSensorSubscribe => {}
+            Self::SetQueuedMessageSensorSubscribe { action, sensors } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(1 + sensors.len());
+
+                #[cfg(feature = "alloc")]
+                buf.push(*action as u8);
+                #[cfg(not(feature = "alloc"))]
+                buf.push(*action as u8).unwrap();
+
+                #[cfg(feature = "alloc")]
+                buf.extend(sensors);
+                #[cfg(not(feature = "alloc"))]
+                buf.extend_from_slice(sensors).unwrap();
+            }
             Self::GetSupportedParameters => {}
             Self::GetParameterDescription { parameter_id } => {
                 #[cfg(feature = "alloc")]
                 buf.reserve(0x02);
 
                 buf.extend((*parameter_id).to_be_bytes());
+            }
+            Self::GetEnumLabel { parameter_id, enum_index } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x06);
+
+                buf.extend(u16::from(*parameter_id).to_be_bytes());
+                buf.extend(enum_index.to_be_bytes());
+            }
+            Self::GetSupportedParametersEnhanced => {}
+            Self::GetControllerFlagSupport => {}
+            Self::GetNackDescription { reason_code } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x02);
+
+                buf.extend(u16::from(*reason_code).to_be_bytes());
+            },
+            Self::GetPackedPidSub { pid, index, first_sub_device, sub_device_count } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x08);
+
+                buf.extend(u16::from(*pid).to_be_bytes());
+                buf.extend(index.to_be_bytes());
+                buf.extend(first_sub_device.to_be_bytes());
+                buf.extend(sub_device_count.to_be_bytes());
+            }
+            Self::SetPackedPidSub { pid, index, packed_data } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(4 + packed_data.len());
+
+                buf.extend(u16::from(*pid).to_be_bytes());
+                buf.extend(index.to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.extend_from_slice(packed_data);
+                #[cfg(not(feature = "alloc"))]
+                buf.extend_from_slice(packed_data).unwrap();
+            }
+            Self::GetPackedPidIndex { pid, first_item, item_count } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(0x06);
+
+                buf.extend(u16::from(*pid).to_be_bytes());
+                buf.extend(first_item.to_be_bytes());
+                buf.extend(item_count.to_be_bytes());
+            }
+            Self::SetPackedPidIndex { pid, packed_data } => {
+                #[cfg(feature = "alloc")]
+                buf.reserve(2 + packed_data.len());
+
+                buf.extend(u16::from(*pid).to_be_bytes());
+                #[cfg(feature = "alloc")]
+                buf.extend_from_slice(packed_data);
+                #[cfg(not(feature = "alloc"))]
+                buf.extend_from_slice(packed_data).unwrap();
             }
             Self::GetDeviceInfo => {}
             Self::GetProductDetailIdList => {}
@@ -1370,6 +1506,7 @@ impl RequestParameter {
                 #[cfg(not(feature = "alloc"))]
                 buf.push(*level).unwrap();
             }
+            Self::GetSelfTestEnhanced => {}
             // E1.37-1
             Self::GetIdentifyMode => {}
             Self::SetIdentifyMode { identify_mode } => {
@@ -2181,6 +2318,18 @@ impl RequestParameter {
                     status_type: bytes[0].try_into()?,
                 })
             }
+            (CommandClass::GetCommand, ParameterId::QueuedMessageSensorSubscribe) => Ok(Self::GetQueuedMessageSensorSubscribe),
+            (CommandClass::SetCommand, ParameterId::QueuedMessageSensorSubscribe) => {
+                check_msg_len!(bytes, 1);
+                #[cfg(feature = "alloc")]
+                let sensors = bytes[1..bytes.len().min(1+228)].into();
+                #[cfg(not(feature = "alloc"))]
+                let sensors = Vec::<u8, 228>::from_slice(&bytes[1..bytes.len().min(1+228)]).unwrap();
+                Ok(Self::SetQueuedMessageSensorSubscribe {
+                    action: bytes[0].try_into()?,
+                    sensors 
+                })
+            }
             (CommandClass::GetCommand, ParameterId::SupportedParameters) => {
                 Ok(Self::GetSupportedParameters)
             }
@@ -2188,6 +2337,59 @@ impl RequestParameter {
                 check_msg_len!(bytes, 2);
                 Ok(Self::GetParameterDescription {
                     parameter_id: u16::from_be_bytes([bytes[0], bytes[1]]),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::EnumLabel) => {
+                check_msg_len!(bytes, 6);
+                Ok(Self::GetEnumLabel {
+                    parameter_id: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    enum_index: u32::from_be_bytes([bytes[2], bytes[3], bytes[4], bytes[5]])
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::SupportedParametersEnhanced) => Ok(Self::GetSupportedParametersEnhanced),
+            (CommandClass::GetCommand, ParameterId::ControllerFlagSupport) => Ok(Self::GetControllerFlagSupport),
+            (CommandClass::GetCommand, ParameterId::NackDescription) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::GetNackDescription {
+                    reason_code: u16::from_be_bytes([bytes[0], bytes[1]])
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PackedPidSub) => {
+                check_msg_len!(bytes, 8);
+                Ok(Self::GetPackedPidSub {
+                    pid: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    index: u16::from_be_bytes([bytes[2], bytes[3]]),
+                    first_sub_device: u16::from_be_bytes([bytes[4], bytes[5]]),
+                    sub_device_count: u16::from_be_bytes([bytes[6], bytes[7]]),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::PackedPidSub) => {
+                check_msg_len!(bytes, 4);
+                Ok(Self::SetPackedPidSub {
+                    pid: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    index: u16::from_be_bytes([bytes[2], bytes[3]]),
+                    #[cfg(feature = "alloc")]
+                    packed_data: bytes[4..].to_vec(),
+                    #[cfg(not(feature = "alloc"))]
+                    packed_data: Vec::<u8, 227>::from_slice(&bytes[4..]).unwrap(),
+                })
+            }
+            (CommandClass::GetCommand, ParameterId::PackedPidIndex) => {
+                check_msg_len!(bytes, 6);
+                Ok(Self::GetPackedPidIndex {
+                    pid: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    first_item: u16::from_be_bytes([bytes[2], bytes[3]]),
+                    item_count: u16::from_be_bytes([bytes[4], bytes[5]]),
+                })
+            }
+            (CommandClass::SetCommand, ParameterId::PackedPidIndex) => {
+                check_msg_len!(bytes, 2);
+                Ok(Self::SetPackedPidIndex {
+                    pid: u16::from_be_bytes([bytes[0], bytes[1]]).into(),
+                    #[cfg(feature = "alloc")]
+                    packed_data: bytes[2..].to_vec(),
+                    #[cfg(not(feature = "alloc"))]
+                    packed_data: Vec::<u8, 229>::from_slice(&bytes[2..]).unwrap(),
                 })
             }
             (CommandClass::GetCommand, ParameterId::DeviceInfo) => Ok(Self::GetDeviceInfo),
@@ -2447,6 +2649,7 @@ impl RequestParameter {
                     level: bytes[2],
                 })
             }
+            (CommandClass::GetCommand, ParameterId::SelfTestEnhanced) => Ok(Self::GetSelfTestEnhanced),
             // E1.37-1
             (CommandClass::GetCommand, ParameterId::IdentifyMode) => Ok(Self::GetIdentifyMode),
             (CommandClass::SetCommand, ParameterId::IdentifyMode) => {
@@ -3038,6 +3241,7 @@ pub struct RdmRequest {
     pub source_uid: DeviceUID,
     pub transaction_number: u8,
     pub port_id: u8,
+    pub controller_flags: ControllerFlags,
     pub sub_device_id: SubDeviceId,
     pub parameter: RequestParameter,
 }
@@ -3048,6 +3252,7 @@ impl RdmRequest {
         source_uid: DeviceUID,
         transaction_number: u8,
         port_id: u8,
+        controller_flags: ControllerFlags,
         sub_device_id: SubDeviceId,
         parameter: RequestParameter,
     ) -> Self {
@@ -3056,6 +3261,7 @@ impl RdmRequest {
             source_uid,
             transaction_number,
             port_id,
+            controller_flags,
             sub_device_id,
             parameter,
         }
@@ -3109,11 +3315,10 @@ impl RdmRequest {
         #[cfg(not(feature = "alloc"))]
         buf.push(self.port_id).unwrap();
 
-        // Message Count shall be set to 0x00 in all controller generated requests
         #[cfg(feature = "alloc")]
-        buf.push(0x00);
+        buf.push(self.controller_flags.0);
         #[cfg(not(feature = "alloc"))]
-        buf.push(0x00).unwrap();
+        buf.push(self.controller_flags.0).unwrap();
 
         buf.extend(u16::from(self.sub_device_id).to_be_bytes());
 
@@ -3145,6 +3350,7 @@ impl RdmRequest {
 
         let transaction_number = bytes[15];
         let port_id = bytes[16];
+        let controller_flags = bytes[17].into();
         let sub_device_id = u16::from_be_bytes([bytes[18], bytes[19]]).into();
         let command_class = bytes[20].try_into()?;
         let parameter_id = u16::from_be_bytes([bytes[21], bytes[22]]).into();
@@ -3163,6 +3369,7 @@ impl RdmRequest {
             source_uid,
             transaction_number,
             port_id,
+            controller_flags,
             sub_device_id,
             parameter,
         ))
@@ -3194,6 +3401,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
             SubDeviceId::Id(0x01),
             RequestParameter::DiscUniqueBranch {
                 lower_bound_uid: DeviceUID::new(0x0000, 0x00000000),
@@ -3249,6 +3457,8 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
+
             SubDeviceId::Id(0x01),
             RequestParameter::DiscUniqueBranch {
                 lower_bound_uid: DeviceUID::new(0x0000, 0x00000000),
@@ -3266,6 +3476,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
             SubDeviceId::RootDevice,
             RequestParameter::GetIdentifyDevice,
         )
@@ -3314,6 +3525,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
             SubDeviceId::RootDevice,
             RequestParameter::GetIdentifyDevice,
         );
@@ -3328,6 +3540,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
             SubDeviceId::RootDevice,
             RequestParameter::ManufacturerSpecific {
                 command_class: CommandClass::SetCommand,
@@ -3385,6 +3598,7 @@ mod tests {
             DeviceUID::new(0x0605, 0x04030201),
             0x00,
             0x01,
+            ControllerFlags::new(),
             SubDeviceId::RootDevice,
             RequestParameter::ManufacturerSpecific {
                 command_class: CommandClass::SetCommand,
